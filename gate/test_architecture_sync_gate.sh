@@ -1382,16 +1382,16 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Rule 47 positive: agent-runtime main without RestTemplate / JdbcTemplate
+# Rule 47 positive: agent-service runtime sub-package main without RestTemplate / JdbcTemplate
 # ---------------------------------------------------------------------------
 _r47_pos="$scratch/r47_pos"
-mkdir -p "$_r47_pos/agent-runtime/src/main/java/x"
-cat > "$_r47_pos/agent-runtime/src/main/java/x/Foo.java" <<'EOF'
+mkdir -p "$_r47_pos/agent-service/src/main/java/x"
+cat > "$_r47_pos/agent-service/src/main/java/x/Foo.java" <<'EOF'
 package x;
 import org.springframework.web.reactive.function.client.WebClient;
 public class Foo {}
 EOF
-_r47_pos_hits="$(grep -rEln '^import[[:space:]]+org\.springframework\.(web\.client\.RestTemplate|jdbc\.core\.JdbcTemplate);' "$_r47_pos/agent-runtime/src/main/java" 2>/dev/null || true)"
+_r47_pos_hits="$(grep -rEln '^import[[:space:]]+org\.springframework\.(web\.client\.RestTemplate|jdbc\.core\.JdbcTemplate);' "$_r47_pos/agent-service/src/main/java" 2>/dev/null || true)"
 if [[ -z "$_r47_pos_hits" ]]; then
   ok "rule47_no_blocking_io_pos" "WebClient-only runtime correctly passes"
 else
@@ -1399,16 +1399,16 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Rule 47 negative: agent-runtime main with JdbcTemplate import → flagged
+# Rule 47 negative: agent-service runtime sub-package with JdbcTemplate import → flagged
 # ---------------------------------------------------------------------------
 _r47_neg="$scratch/r47_neg"
-mkdir -p "$_r47_neg/agent-runtime/src/main/java/x"
-cat > "$_r47_neg/agent-runtime/src/main/java/x/BadDao.java" <<'EOF'
+mkdir -p "$_r47_neg/agent-service/src/main/java/x"
+cat > "$_r47_neg/agent-service/src/main/java/x/BadDao.java" <<'EOF'
 package x;
 import org.springframework.jdbc.core.JdbcTemplate;
 public class BadDao {}
 EOF
-_r47_neg_hits="$(grep -rEln '^import[[:space:]]+org\.springframework\.(web\.client\.RestTemplate|jdbc\.core\.JdbcTemplate);' "$_r47_neg/agent-runtime/src/main/java" 2>/dev/null || true)"
+_r47_neg_hits="$(grep -rEln '^import[[:space:]]+org\.springframework\.(web\.client\.RestTemplate|jdbc\.core\.JdbcTemplate);' "$_r47_neg/agent-service/src/main/java" 2>/dev/null || true)"
 if [[ -n "$_r47_neg_hits" ]]; then
   ok "rule47_no_blocking_io_neg" "JdbcTemplate import correctly flagged"
 else
@@ -1419,12 +1419,12 @@ fi
 # Rule 48 positive: main java without Thread.sleep
 # ---------------------------------------------------------------------------
 _r48_pos="$scratch/r48_pos"
-mkdir -p "$_r48_pos/agent-platform/src/main/java/x"
-cat > "$_r48_pos/agent-platform/src/main/java/x/Clean.java" <<'EOF'
+mkdir -p "$_r48_pos/agent-service/src/main/java/x"
+cat > "$_r48_pos/agent-service/src/main/java/x/Clean.java" <<'EOF'
 package x;
 public class Clean { void wait_(){ /* SuspendSignal here */ } }
 EOF
-_r48_pos_hits="$(grep -rEn 'Thread\.sleep[[:space:]]*\(|TimeUnit\.[A-Z_]+\.sleep[[:space:]]*\(' "$_r48_pos/agent-platform/src/main/java" 2>/dev/null || true)"
+_r48_pos_hits="$(grep -rEn 'Thread\.sleep[[:space:]]*\(|TimeUnit\.[A-Z_]+\.sleep[[:space:]]*\(' "$_r48_pos/agent-service/src/main/java" 2>/dev/null || true)"
 if [[ -z "$_r48_pos_hits" ]]; then
   ok "rule48_no_thread_sleep_pos" "clean main java passes"
 else
@@ -1435,12 +1435,12 @@ fi
 # Rule 48 negative: Thread.sleep in main → flagged
 # ---------------------------------------------------------------------------
 _r48_neg="$scratch/r48_neg"
-mkdir -p "$_r48_neg/agent-platform/src/main/java/x"
-cat > "$_r48_neg/agent-platform/src/main/java/x/Sleeper.java" <<'EOF'
+mkdir -p "$_r48_neg/agent-service/src/main/java/x"
+cat > "$_r48_neg/agent-service/src/main/java/x/Sleeper.java" <<'EOF'
 package x;
 public class Sleeper { void w() throws Exception { Thread.sleep(1000); } }
 EOF
-_r48_neg_hits="$(grep -rEn 'Thread\.sleep[[:space:]]*\(|TimeUnit\.[A-Z_]+\.sleep[[:space:]]*\(' "$_r48_neg/agent-platform/src/main/java" 2>/dev/null || true)"
+_r48_neg_hits="$(grep -rEn 'Thread\.sleep[[:space:]]*\(|TimeUnit\.[A-Z_]+\.sleep[[:space:]]*\(' "$_r48_neg/agent-service/src/main/java" 2>/dev/null || true)"
 if [[ -n "$_r48_neg_hits" ]]; then
   ok "rule48_no_thread_sleep_neg" "Thread.sleep correctly flagged"
 else
@@ -1613,9 +1613,9 @@ fi
 # Rule 53 positive: RunCursorFlowIT carries the canonical method + <200ms assertion
 # ---------------------------------------------------------------------------
 _r53_pos="$scratch/r53_pos"
-mkdir -p "$_r53_pos/agent-platform/src/test/java/ascend/springai/platform/web/runs"
-cat > "$_r53_pos/agent-platform/src/test/java/ascend/springai/platform/web/runs/RunCursorFlowIT.java" <<'EOF'
-package ascend.springai.platform.web.runs;
+mkdir -p "$_r53_pos/agent-service/src/test/java/ascend/springai/service/platform/web/runs"
+cat > "$_r53_pos/agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunCursorFlowIT.java" <<'EOF'
+package ascend.springai.service.platform.web.runs;
 class RunCursorFlowIT {
   void createReturns202WithCursorWithin200ms() {
     long elapsed = 0L;
@@ -1624,8 +1624,8 @@ class RunCursorFlowIT {
 }
 EOF
 _r53_pos_ok=0
-if grep -qE 'void[[:space:]]+createReturns202WithCursorWithin200ms[[:space:]]*\(' "$_r53_pos/agent-platform/src/test/java/ascend/springai/platform/web/runs/RunCursorFlowIT.java" \
-   && grep -qE 'isLessThan\([[:space:]]*200L?[[:space:]]*\)' "$_r53_pos/agent-platform/src/test/java/ascend/springai/platform/web/runs/RunCursorFlowIT.java"; then
+if grep -qE 'void[[:space:]]+createReturns202WithCursorWithin200ms[[:space:]]*\(' "$_r53_pos/agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunCursorFlowIT.java" \
+   && grep -qE 'isLessThan\([[:space:]]*200L?[[:space:]]*\)' "$_r53_pos/agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunCursorFlowIT.java"; then
   _r53_pos_ok=1
 fi
 if [[ "$_r53_pos_ok" -eq 1 ]]; then
@@ -1638,9 +1638,9 @@ fi
 # Rule 53 negative: RunCursorFlowIT missing the elapsed-ms assertion
 # ---------------------------------------------------------------------------
 _r53_neg="$scratch/r53_neg"
-mkdir -p "$_r53_neg/agent-platform/src/test/java/ascend/springai/platform/web/runs"
-cat > "$_r53_neg/agent-platform/src/test/java/ascend/springai/platform/web/runs/RunCursorFlowIT.java" <<'EOF'
-package ascend.springai.platform.web.runs;
+mkdir -p "$_r53_neg/agent-service/src/test/java/ascend/springai/service/platform/web/runs"
+cat > "$_r53_neg/agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunCursorFlowIT.java" <<'EOF'
+package ascend.springai.service.platform.web.runs;
 class RunCursorFlowIT {
   void createReturns202WithCursorWithin200ms() {
     // intentionally missing the elapsed-ms assertion (Rule 53 negative fixture)
@@ -1649,7 +1649,7 @@ class RunCursorFlowIT {
 }
 EOF
 _r53_neg_missing=1
-if grep -qE 'isLessThan\([[:space:]]*200L?[[:space:]]*\)' "$_r53_neg/agent-platform/src/test/java/ascend/springai/platform/web/runs/RunCursorFlowIT.java"; then
+if grep -qE 'isLessThan\([[:space:]]*200L?[[:space:]]*\)' "$_r53_neg/agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunCursorFlowIT.java"; then
   _r53_neg_missing=0
 fi
 if [[ "$_r53_neg_missing" -eq 1 ]]; then
@@ -1662,23 +1662,23 @@ fi
 # Rule 54 positive: DefaultSkillResilienceContract has two-arg resolve + tryAcquire
 # ---------------------------------------------------------------------------
 _r54_pos="$scratch/r54_pos"
-mkdir -p "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience"
-cat > "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience/SkillCapacityRegistry.java" <<'EOF'
-package ascend.springai.runtime.resilience;
+mkdir -p "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience"
+cat > "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience/SkillCapacityRegistry.java" <<'EOF'
+package ascend.springai.service.runtime.resilience;
 public interface SkillCapacityRegistry { boolean tryAcquire(String t, String s); }
 EOF
-cat > "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience/SkillResolution.java" <<'EOF'
-package ascend.springai.runtime.resilience;
+cat > "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience/SkillResolution.java" <<'EOF'
+package ascend.springai.service.runtime.resilience;
 public record SkillResolution(boolean admitted, Object reasonIfRejected) {}
 EOF
-cat > "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience/SuspendReason.java" <<'EOF'
-package ascend.springai.runtime.resilience;
+cat > "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience/SuspendReason.java" <<'EOF'
+package ascend.springai.service.runtime.resilience;
 public sealed interface SuspendReason permits SuspendReason.RateLimited {
   record RateLimited(String s, String c) implements SuspendReason {}
 }
 EOF
-cat > "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience/DefaultSkillResilienceContract.java" <<'EOF'
-package ascend.springai.runtime.resilience;
+cat > "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience/DefaultSkillResilienceContract.java" <<'EOF'
+package ascend.springai.service.runtime.resilience;
 public class DefaultSkillResilienceContract {
   private final SkillCapacityRegistry registry;
   public DefaultSkillResilienceContract(SkillCapacityRegistry r) { this.registry = r; }
@@ -1690,13 +1690,13 @@ public class DefaultSkillResilienceContract {
 EOF
 _r54_pos_ok=1
 for _r54_f in SkillCapacityRegistry SkillResolution SuspendReason DefaultSkillResilienceContract; do
-  if [[ ! -f "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience/${_r54_f}.java" ]]; then
+  if [[ ! -f "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience/${_r54_f}.java" ]]; then
     _r54_pos_ok=0
   fi
 done
 if [[ "$_r54_pos_ok" -eq 1 ]] \
-   && grep -qE 'SkillResolution[[:space:]]+resolve\([[:space:]]*String[[:space:]]+\w+,[[:space:]]*String[[:space:]]+\w+[[:space:]]*\)' "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience/DefaultSkillResilienceContract.java" \
-   && grep -qE 'tryAcquire\(' "$_r54_pos/agent-runtime/src/main/java/ascend/springai/runtime/resilience/DefaultSkillResilienceContract.java"; then
+   && grep -qE 'SkillResolution[[:space:]]+resolve\([[:space:]]*String[[:space:]]+\w+,[[:space:]]*String[[:space:]]+\w+[[:space:]]*\)' "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience/DefaultSkillResilienceContract.java" \
+   && grep -qE 'tryAcquire\(' "$_r54_pos/agent-service/src/main/java/ascend/springai/service/runtime/resilience/DefaultSkillResilienceContract.java"; then
   ok "rule54_skill_capacity_runtime_pos" "DefaultSkillResilienceContract has two-arg resolve + tryAcquire"
 else
   fail "rule54_skill_capacity_runtime_pos" "expected canonical class shape"
@@ -1706,9 +1706,9 @@ fi
 # Rule 54 negative: DefaultSkillResilienceContract that silently admits everyone
 # ---------------------------------------------------------------------------
 _r54_neg="$scratch/r54_neg"
-mkdir -p "$_r54_neg/agent-runtime/src/main/java/ascend/springai/runtime/resilience"
-cat > "$_r54_neg/agent-runtime/src/main/java/ascend/springai/runtime/resilience/DefaultSkillResilienceContract.java" <<'EOF'
-package ascend.springai.runtime.resilience;
+mkdir -p "$_r54_neg/agent-service/src/main/java/ascend/springai/service/runtime/resilience"
+cat > "$_r54_neg/agent-service/src/main/java/ascend/springai/service/runtime/resilience/DefaultSkillResilienceContract.java" <<'EOF'
+package ascend.springai.service.runtime.resilience;
 public class DefaultSkillResilienceContract {
   public SkillResolution resolve(String tenant, String skill) {
     // intentionally missing the registry consultation (Rule 54 negative fixture)
@@ -1717,7 +1717,7 @@ public class DefaultSkillResilienceContract {
 }
 EOF
 _r54_neg_missing=1
-if grep -qE 'tryAcquire\(' "$_r54_neg/agent-runtime/src/main/java/ascend/springai/runtime/resilience/DefaultSkillResilienceContract.java"; then
+if grep -qE 'tryAcquire\(' "$_r54_neg/agent-service/src/main/java/ascend/springai/service/runtime/resilience/DefaultSkillResilienceContract.java"; then
   _r54_neg_missing=0
 fi
 if [[ "$_r54_neg_missing" -eq 1 ]]; then
@@ -1781,27 +1781,27 @@ fi
 # ---------------------------------------------------------------------------
 _r56_pos="$scratch/r56_pos"
 mkdir -p "$_r56_pos/docs/contracts"
-mkdir -p "$_r56_pos/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi"
+mkdir -p "$_r56_pos/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi"
 cat > "$_r56_pos/docs/contracts/engine-envelope.v1.yaml" <<'EOF'
 schema: engine-envelope/v1
 known_engines:
   - id: graph
   - id: agent-loop
 EOF
-cat > "$_r56_pos/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi/GraphExecutor.java" <<'EOF'
-package ascend.springai.runtime.orchestration.spi;
+cat > "$_r56_pos/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi/GraphExecutor.java" <<'EOF'
+package ascend.springai.service.runtime.orchestration.spi;
 public interface GraphExecutor {
   String ENGINE_TYPE = "graph";
 }
 EOF
-cat > "$_r56_pos/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi/AgentLoopExecutor.java" <<'EOF'
-package ascend.springai.runtime.orchestration.spi;
+cat > "$_r56_pos/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi/AgentLoopExecutor.java" <<'EOF'
+package ascend.springai.service.runtime.orchestration.spi;
 public interface AgentLoopExecutor {
   String ENGINE_TYPE = "agent-loop";
 }
 EOF
 _r56_pos_yaml_ids=$(grep -E '^[[:space:]]+- id:[[:space:]]+' "$_r56_pos/docs/contracts/engine-envelope.v1.yaml" | sed -E 's/^[[:space:]]+- id:[[:space:]]+([A-Za-z0-9_.-]+).*/\1/' | sort -u)
-_r56_pos_src_ids=$(grep -rhE 'String[[:space:]]+ENGINE_TYPE[[:space:]]*=[[:space:]]*"[A-Za-z0-9_.-]+"' "$_r56_pos/agent-runtime/src/main/java" 2>/dev/null | sed -E 's/.*ENGINE_TYPE[[:space:]]*=[[:space:]]*"([A-Za-z0-9_.-]+)".*/\1/' | sort -u)
+_r56_pos_src_ids=$(grep -rhE 'String[[:space:]]+ENGINE_TYPE[[:space:]]*=[[:space:]]*"[A-Za-z0-9_.-]+"' "$_r56_pos/agent-service/src/main/java" 2>/dev/null | sed -E 's/.*ENGINE_TYPE[[:space:]]*=[[:space:]]*"([A-Za-z0-9_.-]+)".*/\1/' | sort -u)
 _r56_pos_ok=1
 for _id in $_r56_pos_yaml_ids; do
   if ! echo "$_r56_pos_src_ids" | grep -qxE "${_id}"; then _r56_pos_ok=0; fi
@@ -1820,22 +1820,22 @@ fi
 # ---------------------------------------------------------------------------
 _r56_neg="$scratch/r56_neg"
 mkdir -p "$_r56_neg/docs/contracts"
-mkdir -p "$_r56_neg/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi"
+mkdir -p "$_r56_neg/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi"
 cat > "$_r56_neg/docs/contracts/engine-envelope.v1.yaml" <<'EOF'
 schema: engine-envelope/v1
 known_engines:
   - id: graph
   - id: agent-loop
 EOF
-cat > "$_r56_neg/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi/AgentLoopExecutor.java" <<'EOF'
-package ascend.springai.runtime.orchestration.spi;
+cat > "$_r56_neg/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi/AgentLoopExecutor.java" <<'EOF'
+package ascend.springai.service.runtime.orchestration.spi;
 public interface AgentLoopExecutor {
   String ENGINE_TYPE = "agent-loop";
   // intentionally NO GraphExecutor with ENGINE_TYPE = "graph" (Rule 56 negative fixture)
 }
 EOF
 _r56_neg_yaml_ids=$(grep -E '^[[:space:]]+- id:[[:space:]]+' "$_r56_neg/docs/contracts/engine-envelope.v1.yaml" | sed -E 's/^[[:space:]]+- id:[[:space:]]+([A-Za-z0-9_.-]+).*/\1/' | sort -u)
-_r56_neg_src_ids=$(grep -rhE 'String[[:space:]]+ENGINE_TYPE[[:space:]]*=[[:space:]]*"[A-Za-z0-9_.-]+"' "$_r56_neg/agent-runtime/src/main/java" 2>/dev/null | sed -E 's/.*ENGINE_TYPE[[:space:]]*=[[:space:]]*"([A-Za-z0-9_.-]+)".*/\1/' | sort -u)
+_r56_neg_src_ids=$(grep -rhE 'String[[:space:]]+ENGINE_TYPE[[:space:]]*=[[:space:]]*"[A-Za-z0-9_.-]+"' "$_r56_neg/agent-service/src/main/java" 2>/dev/null | sed -E 's/.*ENGINE_TYPE[[:space:]]*=[[:space:]]*"([A-Za-z0-9_.-]+)".*/\1/' | sort -u)
 _r56_neg_flagged=0
 for _id in $_r56_neg_yaml_ids; do
   if ! echo "$_r56_neg_src_ids" | grep -qxE "${_id}"; then _r56_neg_flagged=1; fi
@@ -1851,22 +1851,22 @@ fi
 # ---------------------------------------------------------------------------
 _r57_pos="$scratch/r57_pos"
 mkdir -p "$_r57_pos/docs/contracts"
-mkdir -p "$_r57_pos/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi"
+mkdir -p "$_r57_pos/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi"
 cat > "$_r57_pos/docs/contracts/engine-hooks.v1.yaml" <<'EOF'
 schema: engine-hooks/v1
 hooks:
   - before_llm_invocation
   - on_error
 EOF
-cat > "$_r57_pos/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi/HookPoint.java" <<'EOF'
-package ascend.springai.runtime.orchestration.spi;
+cat > "$_r57_pos/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi/HookPoint.java" <<'EOF'
+package ascend.springai.service.runtime.orchestration.spi;
 public enum HookPoint {
     BEFORE_LLM_INVOCATION,
     ON_ERROR
 }
 EOF
 _r57_pos_yaml=$(awk '/^hooks:/{f=1;next} /^[a-z_]+:/{f=0} f && /^[[:space:]]+- [a-z_]+/{gsub(/^[[:space:]]+- /,""); print}' "$_r57_pos/docs/contracts/engine-hooks.v1.yaml" | sort -u)
-_r57_pos_enum=$(grep -E '^[[:space:]]+[A-Z_]+[,;]?[[:space:]]*$' "$_r57_pos/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi/HookPoint.java" | sed -E 's/[[:space:]]+([A-Z_]+)[,;]?[[:space:]]*/\1/' | tr 'A-Z_' 'a-z_' | sort -u)
+_r57_pos_enum=$(grep -E '^[[:space:]]+[A-Z_]+[,;]?[[:space:]]*$' "$_r57_pos/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi/HookPoint.java" | sed -E 's/[[:space:]]+([A-Z_]+)[,;]?[[:space:]]*/\1/' | tr 'A-Z_' 'a-z_' | sort -u)
 _r57_pos_ok=1
 for _h in $_r57_pos_yaml; do if ! echo "$_r57_pos_enum" | grep -qxE "${_h}"; then _r57_pos_ok=0; fi; done
 for _e in $_r57_pos_enum; do if ! echo "$_r57_pos_yaml" | grep -qxE "${_e}"; then _r57_pos_ok=0; fi; done
@@ -1881,22 +1881,22 @@ fi
 # ---------------------------------------------------------------------------
 _r57_neg="$scratch/r57_neg"
 mkdir -p "$_r57_neg/docs/contracts"
-mkdir -p "$_r57_neg/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi"
+mkdir -p "$_r57_neg/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi"
 cat > "$_r57_neg/docs/contracts/engine-hooks.v1.yaml" <<'EOF'
 schema: engine-hooks/v1
 hooks:
   - before_llm_invocation
   - on_error
 EOF
-cat > "$_r57_neg/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi/HookPoint.java" <<'EOF'
-package ascend.springai.runtime.orchestration.spi;
+cat > "$_r57_neg/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi/HookPoint.java" <<'EOF'
+package ascend.springai.service.runtime.orchestration.spi;
 public enum HookPoint {
     BEFORE_LLM_INVOCATION
     // intentionally missing ON_ERROR (Rule 57 negative fixture)
 }
 EOF
 _r57_neg_yaml=$(awk '/^hooks:/{f=1;next} /^[a-z_]+:/{f=0} f && /^[[:space:]]+- [a-z_]+/{gsub(/^[[:space:]]+- /,""); print}' "$_r57_neg/docs/contracts/engine-hooks.v1.yaml" | sort -u)
-_r57_neg_enum=$(grep -E '^[[:space:]]+[A-Z_]+[,;]?[[:space:]]*$' "$_r57_neg/agent-runtime/src/main/java/ascend/springai/runtime/orchestration/spi/HookPoint.java" | sed -E 's/[[:space:]]+([A-Z_]+)[,;]?[[:space:]]*/\1/' | tr 'A-Z_' 'a-z_' | sort -u)
+_r57_neg_enum=$(grep -E '^[[:space:]]+[A-Z_]+[,;]?[[:space:]]*$' "$_r57_neg/agent-service/src/main/java/ascend/springai/service/runtime/orchestration/spi/HookPoint.java" | sed -E 's/[[:space:]]+([A-Z_]+)[,;]?[[:space:]]*/\1/' | tr 'A-Z_' 'a-z_' | sort -u)
 _r57_neg_flagged=0
 for _h in $_r57_neg_yaml; do if ! echo "$_r57_neg_enum" | grep -qxE "${_h}"; then _r57_neg_flagged=1; fi; done
 if [[ "$_r57_neg_flagged" -eq 1 ]]; then
@@ -2151,13 +2151,13 @@ fi
 # ---------------------------------------------------------------------------
 _r28k_pos="$scratch/r28k_pos"
 mkdir -p "$_r28k_pos/docs/governance"
-mkdir -p "$_r28k_pos/agent-runtime/src/test/java/com/example"
+mkdir -p "$_r28k_pos/agent-service/src/test/java/com/example"
 cat > "$_r28k_pos/docs/governance/enforcers.yaml" <<'EOF'
 - id: E100
   kind: integration
-  artifact: agent-runtime/src/test/java/com/example/FooIT.java#some_test
+  artifact: agent-service/src/test/java/com/example/FooIT.java#some_test
 EOF
-cat > "$_r28k_pos/agent-runtime/src/test/java/com/example/FooIT.java" <<'EOF'
+cat > "$_r28k_pos/agent-service/src/test/java/com/example/FooIT.java" <<'EOF'
 // Enforcer row: docs/governance/enforcers.yaml#E100
 class FooIT {}
 EOF
@@ -2173,7 +2173,7 @@ _r28k_pos_art=$(awk -v id="$_r28k_pos_eid" '
     exit
   }
 ' "$_r28k_pos/docs/governance/enforcers.yaml")
-_r28k_pos_src="agent-runtime/src/test/java/com/example/FooIT.java"
+_r28k_pos_src="agent-service/src/test/java/com/example/FooIT.java"
 if [[ "$_r28k_pos_art" == "$_r28k_pos_src" ]]; then
   ok "rule28k_javadoc_citation_pos" "matching Javadoc citation + artifact path"
 else
@@ -2186,13 +2186,13 @@ fi
 # ---------------------------------------------------------------------------
 _r28k_neg="$scratch/r28k_neg"
 mkdir -p "$_r28k_neg/docs/governance"
-mkdir -p "$_r28k_neg/agent-runtime/src/test/java/com/example"
+mkdir -p "$_r28k_neg/agent-service/src/test/java/com/example"
 cat > "$_r28k_neg/docs/governance/enforcers.yaml" <<'EOF'
 - id: E101
   kind: integration
-  artifact: agent-runtime/src/test/java/com/other/BarIT.java#some_test
+  artifact: agent-service/src/test/java/com/other/BarIT.java#some_test
 EOF
-cat > "$_r28k_neg/agent-runtime/src/test/java/com/example/FooIT.java" <<'EOF'
+cat > "$_r28k_neg/agent-service/src/test/java/com/example/FooIT.java" <<'EOF'
 // Mis-citation: this file cites E101 but E101's artifact is BarIT.java
 // docs/governance/enforcers.yaml#E101
 class FooIT {}
@@ -2209,7 +2209,7 @@ _r28k_neg_art=$(awk -v id="$_r28k_neg_eid" '
     exit
   }
 ' "$_r28k_neg/docs/governance/enforcers.yaml")
-_r28k_neg_src="agent-runtime/src/test/java/com/example/FooIT.java"
+_r28k_neg_src="agent-service/src/test/java/com/example/FooIT.java"
 if [[ "$_r28k_neg_art" != "$_r28k_neg_src" ]]; then
   ok "rule28k_javadoc_citation_neg" "mismatched Javadoc citation correctly flagged"
 else

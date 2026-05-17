@@ -100,7 +100,7 @@ principles:
     operationalised_by_rules:
       - Rule-37
     deferred_operationalisers:
-      - Rule-37.c   # agent-platform JdbcTemplate migration to R2DBC — W2
+      - Rule-37.c   # agent-service service.platform JdbcTemplate migration to R2DBC — W2 (was agent-platform pre-Phase-C / ADR-0078)
 
   - id: P-H
     name: "Chronos Hydration"

@@ -36,7 +36,7 @@ skills:
     timeout_ms: 60000                                 # 60s upper bound; longer waits MUST go through resume mechanism
     realised_by:
       module_l0: agent-middleware
-      reactor_module: agent-runtime-java              # current platform module hosts the gateway
+      reactor_module: agent-service              # current platform module hosts the gateway
       enforcer: ResilienceContract.resolve
 
   - id: memory-write
@@ -61,8 +61,8 @@ skills:
     queue_strategy: suspend                           # TARGET: over-cap callers receive SuspendReason.RateLimited (W2 wiring per Rule 46.b)
     timeout_ms: 30000                                 # 30s upper bound; longer waits use AwaitClientCallback.deadline
     realised_by:
-      module_l0: agent-runtime
-      reactor_module: agent-runtime
+      module_l0: agent-service
+      reactor_module: agent-service
       # rc2 truth alignment: SyncOrchestrator.handleClientCallback today only
       # validates the S2C response and transitions the Run to FAILED on the
       # five typed failure modes (E82 round-trip + E90 FAILED-transition IT).

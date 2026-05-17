@@ -67,7 +67,7 @@
 #  --- W1.x L0 ironclad-rule enforcers (ADR-0069) ---
 #  45.  bus_channels_three_track_present               -- bus-channels.yaml declares 3 channels with unique physical_channel (Rule 35 / P-E, enforcer E64)
 #  46.  cursor_flow_documented                         -- openapi-v1.yaml declares TaskCursor schema + x-cursor-flow annotation (Rule 36 / P-F, enforcer E65)
-#  47.  no_blocking_io_in_runtime_main                 -- agent-runtime/src/main excludes RestTemplate / JdbcTemplate (Rule 37 / P-G, enforcer E66)
+#  47.  no_blocking_io_in_runtime_main                 -- agent-service/src/main excludes RestTemplate / JdbcTemplate (Rule 37 / P-G, enforcer E66)
 #  48.  no_thread_sleep_in_business_code               -- main java sources exclude Thread.sleep / TimeUnit.sleep (Rule 38 / P-H, enforcer E67)
 #  49.  deployment_plane_in_module_metadata            -- every module-metadata.yaml declares deployment_plane (Rule 39 / P-I, enforcer E68)
 #  50.  rls_for_new_tenant_tables                      -- Flyway migrations with tenant_id enable RLS or are grandfathered (Rule 40 / P-J, enforcer E69)
@@ -79,7 +79,7 @@
 #  54.  skill_capacity_runtime_resolver_present        -- DefaultSkillResilienceContract implements resolve(tenant, skill) consulting SkillCapacityRegistry; rejection carries SuspendReason.RateLimited (Rule 41.b / P-K, enforcer E73)
 #  --- W2.x Phase 1 — Engine Envelope + Strict Matching (ADR-0072) ---
 #  55.  engine_envelope_yaml_present_and_wellformed    -- docs/contracts/engine-envelope.v1.yaml declares schema + known_engines + at least one id (Rule 43 / P-M, enforcer E76)
-#  56.  engine_registry_covers_all_known_engines       -- bidirectional id <-> ENGINE_TYPE consistency between yaml and agent-runtime/src/main (Rule 44 / P-M, enforcer E77)
+#  56.  engine_registry_covers_all_known_engines       -- bidirectional id <-> ENGINE_TYPE consistency between yaml and agent-service/src/main (Rule 44 / P-M, enforcer E77)
 #  --- W2.x Phase 2 — Engine Hooks + Runtime Middleware SPI (ADR-0073) ---
 #  57.  engine_hooks_yaml_present_and_wellformed       -- docs/contracts/engine-hooks.v1.yaml declares 9-hook list matching HookPoint enum (Rule 45 / P-M, enforcer E78)
 #  --- W2.x Phase 3 — S2C Capability Callback (ADR-0074) ---
@@ -283,11 +283,11 @@ while IFS= read -r _jf; do
       fi
     done
   done < "$_jf"
-done < <(find agent-platform/src agent-runtime/src -name '*.java' 2>/dev/null | sort || true)
+done < <(find agent-service/src -name '*.java' 2>/dev/null | sort || true)
 # Check for residual springai_fin_ prefix outside docs/archive/
 if grep -rn 'springai_fin_\|springai\.fin\.' \
     --include='*.java' \
-    agent-platform/src agent-runtime/src \
+    agent-service/src \
     2>/dev/null | grep -qv 'docs/archive'; then
   fail_rule "metric_naming_namespace" "residual springai_fin_ or springai.fin. found in Java sources"
   _r6_fail=1
@@ -345,7 +345,7 @@ if [[ $_r7_fail -eq 0 ]]; then pass_rule "shipped_impl_paths_exist"; fi
 # pin OSS versions inline (e.g., "Spring Boot 3.2.1" or "Java 21.0.2").
 # ---------------------------------------------------------------------------
 _r8_fail=0
-for _arch in 'agent-platform/ARCHITECTURE.md' 'agent-runtime/ARCHITECTURE.md'; do
+for _arch in 'agent-service/ARCHITECTURE.md' 'agent-service/ARCHITECTURE.md'; do
   if [[ -f "$_arch" ]]; then
     if grep -qE '[0-9]+\.[0-9]+\.[0-9]+' "$_arch" 2>/dev/null; then
       fail_rule "no_hardcoded_versions_in_arch" "$_arch contains inline version pin (x.y.z pattern). Move version pins to pom.xml or oss-bill-of-materials.md."
@@ -361,7 +361,7 @@ if [[ $_r8_fail -eq 0 ]]; then pass_rule "no_hardcoded_versions_in_arch"; fi
 # the security permit path.
 # ---------------------------------------------------------------------------
 _r9_fail=0
-_plat_arch='agent-platform/ARCHITECTURE.md'
+_plat_arch='agent-service/ARCHITECTURE.md'
 if [[ -f "$_plat_arch" ]]; then
   if ! grep -q '/v3/api-docs' "$_plat_arch" 2>/dev/null; then
     fail_rule "openapi_path_consistency" "$_plat_arch does not document /v3/api-docs exposure. Document it or remove the security permitAll."
@@ -371,19 +371,24 @@ fi
 if [[ $_r9_fail -eq 0 ]]; then pass_rule "openapi_path_consistency"; fi
 
 # ---------------------------------------------------------------------------
-# Rule 10 — module_dep_direction (amended at L1 by ADR-0055)
-# agent-runtime/pom.xml must NOT declare a dependency on agent-platform.
-# (agent-platform -> agent-runtime is now ALLOWED per ADR-0055 for the W1
-# HTTP run handoff. The reverse direction stays forbidden at pom level here
-# and at source level via RuntimeMustNotDependOnPlatformTest, enforcer E2.)
+# Rule 10 — module_dep_direction (amended at L1 by ADR-0055; further by ADR-0078)
+# Phase C consolidation (ADR-0078) merged agent-platform + agent-runtime into a
+# single agent-service Maven module. The cross-module pom direction is no longer
+# meaningful: the new invariant is INTRA-MODULE sub-package layering —
+#   ascend.springai.service.runtime.* MUST NOT depend on ascend.springai.service.platform.*
+# enforced at source level by ArchUnit RuntimeMustNotDependOnPlatformTest (E2).
+# At the pom level, this rule asserts agent-service does not regress by adding
+# a dependency on a deleted artifact (agent-platform, agent-runtime).
 # Enforcer row: docs/governance/enforcers.yaml#E1
 # ---------------------------------------------------------------------------
 _r10_fail=0
-if [[ -f 'agent-runtime/pom.xml' ]]; then
-  if grep -q '<artifactId>agent-platform</artifactId>' 'agent-runtime/pom.xml' 2>/dev/null; then
-    fail_rule "module_dep_direction" "agent-runtime/pom.xml declares dependency on agent-platform. Per ADR-0055 forbidden (runtime must not depend on platform)."
-    _r10_fail=1
-  fi
+if [[ -f 'agent-service/pom.xml' ]]; then
+  for _r10_dead in 'agent-platform' 'agent-runtime'; do
+    if grep -q "<artifactId>${_r10_dead}</artifactId>" 'agent-service/pom.xml' 2>/dev/null; then
+      fail_rule "module_dep_direction" "agent-service/pom.xml declares dependency on ${_r10_dead}. Per ADR-0078 this artifact was deleted in Phase C consolidation."
+      _r10_fail=1
+    fi
+  done
 fi
 if [[ $_r10_fail -eq 0 ]]; then pass_rule "module_dep_direction"; fi
 
@@ -393,7 +398,7 @@ if [[ $_r10_fail -eq 0 ]]; then pass_rule "module_dep_direction"; fi
 # the §4 #13 16-KiB inline cap is actually enforced (not just documented).
 # ---------------------------------------------------------------------------
 _r11_fail=0
-_imc_path='agent-runtime/src/main/java/ascend/springai/runtime/orchestration/inmemory/InMemoryCheckpointer.java'
+_imc_path='agent-service/src/main/java/ascend/springai/service/runtime/orchestration/inmemory/InMemoryCheckpointer.java'
 if [[ -f "$_imc_path" ]]; then
   if ! grep -q 'MAX_INLINE_PAYLOAD_BYTES' "$_imc_path" 2>/dev/null; then
     fail_rule "shipped_envelope_fingerprint_present" "$_imc_path missing MAX_INLINE_PAYLOAD_BYTES. §4 #13 16-KiB cap enforcement required."
@@ -413,9 +418,9 @@ if [[ $_r11_fail -eq 0 ]]; then pass_rule "shipped_envelope_fingerprint_present"
 # ---------------------------------------------------------------------------
 _r12_fail=0
 _posture_targets=(
-  'agent-runtime/src/main/java/ascend/springai/runtime/orchestration/inmemory/SyncOrchestrator.java'
-  'agent-runtime/src/main/java/ascend/springai/runtime/orchestration/inmemory/InMemoryRunRegistry.java'
-  'agent-runtime/src/main/java/ascend/springai/runtime/orchestration/inmemory/InMemoryCheckpointer.java'
+  'agent-service/src/main/java/ascend/springai/service/runtime/orchestration/inmemory/SyncOrchestrator.java'
+  'agent-service/src/main/java/ascend/springai/service/runtime/orchestration/inmemory/InMemoryRunRegistry.java'
+  'agent-service/src/main/java/ascend/springai/service/runtime/orchestration/inmemory/InMemoryCheckpointer.java'
 )
 for _pt in "${_posture_targets[@]}"; do
   if [[ -f "$_pt" ]]; then
@@ -470,13 +475,13 @@ if [[ $_r13_fail -eq 0 ]]; then pass_rule "contract_catalog_no_deleted_spi_or_st
 
 # ---------------------------------------------------------------------------
 # Rule 14 — module_arch_method_name_truth
-# ADR-0036: method names in code-fence blocks in agent-platform/ARCHITECTURE.md
-# and agent-runtime/ARCHITECTURE.md must exist in the named Java class.
+# ADR-0036: method names in code-fence blocks in agent-service/ARCHITECTURE.md
+# and agent-service/ARCHITECTURE.md must exist in the named Java class.
 # Currently checks the specific known drift: probe.check() was wrong; correct
 # is probe.probe(). Fails if probe.check() appears in any module ARCHITECTURE.md.
 # ---------------------------------------------------------------------------
 _r14_fail=0
-for _maf in 'agent-platform/ARCHITECTURE.md' 'agent-runtime/ARCHITECTURE.md'; do
+for _maf in 'agent-service/ARCHITECTURE.md' 'agent-service/ARCHITECTURE.md'; do
   if [[ -f "$_maf" ]]; then
     if grep -q 'probe\.check()' "$_maf" 2>/dev/null; then
       fail_rule "module_arch_method_name_truth" "$_maf references probe.check() but actual method in OssApiProbe is probe.probe(). Per ADR-0036 Gate Rule 14 method names in docs must match source."
@@ -784,9 +789,11 @@ if [[ $_r20_fail -eq 0 ]]; then pass_rule "module_metadata_truth"; fi
 _r21_fail=0
 _bom21='docs/cross-cutting/oss-bill-of-materials.md'
 _ghost_paths21=(
-  'agent-runtime/llm/ChatClientFactory' 'agent-runtime/llm/LlmRouter'
-  'agent-runtime/memory/PgVectorAdapter' 'agent-runtime/temporal/RunWorkflow'
-  'agent-runtime/tool/McpToolRegistry'
+  'agent-service/src/main/java/ascend/springai/service/runtime/llm/ChatClientFactory'
+  'agent-service/src/main/java/ascend/springai/service/runtime/llm/LlmRouter'
+  'agent-service/src/main/java/ascend/springai/service/runtime/memory/PgVectorAdapter'
+  'agent-service/src/main/java/ascend/springai/service/runtime/temporal/RunWorkflow'
+  'agent-service/src/main/java/ascend/springai/service/runtime/tool/McpToolRegistry'
 )
 if [[ -f "$_bom21" ]]; then
   for _gp21 in "${_ghost_paths21[@]}"; do
@@ -944,7 +951,7 @@ while IFS= read -r _sf25; do
       fi
     done < <(grep -nF 'Primary sidecar impl:' "$_sf25" 2>/dev/null; grep -nF 'Primary impl:' "$_sf25" 2>/dev/null)
   fi
-done < <(find agent-runtime/src/main/java -name '*.java' ! -path './target/*' 2>/dev/null || true)
+done < <(find agent-service/src/main/java -name '*.java' ! -path './target/*' 2>/dev/null || true)
 # 25b: active markdown docs
 while IFS= read -r _af25; do
   [[ -z "$_af25" ]] && continue
@@ -1252,7 +1259,7 @@ if [[ $_r28a_fail -eq 0 ]]; then pass_rule "tenant_column_present"; fi
 _r28b_fail=0
 _forbidden_tag_pattern='Tag\.of\(\s*"(run_id|idempotency_key|jwt_sub|body)"'
 _28b_hits=$(grep -rnE "$_forbidden_tag_pattern" \
-  agent-platform/src/main/java agent-runtime/src/main/java 2>/dev/null || true)
+  agent-service/src/main/java agent-service/src/main/java 2>/dev/null || true)
 if [[ -n "$_28b_hits" ]]; then
   fail_rule "high_cardinality_tag_guard" "Forbidden high-cardinality metric tag found:\n$_28b_hits\nPer Rule 28b / enforcer E19."
   _r28b_fail=1
@@ -1296,7 +1303,7 @@ if [[ $_r28c_fail -eq 0 ]]; then pass_rule "no_secret_patterns"; fi
 _r28d_fail=0
 _oos_names='LLMGateway|PostgresCheckpointer|SkillRegistry|HookChain|SpawnEnvelope|LogicalCallHandle|ConnectionLease|AdmissionDecision|BackpressureSignal|ChronosHydration|SandboxExecutor'
 _28d_hits=$(grep -rnE "\\b($_oos_names)\\b" \
-  agent-platform/src/main/java agent-runtime/src/main/java 2>/dev/null || true)
+  agent-service/src/main/java agent-service/src/main/java 2>/dev/null || true)
 if [[ -n "$_28d_hits" ]]; then
   fail_rule "out_of_scope_name_guard" "W2+ out-of-scope name detected in main sources:\n$_28d_hits\nPer Rule 28d / enforcer E26 / plan §13."
   _r28d_fail=1
@@ -1400,7 +1407,7 @@ _marker_pattern='(TODO|FIXME|XXX|deferred)[[:space:]]*:[[:space:]]*(enforce|enfo
 _28g_files=(CLAUDE.md ARCHITECTURE.md)
 while IFS= read -r _arch; do
   [[ -n "$_arch" ]] && _28g_files+=("$_arch")
-done < <(ls agent-platform/ARCHITECTURE.md agent-runtime/ARCHITECTURE.md 2>/dev/null || true)
+done < <(ls agent-service/ARCHITECTURE.md agent-service/ARCHITECTURE.md 2>/dev/null || true)
 _28g_exempt=("docs/adr/0059-code-as-contract-architectural-enforcement.md")
 while IFS= read -r _adr; do
   [[ -z "$_adr" ]] && continue
@@ -1553,8 +1560,8 @@ if [[ $_r28j_fail -eq 0 ]]; then pass_rule "enforcer_artifact_paths_exist"; fi
 # test file citing `enforcers.yaml#E<n>` in its Javadoc actually corresponds
 # to E<n>'s declared `artifact:` field.
 #
-# This rule scans *Test.java and *IT.java under agent-runtime/src/test/java
-# and agent-platform/src/test/java for Javadoc citations of the form
+# This rule scans *Test.java and *IT.java under agent-service/src/test/java
+# and agent-service/src/test/java for Javadoc citations of the form
 # `enforcers.yaml#E<n>` and asserts each cited E-row's `artifact:` field's
 # file path (anchor stripped, path normalised) matches the source file
 # path. Mis-citation is a Rule 25 truth violation.
@@ -1617,7 +1624,7 @@ if [[ -f "$_efile" ]]; then
       fail_rule "javadoc_enforcer_citation_semantic_check" "$_r28k_src cites enforcers.yaml#E<n> rows but NONE of their artifact: paths match this file. Cited:$_r28k_collected_arts. Per Rule 28k / post-review plan F."
       _r28k_fail=1
     fi
-  done < <(find agent-runtime/src/test/java agent-platform/src/test/java -type f \( -name '*Test.java' -o -name '*IT.java' \) 2>/dev/null | sort)
+  done < <(find agent-service/src/test/java agent-service/src/test/java -type f \( -name '*Test.java' -o -name '*IT.java' \) 2>/dev/null | sort)
 fi
 if [[ $_r28k_fail -eq 0 ]]; then pass_rule "javadoc_enforcer_citation_semantic_check"; fi
 
@@ -2231,14 +2238,18 @@ if [[ $_r46_fail -eq 0 ]]; then pass_rule "cursor_flow_documented"; fi
 # ---------------------------------------------------------------------------
 # Rule 47 — no_blocking_io_in_runtime_main (enforcer E66, Rule 37 / P-G)
 #
-# No production class under agent-runtime/src/main/java/** may import
+# No production class under agent-service/src/main/java/** may import
 # org.springframework.web.client.RestTemplate or
 # org.springframework.jdbc.core.JdbcTemplate. Scope is intentionally narrow
 # to agent-runtime (the cognitive kernel). Existing agent-platform JdbcTemplate
 # uses migrate to R2DBC in W2 per CLAUDE-deferred.md 37.c.
 # ---------------------------------------------------------------------------
 _r47_fail=0
-_r47_root="agent-runtime/src/main/java"
+# Scope NARROWED post-Phase-C (ADR-0078): Rule 37 applies to the runtime sub-
+# package only. agent-service/src/main/java/ascend/springai/service/platform/**
+# is excluded per CLAUDE-deferred.md 37.c — the platform-side JdbcTemplate uses
+# (HealthCheckRepository, PlatformOssApiProbe) migrate to R2DBC in W2.
+_r47_root="agent-service/src/main/java/ascend/springai/service/runtime"
 if [[ -d "$_r47_root" ]]; then
   _r47_hits="$(grep -rEln '^import[[:space:]]+org\.springframework\.(web\.client\.RestTemplate|jdbc\.core\.JdbcTemplate);' "$_r47_root" 2>/dev/null || true)"
   if [[ -n "$_r47_hits" ]]; then
@@ -2254,12 +2265,15 @@ if [[ $_r47_fail -eq 0 ]]; then pass_rule "no_blocking_io_in_runtime_main"; fi
 # ---------------------------------------------------------------------------
 # Rule 48 — no_thread_sleep_in_business_code (enforcer E67, Rule 38 / P-H)
 #
-# No production class under agent-platform/src/main/java/** or
-# agent-runtime/src/main/java/** may invoke Thread.sleep(...) or
+# No production class under agent-service/src/main/java/** or
+# agent-service/src/main/java/** may invoke Thread.sleep(...) or
 # TimeUnit.<unit>.sleep(...). Test code is excluded.
 # ---------------------------------------------------------------------------
 _r48_fail=0
-for _r48_root in agent-platform/src/main/java agent-runtime/src/main/java; do
+# Post-Phase-C (ADR-0078): both platform and runtime sub-packages are scanned
+# under the single agent-service module. Pre-Phase-C this iterated over the
+# two separate Maven modules.
+for _r48_root in agent-service/src/main/java; do
   [[ ! -d "$_r48_root" ]] && continue
   _r48_hits="$(grep -rEn 'Thread\.sleep[[:space:]]*\(|TimeUnit\.[A-Z_]+\.sleep[[:space:]]*\(' "$_r48_root" 2>/dev/null || true)"
   if [[ -n "$_r48_hits" ]]; then
@@ -2326,7 +2340,7 @@ while IFS= read -r _r50_mig; do
   fi
   fail_rule "rls_for_new_tenant_tables" "$_r50_mig creates a tenant-scoped table without ENABLE ROW LEVEL SECURITY; not in $_r50_baseline either"
   _r50_fail=1
-done <<< "$(find agent-platform/src/main/resources/db/migration agent-runtime/src/main/resources/db/migration -maxdepth 1 -type f -name 'V*.sql' 2>/dev/null || true)"
+done <<< "$(find agent-service/src/main/resources/db/migration agent-service/src/main/resources/db/migration -maxdepth 1 -type f -name 'V*.sql' 2>/dev/null || true)"
 if [[ $_r50_fail -eq 0 ]]; then pass_rule "rls_for_new_tenant_tables"; fi
 
 # ---------------------------------------------------------------------------
@@ -2394,7 +2408,7 @@ if [[ $_r52_fail -eq 0 ]]; then pass_rule "sandbox_policies_yaml_present_and_wel
 # refactor that drops this coverage fails the gate.
 # ---------------------------------------------------------------------------
 _r53_fail=0
-_r53_path="agent-platform/src/test/java/ascend/springai/platform/web/runs/RunCursorFlowIT.java"
+_r53_path="agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunCursorFlowIT.java"
 if [[ ! -f "$_r53_path" ]]; then
   fail_rule "cursor_flow_integration_test_present" "$_r53_path missing — Rule 36.b / P-F integration test not landed"
   _r53_fail=1
@@ -2414,14 +2428,14 @@ if [[ $_r53_fail -eq 0 ]]; then pass_rule "cursor_flow_integration_test_present"
 # Rule 54 — skill_capacity_runtime_resolver_present (enforcer E73, Rule 41.b / P-K, ADR-0070)
 #
 # A production ResilienceContract implementation MUST exist under
-# agent-runtime/src/main that (a) implements the two-arg resolve signature
+# agent-service/src/main that (a) implements the two-arg resolve signature
 # returning SkillResolution and (b) consults a SkillCapacityRegistry's
 # tryAcquire(...) method. The gate greps for the canonical class shape so a
 # regression that silently admits every caller (returning admit() unconditionally)
 # fails. The matching integration test (E73) verifies behaviour separately.
 # ---------------------------------------------------------------------------
 _r54_fail=0
-_r54_main="agent-runtime/src/main/java/ascend/springai/runtime/resilience"
+_r54_main="agent-service/src/main/java/ascend/springai/service/runtime/resilience"
 if [[ ! -d "$_r54_main" ]]; then
   fail_rule "skill_capacity_runtime_resolver_present" "$_r54_main directory missing — Rule 41.b runtime classes not landed"
   _r54_fail=1
@@ -2487,7 +2501,7 @@ if [[ $_r55_fail -eq 0 ]]; then pass_rule "engine_envelope_yaml_present_and_well
 #
 # Bidirectional consistency: every known_engines[].id in
 # docs/contracts/engine-envelope.v1.yaml MUST appear as a
-# String ENGINE_TYPE = "<id>" constant in agent-runtime/src/main, and every
+# String ENGINE_TYPE = "<id>" constant in agent-service/src/main, and every
 # such constant MUST appear in known_engines. This guarantees the Phase 5
 # EngineRegistry.validateAgainstSchema() boot check has matching inputs at
 # compile time -- Rule 44 strict matching cannot be silently broken by a
@@ -2495,7 +2509,7 @@ if [[ $_r55_fail -eq 0 ]]; then pass_rule "engine_envelope_yaml_present_and_well
 # ---------------------------------------------------------------------------
 _r56_fail=0
 _r56_yaml="docs/contracts/engine-envelope.v1.yaml"
-_r56_main="agent-runtime/src/main/java"
+_r56_main="agent-service/src/main/java"
 if [[ ! -f "$_r56_yaml" ]]; then
   fail_rule "engine_registry_covers_all_known_engines" "$_r56_yaml missing -- cannot cross-check"
   _r56_fail=1
@@ -2525,7 +2539,7 @@ if [[ $_r56_fail -eq 0 ]]; then pass_rule "engine_registry_covers_all_known_engi
 #
 # docs/contracts/engine-hooks.v1.yaml MUST exist with schema:, hooks: list of
 # exactly the 9 canonical hook names, and bidirectionally agree with the
-# HookPoint enum constants in agent-runtime/src/main. Drift in either
+# HookPoint enum constants in agent-service/src/main. Drift in either
 # direction breaks Rule 45 (Runtime-Owned Middleware via Engine Hooks).
 # ---------------------------------------------------------------------------
 _r57_fail=0
@@ -2663,7 +2677,7 @@ if [[ $_r59_fail -eq 0 ]]; then pass_rule "evolution_scope_yaml_present_and_well
 # ---------------------------------------------------------------------------
 _r60_fail=0
 _r60_grandfather="gate/schema-first-grandfathered.txt"
-_r60_files=(ARCHITECTURE.md agent-platform/ARCHITECTURE.md agent-runtime/ARCHITECTURE.md)
+_r60_files=(ARCHITECTURE.md agent-service/ARCHITECTURE.md agent-service/ARCHITECTURE.md)
 if [[ ! -f "$_r60_grandfather" ]]; then
   fail_rule "schema_first_domain_contracts" "$_r60_grandfather missing -- Rule 48 grandfather list required"
   _r60_fail=1

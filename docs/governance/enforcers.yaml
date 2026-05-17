@@ -45,15 +45,15 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/architecture/RuntimeMustNotDependOnPlatformTest.java
-  asserts: "no class under ascend.springai.runtime.. imports any class under ascend.springai.platform.."
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/architecture/RuntimeMustNotDependOnPlatformTest.java
+  asserts: "no class under ascend.springai.service.runtime.. imports any class under ascend.springai.service.platform.."
 
 - id: E3
   constraint_ref: "CLAUDE.md Rule 32; ARCHITECTURE.md §4.7 (SPI purity); pre-existing"
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/memory/spi/MemorySpiArchTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/memory/spi/MemorySpiArchTest.java
   asserts: "runtime.memory.spi.. and runtime.orchestration.spi.. import only java.*"
 
 - id: E4
@@ -61,15 +61,15 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/HttpEdgeMustNotImportMemorySpiTest.java
-  asserts: "agent-platform does not import ascend.springai.runtime.memory.spi.."
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/HttpEdgeMustNotImportMemorySpiTest.java
+  asserts: "agent-platform does not import ascend.springai.service.runtime.memory.spi.."
 
 - id: E5
   constraint_ref: "CLAUDE.md Rule 20; L1 plan §6.5; architecture-status.yaml line 892; W1.x Phase 8 — ADR-0070 (cursor flow)"
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/web/runs/RunHttpContractIT.java#createReturns202WithCursor
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunHttpContractIT.java#createReturns202WithCursor
   asserts: "POST /v1/runs returns 202 with TaskCursor envelope (status=PENDING, cursor_url present); RunStatus enum contains no CREATED — Phase 8 migrated this contract from 201+RunResponse to 202+TaskCursor."
 
 - id: E6
@@ -77,7 +77,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/web/runs/RunHttpContractIT.java#cancel_route_is_post_not_delete
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunHttpContractIT.java#cancel_route_is_post_not_delete
   asserts: "DELETE /v1/runs/{id} returns 405/404; cancellation is POST /v1/runs/{id}/cancel"
 
 - id: E7
@@ -85,7 +85,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/web/runs/RunHttpContractIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunHttpContractIT.java
   asserts: "each row of §6.3 returns the documented status code + ErrorEnvelope.code"
 
 - id: E8
@@ -93,7 +93,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/ErrorEnvelopeContractTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/ErrorEnvelopeContractTest.java
   asserts: "every 4xx/5xx response has only the top-level 'error' field with code+message+details"
 
 - id: E9
@@ -101,7 +101,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/auth/JwtValidationIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/auth/JwtValidationIT.java
   asserts: "JWT validation enforces RS256, iss, aud, exp, nbf, clock-skew; failures return 401 with metric"
 
 - id: E10
@@ -109,7 +109,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/tenant/JwtTenantClaimCrossCheckTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/tenant/JwtTenantClaimCrossCheckTest.java
   asserts: "JWT tenant_id claim mismatched with X-Tenant-Id header returns 403 tenant_mismatch + counter increment"
 
 - id: E11
@@ -117,7 +117,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/auth/JwtDevLocalModeGuardIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/auth/JwtDevLocalModeGuardIT.java
   asserts: "app.auth.dev-local-mode=true causes startup failure when app.posture != dev"
 
 - id: E12
@@ -125,7 +125,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/idempotency/jdbc/IdempotencyDurabilityIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/idempotency/jdbc/IdempotencyDurabilityIT.java
   asserts: "claim row durable before Orchestrator.submit; submit failure marks row FAILED; key cannot be re-claimed before expires_at"
 
 - id: E13
@@ -133,7 +133,7 @@
   kind: schema
   level: L1
   view: logical
-  artifact: agent-platform/src/main/resources/db/migration/V2__idempotency_dedup.sql
+  artifact: agent-service/src/main/resources/db/migration/V2__idempotency_dedup.sql
   asserts: "PRIMARY KEY (tenant_id, idempotency_key) prevents duplicate inserts at storage layer"
 
 - id: E14
@@ -141,7 +141,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/idempotency/IdempotencyStorePostgresIT.java#body_drift_returns_existing_with_original_hash
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/idempotency/IdempotencyStorePostgresIT.java#body_drift_returns_existing_with_original_hash
   asserts: "same key + different request_hash returns 409 idempotency_body_drift"
 
 - id: E15
@@ -157,7 +157,7 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/RepositoryPaginationTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/RepositoryPaginationTest.java
   asserts: "Spring Data repository methods returning Collection/Page declare Pageable OR are annotated @BoundedQuery. Test ships with allowEmptyShould(true) — armed for W1 persistence work; vacuous at L1 (no Spring Data Repository beans yet)."
 
 - id: E17
@@ -165,7 +165,7 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/NoStringConcatSqlTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/NoStringConcatSqlTest.java
   asserts: "no source under agent-platform/persistence/.. builds JPQL/SQL with String concatenation"
 
 - id: E18
@@ -173,7 +173,7 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/MetricNamingTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/MetricNamingTest.java
   asserts: "every Counter/Timer/Gauge name starts with springai_ascend_"
 
 - id: E19
@@ -197,7 +197,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/posture/PostureBootGuardIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/posture/PostureBootGuardIT.java
   asserts: "research/prod posture fails startup with IllegalStateException when any @RequiredConfig field absent"
 
 - id: E22
@@ -205,7 +205,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/idempotency/InMemoryIdempotencyAllowFlagIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/idempotency/InMemoryIdempotencyAllowFlagIT.java
   asserts: "InMemoryIdempotencyStore bean registered only when posture=dev AND app.idempotency.allow-in-memory=true"
 
 - id: E23
@@ -213,7 +213,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/runs/RunStateMachineTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/runs/RunStateMachineTest.java
   asserts: "Run.withStatus and Run.withSuspension call RunStateMachine.validate; illegal transitions throw IllegalStateException"
 
 - id: E24
@@ -221,7 +221,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/web/runs/RunHttpContractIT.java#cancelTerminalReturns409
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunHttpContractIT.java#cancelTerminalReturns409
   asserts: "cancel of SUCCEEDED/FAILED/EXPIRED run returns 409 illegal_state_transition"
 
 - id: E25
@@ -229,7 +229,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/contracts/OpenApiContractIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/contracts/OpenApiContractIT.java
   asserts: "live /v3/api-docs response matches the committed snapshot byte-for-byte"
 
 - id: E26
@@ -301,7 +301,7 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/PlatformImportsOnlyRuntimePublicApiTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/PlatformImportsOnlyRuntimePublicApiTest.java
   asserts: "agent-platform main sources may only import runtime.runs.*, runtime.orchestration.spi.*, runtime.posture.* — never runtime.orchestration.inmemory.*, runtime.resilience.*, runtime.memory.spi.*, or other internal packages."
 
 - id: E35
@@ -317,7 +317,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-platform/src/test/java/ascend/springai/platform/contracts/OpenApiContractIT.java#noUndocumentedV1OperationsExposedByLive
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/contracts/OpenApiContractIT.java#noUndocumentedV1OperationsExposedByLive
   asserts: "live spec at /v3/api-docs MUST NOT expose any /v1/** operation that is absent from the pinned snapshot, unless tagged x-experimental: true; closes the gap where /v1/runs shipped while openapi-v1.yaml still said W0."
 
 - id: E37
@@ -325,7 +325,7 @@
   kind: integration
   level: L1
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/web/runs/JwtTestFixture.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/web/runs/JwtTestFixture.java
   asserts: "test fixture providing stable RSA keypair + mint() helper, re-used by RunHttpContractIT to drive authenticated POST /v1/runs (closes the P1-1 underlying gap)."
 
 # --- Telemetry Vertical L1.x (ADR-0061 / ADR-0062 / ADR-0063 / §4 #53–#59) ---
@@ -335,7 +335,7 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/architecture/TelemetryVerticalArchTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/architecture/TelemetryVerticalArchTest.java
   asserts: "Telemetry Vertical first-class — no class outside hook/observability packages reads or writes the TraceWriter sink; TraceContext SPI is the sole carrier for trace-emission-side concerns at L1.x."
 
 - id: E39
@@ -343,7 +343,7 @@
   kind: archunit
   level: L1
   view: logical
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/architecture/RunContextIdentityAccessorsTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/architecture/RunContextIdentityAccessorsTest.java
   asserts: "RunContext SPI exposes traceId() : String, spanId() : String, sessionId() : String, traceContext() : TraceContext accessors (L1.x mandatory shape per §4 #54)."
 
 - id: E40
@@ -351,7 +351,7 @@
   kind: integration
   level: L1
   view: logical
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/runs/RunTraceSessionConsistencyIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/runs/RunTraceSessionConsistencyIT.java
   asserts: "Run.traceId is non-null 32-char lowercase hex when populated; nullable column tolerated at L1.x; child Run inherits parent's sessionId via Checkpointer carry-over."
 
 - id: E41
@@ -359,7 +359,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/observability/TraceExtractFilterIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/observability/TraceExtractFilterIT.java
   asserts: "TraceExtractFilter at order 10 extracts well-formed W3C traceparent or originates a fresh trace_id+span_id; populates MDC trace_id/span_id/parent_span_id; emits traceresponse: 00-<trace_id>-<server_span_id>-01 on every outbound response; increments springai_ascend_trace_originated_total{source=client|server} appropriately."
 
 - id: E42
@@ -367,7 +367,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/observability/LogFieldShapeIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/observability/LogFieldShapeIT.java
   asserts: "MDC during a filter-chain request carries tenant_id + trace_id + span_id; cleared on filter completion. run_id is populated by RunController at Run materialisation (verified separately by the controller's own integration test)."
 
 - id: E43
@@ -375,15 +375,15 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/architecture/LlmGatewayHookChainOnlyTest.java
-  asserts: "No class under ascend.springai.runtime.llm.. imports org.springframework.ai.chat.ChatModel outside the HookChain package. Vacuous at L1.x (no LLM classes yet); arms automatically when W2 LlmGateway lands."
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/architecture/LlmGatewayHookChainOnlyTest.java
+  asserts: "No class under ascend.springai.service.runtime.llm.. imports org.springframework.ai.chat.ChatModel outside the HookChain package. Vacuous at L1.x (no LLM classes yet); arms automatically when W2 LlmGateway lands."
 
 - id: E44
   constraint_ref: "CLAUDE.md Rule 25; ARCHITECTURE.md §4 #57 (span_tenant_attribute_required); ADR-0061 §5"
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/architecture/SpanTenantAttributeRequiredTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/architecture/SpanTenantAttributeRequiredTest.java
   asserts: "No class under agent-runtime/main attempts to construct a span-shaped record (TraceWriter or future Span builder) without passing a tenant_id-derived argument. Vacuous at L1.x (no span builders yet); arms automatically when W2 Hook SPI un-freezes."
 
 - id: E45
@@ -391,7 +391,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/observability/PostureBootPiiHookPresenceContractIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/observability/PostureBootPiiHookPresenceContractIT.java
   asserts: "Boot-gate contract: in posture=research/prod, AppPostureGate exposes the requirement for a PiiRedactionHook bean; absence MUST be a fail-closed condition once the Hook SPI un-freezes at W2. L1.x asserts the contract surface; the negative emission test PiiSpanAttributeIT lands at W2."
 
 - id: E46
@@ -399,7 +399,7 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/McpReplaySurfaceArchTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/McpReplaySurfaceArchTest.java
   asserts: "No @RestController is placed under packages matching agent-platform/web/replay, agent-platform/web/trace, or agent-platform/web/session. Preserves §1 exclusion and ADR-0017 MCP-only replay surface."
 
 - id: E47
@@ -417,7 +417,7 @@
   kind: archunit
   level: L0
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/architecture/SpiPurityGeneralizedArchTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/architecture/SpiPurityGeneralizedArchTest.java
   asserts: "Any package matching ascend.springai..spi.. does not depend on Spring, agent-platform, inmemory reference impls, Micrometer, or OpenTelemetry — generalises E3 to all current and future SPI packages."
 
 - id: E49
@@ -507,7 +507,7 @@
   kind: archunit
   level: L0
   view: development
-  artifact: agent-platform/src/test/java/ascend/springai/platform/architecture/ArchitectureLayeringTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/architecture/ArchitectureLayeringTest.java
   asserts: "no test or main class under agent-platform/ or agent-runtime/ imports a doc class that violates the (level, view) frontier — vacuous at L1 (no doc classes); arms when W2 introduces typed Layered-4+1 references."
 
 # --- Phase M remediation (CLAUDE.md Rules 34; ADR-0068; ARCHITECTURE.md §4 #65) ---
@@ -571,7 +571,7 @@
   level: L0
   view: process
   artifact: gate/check_architecture_sync.sh#no_blocking_io_in_runtime_main
-  asserts: "no production class under agent-runtime/src/main/java/** imports org.springframework.web.client.RestTemplate or org.springframework.jdbc.core.JdbcTemplate (agent-platform-side existing JdbcTemplate uses are out of scope per ADR-0069 / CLAUDE-deferred 37.c)."
+  asserts: "no production class under agent-service/src/main/java/** imports org.springframework.web.client.RestTemplate or org.springframework.jdbc.core.JdbcTemplate (agent-platform-side existing JdbcTemplate uses are out of scope per ADR-0069 / CLAUDE-deferred 37.c)."
 
 - id: E67
   constraint_ref: "CLAUDE.md Rule 38 (No Thread.sleep in Business Code); ADR-0069; LucioIT W1 §6.4"
@@ -579,7 +579,7 @@
   level: L0
   view: process
   artifact: gate/check_architecture_sync.sh#no_thread_sleep_in_business_code
-  asserts: "no production class under agent-platform/src/main/java/** or agent-runtime/src/main/java/** invokes Thread.sleep(...) or TimeUnit.<unit>.sleep(...); test code, gate scripts, and Awaitility usage are excluded."
+  asserts: "no production class under agent-service/src/main/java/** or agent-service/src/main/java/** invokes Thread.sleep(...) or TimeUnit.<unit>.sleep(...); test code, gate scripts, and Awaitility usage are excluded."
 
 - id: E68
   constraint_ref: "CLAUDE.md Rule 39 (Five-Plane Manifest); ADR-0069; LucioIT W1 §7.1"
@@ -622,7 +622,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/web/runs/RunCursorFlowIT.java#createReturns202WithCursorWithin200ms
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/web/runs/RunCursorFlowIT.java#createReturns202WithCursorWithin200ms
   asserts: "POST /v1/runs returns HTTP 202 within 200 ms with a TaskCursor payload (runId + status=PENDING + cursor_url matching the run URL), even when the registered AsyncRunDispatcher synchronously blocks for 30 seconds — proves the controller fires the dispatcher via CompletableFuture.runAsync and the HTTP response is never gated on dispatcher runtime."
 
 # ---------------------------------------------------------------------------
@@ -634,7 +634,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/resilience/SkillCapacityResolutionIT.java#suspendsSecondCallerWhenCapacityIsOne
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/resilience/SkillCapacityResolutionIT.java#suspendsSecondCallerWhenCapacityIsOne
   asserts: "ResilienceContract.resolve(tenant, skill) consults docs/governance/skill-capacity.yaml at runtime; the second concurrent caller for a 1-capacity skill is rejected with SkillResolution.admitted=false carrying SuspendReason.RateLimited(SKILL_CAPACITY_EXCEEDED) — proves the contract maps capacity exhaustion to would-suspend (Rule 41 / P-K), NOT to would-fail."
 
 # ---------------------------------------------------------------------------
@@ -646,15 +646,15 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/engine/EnginePayloadDispatchOnlyViaRegistryTest.java#every_orchestrator_implementation_depends_on_engine_registry
-  asserts: "every concrete Orchestrator implementation in agent-runtime/src/main depends on ascend.springai.runtime.engine.EngineRegistry -- dispatch authority is centralised; pattern-matching on ExecutorDefinition subtypes outside the registry is the prohibited shape (the source-level instanceof scan is gate Rule 56's responsibility)."
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/engine/EnginePayloadDispatchOnlyViaRegistryTest.java#every_orchestrator_implementation_depends_on_engine_registry
+  asserts: "every concrete Orchestrator implementation in agent-service/src/main depends on ascend.springai.service.runtime.engine.EngineRegistry -- dispatch authority is centralised; pattern-matching on ExecutorDefinition subtypes outside the registry is the prohibited shape (the source-level instanceof scan is gate Rule 56's responsibility)."
 
 - id: E75
   constraint_ref: "CLAUDE.md Rule 44 (Strict Engine Matching); ADR-0072; P-M"
   kind: integration
   level: L1
   view: logical
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/engine/EngineMatchingStrictnessIT.java#payload_with_no_registered_adapter_raises_engine_mismatch
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/engine/EngineMatchingStrictnessIT.java#payload_with_no_registered_adapter_raises_engine_mismatch
   asserts: "SyncOrchestrator.run with a payload class for which no ExecutorAdapter is registered raises EngineMatchingException carrying engine_mismatch -- proves no silent reinterpretation, no fallback policy (Rule 44 strongest reading)."
 
 - id: E76
@@ -671,7 +671,7 @@
   level: L1
   view: development
   artifact: gate/check_architecture_sync.sh#engine_registry_covers_all_known_engines
-  asserts: "bidirectional consistency between known_engines[].id in docs/contracts/engine-envelope.v1.yaml and String ENGINE_TYPE = \"<id>\" constants in agent-runtime/src/main -- guarantees the Phase 5 EngineRegistry.validateAgainstSchema boot check has matching inputs at compile time."
+  asserts: "bidirectional consistency between known_engines[].id in docs/contracts/engine-envelope.v1.yaml and String ENGINE_TYPE = \"<id>\" constants in agent-service/src/main -- guarantees the Phase 5 EngineRegistry.validateAgainstSchema boot check has matching inputs at compile time."
 
 # ---------------------------------------------------------------------------
 # W2.x Phase 2 — Engine Lifecycle Hooks + Runtime Middleware SPI (Rule 45 / ADR-0073 / P-M)
@@ -683,22 +683,22 @@
   level: L1
   view: logical
   artifact: gate/check_architecture_sync.sh#engine_hooks_yaml_present_and_wellformed
-  asserts: "docs/contracts/engine-hooks.v1.yaml declares schema: engine-hooks/v1, a hooks: list, and bidirectionally agrees with the HookPoint enum constants in agent-runtime/src/main -- the canonical hook surface and the Java enum never drift."
+  asserts: "docs/contracts/engine-hooks.v1.yaml declares schema: engine-hooks/v1, a hooks: list, and bidirectionally agrees with the HookPoint enum constants in agent-service/src/main -- the canonical hook surface and the Java enum never drift."
 
 - id: E79
   constraint_ref: "CLAUDE.md Rule 45 (Runtime-Owned Middleware via Engine Hooks); ADR-0073; P-M"
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/engine/EveryEngineDeclaresHookSurfaceTest.java#every_executor_adapter_exposes_hook_surface
-  asserts: "every concrete GraphExecutor / AgentLoopExecutor implementation under agent-runtime/src/main exposes a hookSurface() method (default empty allowed) -- structural pre-condition for the EngineHookSurface contract; allowEmptyShould(true) is intentional at W2.x while Phase 2 ships SPI surface only."
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/engine/EveryEngineDeclaresHookSurfaceTest.java#every_executor_adapter_exposes_hook_surface
+  asserts: "every concrete GraphExecutor / AgentLoopExecutor implementation under agent-service/src/main exposes a hookSurface() method (default empty allowed) -- structural pre-condition for the EngineHookSurface contract; allowEmptyShould(true) is intentional at W2.x while Phase 2 ships SPI surface only."
 
 - id: E80
   constraint_ref: "CLAUDE.md Rule 45 (Runtime-Owned Middleware via Engine Hooks); ADR-0073; P-M"
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/engine/RuntimeMiddlewareInterceptsHooksIT.java#suspend_resume_cycle_fires_before_suspension_then_before_resume
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/engine/RuntimeMiddlewareInterceptsHooksIT.java#suspend_resume_cycle_fires_before_suspension_then_before_resume
   asserts: "SyncOrchestrator fires HookPoint.BEFORE_SUSPENSION + HookPoint.BEFORE_RESUME on a suspend/resume cycle and HookPoint.ON_ERROR on a propagated RuntimeException -- proves the three Phase 2 mandatory hooks reach registered RuntimeMiddleware end-to-end through EngineRegistry.hookDispatcher()."
 
 # ---------------------------------------------------------------------------
@@ -718,7 +718,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/s2c/S2cCallbackRoundTripIT.java#happy_path_outcome_ok_propagates_payload_to_resume
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/s2c/S2cCallbackRoundTripIT.java#happy_path_outcome_ok_propagates_payload_to_resume
   asserts: "SyncOrchestrator catches S2cCallbackSignal, dispatches via InMemoryS2cCallbackTransport, validates response (callback_id match, outcome enum), and resumes the parent run with the response payload. Four cases: happy-path OK, callback_id mismatch -> s2c_response_invalid, outcome=ERROR -> s2c_client_error, no transport -> s2c_transport_unavailable."
 
 - id: E83
@@ -726,8 +726,8 @@
   kind: archunit
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/s2c/S2cCallbackRespectsRule38Test.java#s2c_package_must_not_call_thread_sleep
-  asserts: "No class under ascend.springai.runtime.s2c.. calls Thread.sleep(long) or Thread.sleep(long, int) -- the S2C wait MUST route through SuspendSignal/checkpoint (Chronos Hydration), never busy-wait."
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/s2c/S2cCallbackRespectsRule38Test.java#s2c_package_must_not_call_thread_sleep
+  asserts: "No class under ascend.springai.service.runtime.s2c.. calls Thread.sleep(long) or Thread.sleep(long, int) -- the S2C wait MUST route through SuspendSignal/checkpoint (Chronos Hydration), never busy-wait."
 
 # ---------------------------------------------------------------------------
 # W2.x Phase 5 — R2 Pilot: runtime self-validate Engine Envelope (ADR-0076 / P-M)
@@ -738,7 +738,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/engine/EngineRegistryBootValidationIT.java#boot_fails_when_known_engine_has_no_adapter
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/engine/EngineRegistryBootValidationIT.java#boot_fails_when_known_engine_has_no_adapter
   asserts: "Spring Boot startup fails with IllegalStateException when the registered ExecutorAdapter set does not match docs/contracts/engine-envelope.v1.yaml#known_engines -- fail-fast at boot via EngineAutoConfiguration wiring. Three cases verified: match-succeeds, missing-adapter-fails, unknown-adapter-fails."
 
 # ---------------------------------------------------------------------------
@@ -770,8 +770,8 @@
   kind: archunit
   level: L1
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/evolution/EveryRunEventDeclaresEvolutionExportTest.java
-  asserts: "Every record class implementing ascend.springai.runtime.runs.RunEvent declares an evolutionExport() accessor returning ascend.springai.runtime.evolution.EvolutionExport. Armed with allowEmptyShould(true) at W2.x because RunEvent ships in W2 per ADR-0022 -- test starts asserting per-variant declaration when variants land."
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/evolution/EveryRunEventDeclaresEvolutionExportTest.java
+  asserts: "Every record class implementing ascend.springai.service.runtime.runs.RunEvent declares an evolutionExport() accessor returning ascend.springai.service.runtime.evolution.EvolutionExport. Armed with allowEmptyShould(true) at W2.x because RunEvent ships in W2 per ADR-0022 -- test starts asserting per-variant declaration when variants land."
 
 # ---------------------------------------------------------------------------
 # W2.x Phase 7 audit response -- Rule 44 compliance closure + Phase 3a Matrix freeze
@@ -783,7 +783,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/engine/EngineMismatchTransitionsRunToFailedIT.java#engine_mismatch_transitions_run_to_failed_and_fires_on_error_with_reason
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/engine/EngineMismatchTransitionsRunToFailedIT.java#engine_mismatch_transitions_run_to_failed_and_fires_on_error_with_reason
   asserts: "SyncOrchestrator catches EngineMatchingException, transitions the Run to RunStatus.FAILED with finishedAt set, and fires HookPoint.ON_ERROR carrying reason=engine_mismatch + requestedEngineType + actualPayloadType. Closes the Rule 44 prose-vs-code gap surfaced by the Phase 7 self-audit -- E75 only asserted the exception-raising half, E88 asserts the Run-state-transition half."
 
 - id: E89
@@ -804,7 +804,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/s2c/S2cFailureTransitionsRunToFailedIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/s2c/S2cFailureTransitionsRunToFailedIT.java
   asserts: "For each of the four S2C failure modes (s2c_response_invalid, s2c_client_error, s2c_transport_unavailable, s2c_transport_failure), SyncOrchestrator transitions the Run to RunStatus.FAILED with finishedAt set, fires HookPoint.ON_ERROR carrying reason + callbackId, and rethrows so the caller observes failure. Closes the post-review P0-2 gap: prior code let IllegalStateException from handleClientCallback escape the try, leaving the Run in SUSPENDED. Companion to E82 which covered only the happy path + raw exception type."
 
 - id: E91
@@ -812,7 +812,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-platform/src/test/java/ascend/springai/platform/engine/EngineRegistryClasspathBootIT.java
+  artifact: agent-service/src/test/java/ascend/springai/service/platform/engine/EngineRegistryClasspathBootIT.java
   asserts: "EngineAutoConfiguration boots successfully when app.engine.envelope-schema-path resolves only via classpath fallback (filesystem path absent), proving the agent-platform jar carries docs/contracts/engine-envelope.v1.yaml on its classpath. Closes the post-review P0-4 gap: prior code claimed jar deployment worked but the pom.xml had no <resources> rule copying the YAML; production boot from a packaged jar would have failed. Companion to E84 which covers the same R2 pilot in the reactor (filesystem) launch mode."
 
 # ---------------------------------------------------------------------------
@@ -825,7 +825,7 @@
   kind: integration
   level: L1
   view: process
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/s2c/S2cCallbackEnvelopeValidationTest.java
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/s2c/S2cCallbackEnvelopeValidationTest.java
   asserts: "Beyond length() != 32, S2cCallbackEnvelope.requireLowerHex32(...) and S2cCallbackResponse rejection paths assert the W3C trace-ID character class: only 0-9 + a-f are accepted; uppercase hex AND non-hex chars are rejected with IllegalArgumentException whose message names 'lowercase hex'. Closes the rc3 cross-constraint audit P1-5 gap where the contract text claimed lowercase-hex enforcement but the constructor only checked length."
 
 - id: E93
@@ -833,8 +833,8 @@
   kind: archunit
   level: L0
   view: development
-  artifact: agent-runtime/src/test/java/ascend/springai/runtime/architecture/SpiPurityGeneralizedArchTest.java#s2c_spi_imports_only_java_and_same_package_siblings
-  asserts: "Every class under ascend.springai.runtime.s2c.spi MUST depend only on java.* + same-spi-package siblings. Strengthened in v2.0.0-rc3 once S2cCallbackEnvelope and S2cCallbackResponse were moved here from runtime.s2c per cross-constraint audit α-4 / β-2. orchestration.spi is intentionally excluded (its long-standing dependency on runs.* kernel domain types is a known exception)."
+  artifact: agent-service/src/test/java/ascend/springai/service/runtime/architecture/SpiPurityGeneralizedArchTest.java#s2c_spi_imports_only_java_and_same_package_siblings
+  asserts: "Every class under ascend.springai.service.runtime.s2c.spi MUST depend only on java.* + same-spi-package siblings. Strengthened in v2.0.0-rc3 once S2cCallbackEnvelope and S2cCallbackResponse were moved here from runtime.s2c per cross-constraint audit α-4 / β-2. orchestration.spi is intentionally excluded (its long-standing dependency on runs.* kernel domain types is a known exception)."
 
 # ---------------------------------------------------------------------------
 # 2026-05-17 cross-corpus consistency audit prevention rules.
@@ -855,7 +855,7 @@
   level: L0
   view: development
   artifact: gate/check_architecture_sync.sh#module_metadata_pom_dep_parity
-  asserts: "Every ascend.springai sibling artifact declared inside a <dependency> block of <module>/pom.xml appears in the same module's module-metadata.yaml allowed_dependencies. Drift surfaced by 2026-05-17 audit when agent-runtime/pom.xml gained an agent-middleware dep after T2.B1 but agent-runtime/module-metadata.yaml's allowed_dependencies remained empty."
+  asserts: "Every ascend.springai sibling artifact declared inside a <dependency> block of <module>/pom.xml appears in the same module's module-metadata.yaml allowed_dependencies. Drift surfaced by 2026-05-17 audit when agent-service/pom.xml gained an agent-middleware dep after T2.B1 but agent-service/module-metadata.yaml's allowed_dependencies remained empty."
 
 - id: E96
   constraint_ref: "CLAUDE.md Rule 32 (SPI + DFX + TCK Co-Design); cross-corpus consistency audit 2026-05-17 / G3 (SPI surface drift)"
@@ -863,7 +863,7 @@
   level: L0
   view: development
   artifact: gate/check_architecture_sync.sh#spi_package_exhaustiveness
-  asserts: "Every */spi/ leaf directory under <module>/src/main/java appears in <module>/module-metadata.yaml spi_packages. Drift surfaced by 2026-05-17 audit when agent-runtime contained an ascend.springai.runtime.s2c.spi directory that was undeclared in spi_packages; Rule 36 (domain_module_has_spi_package) verified declared packages existed on disk but did not enforce the reverse direction (every on-disk SPI directory is declared)."
+  asserts: "Every */spi/ leaf directory under <module>/src/main/java appears in <module>/module-metadata.yaml spi_packages. Drift surfaced by 2026-05-17 audit when agent-runtime contained an ascend.springai.service.runtime.s2c.spi directory that was undeclared in spi_packages; Rule 36 (domain_module_has_spi_package) verified declared packages existed on disk but did not enforce the reverse direction (every on-disk SPI directory is declared)."
 
 # ---------------------------------------------------------------------------
 # 2026-05-17 CLAUDE.md token-optimization wave PR1.
