@@ -41,6 +41,22 @@ def _git_value(root: Path, *args: str) -> str | None:
     return result.stdout.strip() or None
 
 
+def _git_status_dirty(root: Path) -> bool | None:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return bool(result.stdout.strip())
+
+
 def _copy_db_for_reading(db_path: Path, dest_dir: Path) -> Path:
     dest = dest_dir / "codegraph.db"
     for suffix in ("", "-wal", "-shm"):
@@ -107,10 +123,6 @@ def _nodegraph_metrics(db_path: Path) -> dict[str, Any]:
 def build_evidence(root: Path) -> dict[str, Any]:
     db_path = root / ".codegraph" / "codegraph.db"
     commit_sha = _git_value(root, "rev-parse", "HEAD")
-    dirty = None
-    status = _git_value(root, "status", "--short")
-    if status is not None:
-        dirty = bool(status)
 
     return {
         "schema_version": 1,
@@ -119,7 +131,7 @@ def build_evidence(root: Path) -> dict[str, Any]:
         "repository": {
             "root": str(root),
             "commit_sha": commit_sha,
-            "dirty": dirty,
+            "dirty": _git_status_dirty(root),
         },
         "artifact": {
             "path": ".codegraph/codegraph.db",

@@ -277,6 +277,27 @@ class ReleaseReadinessToolTests(unittest.TestCase):
             self.assertEqual(evidence["nodegraph"]["nodes_by_kind"]["interface"], 1)
             self.assertEqual(evidence["nodegraph"]["nodes_by_kind"]["method"], 1)
 
+    def test_nodegraph_evidence_builder_reports_clean_git_status_as_false(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_minimal_codegraph_db(root)
+            subprocess.run(["git", "init"], cwd=root, text=True, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True)
+            subprocess.run(["git", "add", ".codegraph/codegraph.db"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "seed codegraph db"], cwd=root, text=True, capture_output=True, check=True)
+
+            result = subprocess.run(
+                [sys.executable, str(NODEGRAPH_BUILDER), "--root", str(root)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            evidence = yaml.safe_load(result.stdout)
+            self.assertIs(evidence["repository"]["dirty"], False)
+
 
 if __name__ == "__main__":
     unittest.main()
