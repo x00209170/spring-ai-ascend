@@ -1,0 +1,36 @@
+schema_version: 1
+generated_at_utc: '2026-05-25T13:50:52+00:00'
+tool: codegraph
+repository:
+  root: /mnt/d/chao_workspace/spring-ai-ascend
+  commit_sha: b554d7445198e4c230631fbf59b14413017736f0
+  dirty: false
+artifact:
+  path: .codegraph/codegraph.db
+  tracked: false
+  db_size_bytes: 10317824
+  note: Local regenerated CodeGraph nodegraph; database remains git-ignored.
+nodegraph:
+  files: 427
+  nodes: 3597
+  edges: 6420
+  unresolved_refs: 860
+  schema_versions:
+  - 1
+  - 4
+  languages:
+  - java
+  - python
+  - yaml
+  nodes_by_kind:
+    class: 177
+    enum: 14
+    enum_member: 60
+    field: 249
+    file: 294
+    function: 166
+    import: 1724
+    interface: 38
+    method: 799
+    route: 4
+    variable: 72

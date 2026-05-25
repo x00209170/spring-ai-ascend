@@ -8,6 +8,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+import sqlite3
 from pathlib import Path
 
 import yaml
@@ -15,6 +16,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUILDER = REPO_ROOT / "gate" / "lib" / "build_release_evidence.py"
+NODEGRAPH_BUILDER = REPO_ROOT / "gate" / "lib" / "build_codegraph_nodegraph_evidence.py"
 VALIDATOR = REPO_ROOT / "gate" / "lib" / "check_formal_release_transaction.py"
 
 
@@ -145,6 +147,51 @@ def create_minimal_release_repo(root: Path, *, formal_release: bool = False) -> 
     )
 
 
+def create_minimal_codegraph_db(root: Path) -> None:
+    db_path = root / ".codegraph" / "codegraph.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as con:
+        con.executescript(
+            """
+            create table files (
+              path text primary key,
+              language text not null
+            );
+            create table nodes (
+              id text primary key,
+              kind text not null,
+              name text not null
+            );
+            create table edges (
+              id integer primary key,
+              source text not null,
+              target text not null,
+              kind text not null
+            );
+            create table unresolved_refs (
+              id integer primary key,
+              name text not null
+            );
+            create table schema_versions (
+              version integer primary key,
+              description text
+            );
+            insert into files(path, language) values
+              ('agent-service/src/main/java/App.java', 'java'),
+              ('docs/governance/architecture-status.yaml', 'yaml');
+            insert into nodes(id, kind, name) values
+              ('n1', 'class', 'App'),
+              ('n2', 'method', 'invoke'),
+              ('n3', 'interface', 'ModelGateway');
+            insert into edges(id, source, target, kind) values
+              (1, 'n1', 'n2', 'contains'),
+              (2, 'n2', 'n3', 'calls');
+            insert into unresolved_refs(id, name) values (1, 'MissingSymbol');
+            insert into schema_versions(version, description) values (4, 'test schema');
+            """
+        )
+
+
 class ReleaseReadinessToolTests(unittest.TestCase):
     def test_gate_self_test_harness_source_has_no_post_pass_shell_diagnostics(self) -> None:
         harness = (REPO_ROOT / "gate" / "test_architecture_sync_gate.sh").read_text(encoding="utf-8")
@@ -204,6 +251,52 @@ class ReleaseReadinessToolTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             self.assertIn("PASS: formal_release_transaction", result.stdout)
+
+    def test_nodegraph_evidence_builder_derives_counts_from_codegraph_db(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_minimal_codegraph_db(root)
+
+            result = subprocess.run(
+                [sys.executable, str(NODEGRAPH_BUILDER), "--root", str(root)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            evidence = yaml.safe_load(result.stdout)
+            self.assertEqual(evidence["schema_version"], 1)
+            self.assertEqual(evidence["tool"], "codegraph")
+            self.assertEqual(evidence["nodegraph"]["files"], 2)
+            self.assertEqual(evidence["nodegraph"]["nodes"], 3)
+            self.assertEqual(evidence["nodegraph"]["edges"], 2)
+            self.assertEqual(evidence["nodegraph"]["unresolved_refs"], 1)
+            self.assertEqual(evidence["nodegraph"]["schema_versions"], [4])
+            self.assertEqual(evidence["nodegraph"]["nodes_by_kind"]["class"], 1)
+            self.assertEqual(evidence["nodegraph"]["nodes_by_kind"]["interface"], 1)
+            self.assertEqual(evidence["nodegraph"]["nodes_by_kind"]["method"], 1)
+
+    def test_nodegraph_evidence_builder_reports_clean_git_status_as_false(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_minimal_codegraph_db(root)
+            subprocess.run(["git", "init"], cwd=root, text=True, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test User"], cwd=root, check=True)
+            subprocess.run(["git", "add", ".codegraph/codegraph.db"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "seed codegraph db"], cwd=root, text=True, capture_output=True, check=True)
+
+            result = subprocess.run(
+                [sys.executable, str(NODEGRAPH_BUILDER), "--root", str(root)],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            evidence = yaml.safe_load(result.stdout)
+            self.assertIs(evidence["repository"]["dirty"], False)
 
 
 if __name__ == "__main__":

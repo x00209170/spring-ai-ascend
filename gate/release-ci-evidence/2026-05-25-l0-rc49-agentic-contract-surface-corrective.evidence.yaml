@@ -1,0 +1,94 @@
+schema_version: 1
+generated_at_utc: '2026-05-25T12:52:29+00:00'
+repository:
+  root: /tmp/spring-ai-ascend-rc49-evidence
+  commit_sha: 1d4b3f95fae39088e79524aef53aa1bf308b7be9
+  branch: HEAD
+  dirty: false
+latest_release:
+  path: docs/logs/releases/2026-05-25-l0-rc48-agentic-contract-surface.en.md
+  formal_release: false
+  evidence_bundle: null
+baseline_metrics:
+  active_engineering_rules: 43
+  active_governing_principles: 13
+  active_gate_checks: 143
+  gate_executable_test_cases: 258
+  enforcer_rows: 176
+  section_4_constraints: 65
+  adr_count: 113
+  maven_tests_green: 423
+  architecture_graph_nodes: 565
+  architecture_graph_edges: 1005
+  recurring_defect_families: 15
+  phase_contracts: 5
+  phase_loading_skills: 6
+live_metrics:
+  active_engineering_rules: 43
+  active_gate_checks: 143
+  enforcer_rows: 176
+  adr_count: 113
+  recurring_defect_families: 15
+  gate_executable_test_cases: 258
+  maven_tests_green: 423
+  architecture_graph_nodes: 565
+  architecture_graph_edges: 1005
+baseline_comparison:
+  active_engineering_rules:
+    baseline: 43
+    live: 43
+    matches: true
+  active_gate_checks:
+    baseline: 143
+    live: 143
+    matches: true
+  active_governing_principles:
+    baseline: 13
+    live: null
+    matches: null
+  adr_count:
+    baseline: 113
+    live: 113
+    matches: true
+  architecture_graph_edges:
+    baseline: 1005
+    live: 1005
+    matches: true
+  architecture_graph_nodes:
+    baseline: 565
+    live: 565
+    matches: true
+  enforcer_rows:
+    baseline: 176
+    live: 176
+    matches: true
+  gate_executable_test_cases:
+    baseline: 258
+    live: 258
+    matches: true
+  maven_tests_green:
+    baseline: 423
+    live: 423
+    matches: true
+  phase_contracts:
+    baseline: 5
+    live: null
+    matches: null
+  phase_loading_skills:
+    baseline: 6
+    live: null
+    matches: null
+  recurring_defect_families:
+    baseline: 15
+    live: 15
+    matches: true
+  section_4_constraints:
+    baseline: 65
+    live: null
+    matches: null
+release_transaction:
+  generated_by: gate/lib/build_release_evidence.py
+  validator: gate/check_formal_release_transaction.sh
+  requires_current_forward_claims: true
+  requires_defect_family_closures: true
+  requires_generated_surface_refresh: true
