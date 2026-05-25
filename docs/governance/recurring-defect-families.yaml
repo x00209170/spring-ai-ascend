@@ -934,3 +934,7 @@ families:
       cross-package relationships; if future reviews choose repo-wide SPI
       purity, those surfaces need a separate scoped refactor rather than
       being hidden under the rc52 agentic-contract closure.
+      The rc52 formal-publication follow-up also re-ran the recurring-family
+      ledger freshness check after the release note and CLAUDE template
+      publication surfaces changed; no additional problem type was found beyond
+      this family, so the canonical recurring-family count remains 16.

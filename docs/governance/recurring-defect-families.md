@@ -819,6 +819,10 @@ new agent-middleware contract surfaces. Broader historical SPI packages in
 `agent-bus`, `agent-execution-engine`, and `agent-service` still carry
 intentional cross-package relationships from earlier architecture waves; a
 future repo-wide SPI-purity rule would need a separately scoped migration.
+The rc52 formal-publication follow-up also re-ran the recurring-family
+ledger freshness check after the release note and CLAUDE template publication
+surfaces changed; no additional problem type was found beyond this family,
+so the canonical recurring-family count remains 16.
 
 ---
 
