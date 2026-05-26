@@ -1526,7 +1526,7 @@
   level: L0
   view: scenarios
   artifact: gate/check_architecture_sync.sh#release_note_no_pending_evidence
-  asserts: "Rule 127 — the latest release note that claims a release/shipped decision MUST NOT retain placeholder evidence tokens such as pending-formal-validator-run or TO BE GENERATED, and MUST carry a real 40-character release_candidate_commit."
+  asserts: "Rule 127 — the latest release note that claims a release/shipped/closure decision and the latest review response MUST NOT retain live placeholder tokens such as TBD, TODO-template, pending-formal-validator-run, or TO BE GENERATED outside documented citation contexts; formal release notes MUST carry a real 40-character release_candidate_commit."
 
 - id: E176
   constraint_ref: "Rule G-8 (Cross-Authority Parity); 2026-05-25 rc48 agentic-contract-surface review P0-2"
@@ -1542,4 +1542,4 @@
   level: L0
   view: development
   artifact: gate/check_architecture_sync.sh#contract_spi_count_truth
-  asserts: "Rule 129 — contract-catalog active SPI total, module-count sum, and the latest release note's Active SPI total MUST agree; promoted SPIs such as Skill and AgentRegistry MUST NOT remain listed as deferred design-only rows."
+  asserts: "Rule 129 — contract-catalog active SPI total, module-count sum, and the latest release note's Active SPI total MUST agree; promoted SPIs such as Skill and AgentRegistry MUST NOT remain listed as deferred design-only rows; Agent/advisor composition claims MUST be backed by AgentDefinition fields, typed advisor carriers, and the shared advisor/model hook sequence."

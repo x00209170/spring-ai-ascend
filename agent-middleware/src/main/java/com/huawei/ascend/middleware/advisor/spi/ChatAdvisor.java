@@ -1,13 +1,14 @@
 package com.huawei.ascend.middleware.advisor.spi;
 
 /**
- * Around-call interceptor over
- * {@link com.huawei.ascend.middleware.model.spi.ModelGateway} invocation.
+ * Around-call interceptor over model invocation.
  *
- * <p>Authority: ADR-0132. The chain runs inside the
- * {@code HookDispatcher.fire(BEFORE_LLM)}/{@code AFTER_LLM} brackets
- * at runtime (ADR-0073); customers compose advisors at agent
- * definition time and never import {@code HookDispatcher} directly.
+ * <p>Authority: ADR-0132. Runtime binding follows sequence
+ * {@code advisor-model-hook-order/v1}: customers bind advisors at agent
+ * definition time; the platform translates the model invocation to this
+ * package's typed carriers, fires {@code BEFORE_LLM}, runs the advisor
+ * chain around the model call, translates the final response, then fires
+ * {@code AFTER_LLM}. Customers never import {@code HookDispatcher}.
  *
  * <p>Implementations:
  * <ul>
@@ -38,12 +39,10 @@ public interface ChatAdvisor {
     int order();
 
     /**
-     * Intercept a {@link com.huawei.ascend.middleware.model.spi.ModelGateway#invoke(
-     * com.huawei.ascend.middleware.model.spi.ModelInvocation)} call.
-     * Implementations MUST call {@link AdvisorChain#next(AdvisedRequest)}
-     * exactly once, unless they short-circuit the call by returning a
-     * synthetic {@link AdvisedResponse} (e.g. PII-filter rejection or
-     * cache hit).
+     * Intercept a model call. Implementations MUST call
+     * {@link AdvisorChain#next(AdvisedRequest)} exactly once, unless
+     * they short-circuit the call by returning a synthetic
+     * {@link AdvisedResponse} (e.g. PII-filter rejection or cache hit).
      *
      * @param request the advised request envelope; never null.
      * @param chain   the advisor chain; never null.

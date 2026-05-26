@@ -1,0 +1,94 @@
+schema_version: 1
+generated_at_utc: '2026-05-26T04:10:20+00:00'
+repository:
+  root: /mnt/d/chao_workspace/spring-ai-ascend
+  commit_sha: 49de909468784ce159121fcf97f83726fc0bff73
+  branch: codex/rc53-l0-agentic-composition-review
+  dirty: false
+latest_release:
+  path: docs/logs/releases/2026-05-26-rc53-agent-service-l1-4plus1-rewrite-closure.en.md
+  formal_release: false
+  evidence_bundle: null
+baseline_metrics:
+  active_engineering_rules: 43
+  active_governing_principles: 13
+  active_gate_checks: 143
+  gate_executable_test_cases: 260
+  enforcer_rows: 176
+  section_4_constraints: 65
+  adr_count: 124
+  maven_tests_green: 461
+  architecture_graph_nodes: 606
+  architecture_graph_edges: 1112
+  recurring_defect_families: 20
+  phase_contracts: 5
+  phase_loading_skills: 6
+live_metrics:
+  active_engineering_rules: 43
+  active_gate_checks: 143
+  enforcer_rows: 176
+  adr_count: 124
+  recurring_defect_families: 20
+  gate_executable_test_cases: 260
+  maven_tests_green: 461
+  architecture_graph_nodes: 606
+  architecture_graph_edges: 1112
+baseline_comparison:
+  active_engineering_rules:
+    baseline: 43
+    live: 43
+    matches: true
+  active_gate_checks:
+    baseline: 143
+    live: 143
+    matches: true
+  active_governing_principles:
+    baseline: 13
+    live: null
+    matches: null
+  adr_count:
+    baseline: 124
+    live: 124
+    matches: true
+  architecture_graph_edges:
+    baseline: 1112
+    live: 1112
+    matches: true
+  architecture_graph_nodes:
+    baseline: 606
+    live: 606
+    matches: true
+  enforcer_rows:
+    baseline: 176
+    live: 176
+    matches: true
+  gate_executable_test_cases:
+    baseline: 260
+    live: 260
+    matches: true
+  maven_tests_green:
+    baseline: 461
+    live: 461
+    matches: true
+  phase_contracts:
+    baseline: 5
+    live: null
+    matches: null
+  phase_loading_skills:
+    baseline: 6
+    live: null
+    matches: null
+  recurring_defect_families:
+    baseline: 20
+    live: 20
+    matches: true
+  section_4_constraints:
+    baseline: 65
+    live: null
+    matches: null
+release_transaction:
+  generated_by: gate/lib/build_release_evidence.py
+  validator: gate/check_formal_release_transaction.sh
+  requires_current_forward_claims: true
+  requires_defect_family_closures: true
+  requires_generated_surface_refresh: true

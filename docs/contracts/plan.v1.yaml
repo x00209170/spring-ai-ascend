@@ -38,7 +38,22 @@ plan_step:
 step_budget:
   required_fields:
     - maxWallClock       # Duration
-    - maxCostUnits
+    - maxCostUnits       # finite double >= 0
+
+constructor_validated:
+  plan:
+    - planId non-blank
+    - stepId values unique across steps
+    - dependency map keys reference known stepId values
+    - dependency prerequisites reference known stepId values
+    - dependency graph cycle-free
+  plan_step:
+    - stepId non-blank
+    - displayName non-blank
+    - skillKey non-blank
+  step_budget:
+    - maxWallClock non-null
+    - maxCostUnits finite and >= 0
 
 branch_point:
   required_fields:

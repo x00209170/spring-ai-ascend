@@ -75,6 +75,12 @@ decision: |
       - `Map<MemoryCategory, MemoryRef> memoryBindings` — per
         category, optional `MemoryStore` binding.
       - `Optional<PlannerRef> plannerBinding` — optional planner.
+      - `List<AdvisorBinding> advisorBindings` — optional ordered
+        advisor bindings resolved by stable `advisorName` at registration
+        time. `AdvisorBinding` lives in `service.agent.spi` and carries
+        `advisorName`, `mode` (`SYNC`, `STREAMING`, `BOTH`), optional
+        `orderOverride`, and metadata so the agent SPI does not import
+        middleware advisor SPI types.
       - `String systemPrompt`
       - `SafetyPolicy safetyPolicy`
       - `Map<String, Object> metadata`

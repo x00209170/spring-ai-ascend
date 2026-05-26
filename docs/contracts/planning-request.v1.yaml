@@ -25,7 +25,11 @@ planning_budget:
   required_fields:
     - maxSteps           # > 0
     - maxWallClock       # Duration
-    - maxCostUnits       # platform cost-attribution units
+    - maxCostUnits       # platform cost-attribution units; finite double >= 0
+  constructor_validated:
+    - maxSteps > 0
+    - maxWallClock non-null
+    - maxCostUnits finite and >= 0
 
 planning_strategy:
   values: [SEQUENTIAL, DAG, REACT, TREE_OF_THOUGHT, CUSTOM]

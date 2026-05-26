@@ -5,6 +5,7 @@ import com.huawei.ascend.middleware.memory.spi.MemoryRef;
 import com.huawei.ascend.engine.planner.spi.PlannerRef;
 import com.huawei.ascend.middleware.skill.spi.SkillRef;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -20,10 +21,12 @@ import java.util.Set;
  * request/response loops. Long-running agent work goes through
  * {@code Orchestrator.run(...)} with an {@code ExecutorDefinition}
  * derived from the agent's bindings (see
- * {@code AgentExecutorDefinitionFactory}, Wave C1).
+ * {@code AgentExecutorDefinitionFactory}).
  *
- * <p>SPI purity per Rule R-D: imports java.* + same-module
- * middleware SPI siblings only.
+ * <p>SPI purity per Rule R-D: no framework or implementation dependencies.
+ * Cross-package agent binding refs are a legacy residual documented in
+ * root ARCHITECTURE.md §3.7; new middleware SPI surfaces use strict
+ * same-package carriers.
  */
 public interface Agent {
 
@@ -55,6 +58,10 @@ public interface Agent {
 
     default Optional<PlannerRef> plannerBinding() {
         return definition().plannerBinding();
+    }
+
+    default List<AdvisorBinding> advisorBindings() {
+        return definition().advisorBindings();
     }
 
     default String systemPrompt() {

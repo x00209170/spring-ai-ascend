@@ -19,5 +19,8 @@ public record PlanningBudget(int maxSteps, Duration maxWallClock, double maxCost
         if (maxSteps <= 0) {
             throw new IllegalArgumentException("maxSteps must be > 0");
         }
+        if (!Double.isFinite(maxCostUnits) || maxCostUnits < 0.0) {
+            throw new IllegalArgumentException("maxCostUnits must be finite and >= 0");
+        }
     }
 }

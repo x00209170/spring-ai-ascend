@@ -53,14 +53,18 @@ decision: |
     - `ToolCallDelta(String callId, String skillKey, String argumentsDelta)`
       — partial tool-call argument stream.
     - `Complete(ModelResponse finalResponse)` — terminal chunk
-      carrying the fully assembled `ModelResponse`. The stream MUST
-      contain at most one `Complete` element which MUST be the last.
-  - **Hook binding**: `HookPoint.BEFORE_LLM` fires once with
-    `ModelInvocation` before stream open; `HookPoint.AFTER_LLM`
-    fires once with the terminal `Complete.finalResponse()`. Per-chunk
-    hooks are deliberately not declared at L0 — the platform reserves
-    the option to add them in a future ADR without breaking the
-    current envelope.
+      carrying the fully assembled `ModelResponse`. A successful stream
+      MUST contain exactly one `Complete` element which MUST be the last.
+      A cancelled stream may close before `Complete`, and provider/runtime
+      errors surface as stream exceptions rather than an L0 error chunk.
+  - **Hook binding**: `advisor-model-hook-order/v1` is shared with
+    ADR-0132. `HookPoint.BEFORE_LLM` fires once with the canonical
+    `ModelInvocation` before the ordered `StreamingChatAdvisor` chain
+    opens the provider stream; `HookPoint.AFTER_LLM` fires once after
+    outbound streaming advisors produce the final translated
+    `ModelResponse`. Per-chunk hooks are deliberately not declared at
+    L0 — the platform reserves the option to add them in a future ADR
+    without breaking the current envelope.
   - **Tenant scope**: streams inherit the tenant from
     `ModelInvocation.tenantId()` (Rule R-C.c). Cross-tenant access
     fails closed before stream open.
@@ -81,8 +85,9 @@ consequences: |
     every existing `ModelGateway` implementation continues to compile
     and run; only adapters that opt into streaming need to override.
   - The `Complete(ModelResponse)` terminal chunk gives the adapter a
-    single place to fire `AFTER_LLM` and emit usage / finishReason
-    without inventing a parallel "tail metadata" carrier.
+    single terminal response for outbound advisor transformation and
+    final `AFTER_LLM` emission without inventing a parallel "tail
+    metadata" carrier.
 
   Negative / residual:
   - Streaming I/O is inherently blocking on `Stream.next()`; W2

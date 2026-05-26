@@ -132,6 +132,11 @@ public class MyFirstAgent {
         Set.of(/* SkillRef("get_order_status"), SkillRef("escalate_to_human") */),
         Map.of(/* MemoryCategory.M5_KNOWLEDGE, new MemoryRef("docs-corpus", M5_KNOWLEDGE) */),
         Optional.empty(),                         // plannerBinding
+        List.of(new AdvisorBinding(
+            "pii-redaction",
+            AdvisorBinding.Mode.BOTH,
+            Optional.of(100),
+            Map.of())),                           // advisorBindings
         "You are a helpful support agent.",
         SafetyPolicy.permissive(),
         Map.of());
@@ -201,9 +206,10 @@ public class MyAgentExtensions {
       @Override public String advisorName() { return "pii-redaction"; }
       @Override public int order() { return 100; }
       @Override public AdvisedResponse aroundCall(AdvisedRequest req, AdvisorChain chain) {
-        // Inbound: scrub PII from req.invocation().messages() before chain.next.
-        // Outbound: scrub PII from response.content() before return.
-        return chain.next(req); // L0 contract shape; W2 wires real binding.
+        // Inbound: inspect or replace req.modelRequest().messages() before chain.next.
+        AdvisedResponse response = chain.next(req);
+        // Outbound: inspect or replace response.modelResponse().content() before return.
+        return response; // L0 contract shape; W2 wires real binding.
       }
     };
   }
@@ -219,10 +225,9 @@ public class MyAgentExtensions {
 ```
 
 The same `AgentDefinition` shape from §4.5 binds these extensions via
-`toolBindings` / `memoryBindings` / `metadata`; the W2 LLM gateway wave
-adds an optional `advisorBindings: List<ChatAdvisor>` accessor on
-`AgentDefinition` so the advisor chain composes at agent registration
-time, not at every invocation.
+`toolBindings`, `memoryBindings`, and `advisorBindings`. Advisors are
+bound by `AdvisorBinding.advisorName()` so the agent contract stays pure
+and never imports `ChatAdvisor` directly.
 
 See:
 - [`docs/contracts/model-streaming.v1.yaml`](contracts/model-streaming.v1.yaml) (ADR-0129)

@@ -36,5 +36,14 @@ public record PlanStep(
         Objects.requireNonNull(writeMemoryRef, "writeMemoryRef");
         Objects.requireNonNull(stepBudget, "stepBudget");
         inputs = Map.copyOf(inputs);
+        if (stepId.isBlank()) {
+            throw new IllegalArgumentException("stepId must be non-blank");
+        }
+        if (displayName.isBlank()) {
+            throw new IllegalArgumentException("displayName must be non-blank");
+        }
+        if (skillKey.isBlank()) {
+            throw new IllegalArgumentException("skillKey must be non-blank");
+        }
     }
 }

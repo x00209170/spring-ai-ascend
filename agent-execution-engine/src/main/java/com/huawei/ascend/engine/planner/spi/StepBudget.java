@@ -11,5 +11,8 @@ import java.util.Objects;
 public record StepBudget(Duration maxWallClock, double maxCostUnits) {
     public StepBudget {
         Objects.requireNonNull(maxWallClock, "maxWallClock");
+        if (!Double.isFinite(maxCostUnits) || maxCostUnits < 0.0) {
+            throw new IllegalArgumentException("maxCostUnits must be finite and >= 0");
+        }
     }
 }

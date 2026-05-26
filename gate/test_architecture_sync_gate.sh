@@ -6822,6 +6822,23 @@ SHEOF
   else
     fail "rule127_release_note_no_pending_evidence_pos" "expected concrete formal release note to pass"
   fi
+
+  local closure_root="$scratch/r127_closure_pos"
+  mkdir -p "$closure_root/docs/logs/releases"
+  cat > "$closure_root/docs/logs/releases/2026-05-26-rc53-closure.en.md" <<'SHEOF'
+---
+status: closure
+---
+
+# rc53 Closure Release Note
+
+- F-placeholder-leaks-into-active-corpus — anonymous slugs (TBD / TODO-template) are cited here as the defect family vocabulary.
+SHEOF
+  if python3 "$repo_root/gate/lib/check_release_note_current_truth.py" --root "$closure_root" >/dev/null 2>&1; then
+    ok "rule127_release_note_no_pending_evidence_closure_pos" "closure note may cite placeholder family vocabulary"
+  else
+    fail "rule127_release_note_no_pending_evidence_closure_pos" "expected closure note citation context to pass"
+  fi
 }
 
 test_rule_127_release_note_no_pending_evidence_placeholder_neg() {
@@ -6844,6 +6861,25 @@ SHEOF
     ok "rule127_release_note_no_pending_evidence_placeholder_neg" "pending evidence placeholders fail the latest release check"
   else
     fail "rule127_release_note_no_pending_evidence_placeholder_neg" "expected pending evidence placeholders to fail"
+  fi
+
+  local closure_root="$scratch/r127_closure_placeholder_neg"
+  mkdir -p "$closure_root/docs/logs/releases"
+  cat > "$closure_root/docs/logs/releases/2026-05-26-rc53-closure.en.md" <<'SHEOF'
+---
+status: closure
+---
+
+# rc53 Closure Release Note
+
+| Wave | Lines |
+|---|---:|
+| Wave 8 | TBD |
+SHEOF
+  if ! python3 "$repo_root/gate/lib/check_release_note_current_truth.py" --root "$closure_root" >/dev/null 2>&1; then
+    ok "rule127_release_note_no_pending_evidence_closure_neg" "live placeholders fail in current closure notes"
+  else
+    fail "rule127_release_note_no_pending_evidence_closure_neg" "expected live closure-note placeholder to fail"
   fi
 }
 
@@ -6901,7 +6937,9 @@ SHEOF
 
 test_rule_129_contract_spi_count_truth_pos() {
   local root="$scratch/r129_pos"
-  mkdir -p "$root/docs/contracts" "$root/docs/logs/releases"
+  mkdir -p "$root/docs/contracts" \
+           "$root/docs/logs/releases" \
+           "$root/agent-service/src/main/java/com/huawei/ascend/service/agent/spi"
   cat > "$root/docs/contracts/contract-catalog.md" <<'SHEOF'
 **Active SPI interfaces (33 total):**
 
@@ -6930,10 +6968,40 @@ status: formal-release-ready
 
 - Active SPI interfaces: 33 total (19 pre-rc43 + 14 rc43).
 SHEOF
+  cat > "$root/docs/contracts/chat-advisor.v1.yaml" <<'SHEOF'
+advised_request:
+  required_fields:
+    - modelRequest      # AdvisedModelRequest
+advised_response:
+  required_fields:
+    - modelResponse     # AdvisedModelResponse
+binding:
+  sequence_id: advisor-model-hook-order/v1
+  agent_definition_field: advisorBindings
+SHEOF
+  cat > "$root/docs/contracts/agent-definition.v1.yaml" <<'SHEOF'
+agent_definition:
+  optional_fields:
+    - advisorBindings    # list<AdvisorBinding>
+advisor_binding:
+  required_fields: [advisorName, mode, orderOverride, metadata]
+SHEOF
+  cat > "$root/docs/contracts/model-streaming.v1.yaml" <<'SHEOF'
+hook_binding:
+  sequence_id: advisor-model-hook-order/v1
+SHEOF
+  cat > "$root/agent-service/src/main/java/com/huawei/ascend/service/agent/spi/AgentDefinition.java" <<'SHEOF'
+package com.huawei.ascend.service.agent.spi;
+public record AgentDefinition(List<AdvisorBinding> advisorBindings) {}
+SHEOF
+  cat > "$root/agent-service/src/main/java/com/huawei/ascend/service/agent/spi/AdvisorBinding.java" <<'SHEOF'
+package com.huawei.ascend.service.agent.spi;
+public record AdvisorBinding(String advisorName) {}
+SHEOF
   if python3 "$repo_root/gate/lib/check_contract_spi_count_truth.py" --root "$root" >/dev/null 2>&1; then
-    ok "rule129_contract_spi_count_truth_pos" "catalog module totals and latest release SPI total agree"
+    ok "rule129_contract_spi_count_truth_pos" "catalog counts, latest release SPI total, and advisor composition surfaces agree"
   else
-    fail "rule129_contract_spi_count_truth_pos" "expected aligned SPI count surfaces to pass"
+    fail "rule129_contract_spi_count_truth_pos" "expected aligned SPI count and advisor composition surfaces to pass"
   fi
 }
 
@@ -6967,10 +7035,66 @@ status: formal-release-ready
 
 - Active SPI interfaces: 33 total (19 pre-rc43 + 14 rc43).
 SHEOF
+  local stale_failed=0
   if ! python3 "$repo_root/gate/lib/check_contract_spi_count_truth.py" --root "$root" >/dev/null 2>&1; then
-    ok "rule129_contract_spi_count_truth_stale_deferred_neg" "promoted Skill stale-deferred row fails"
+    stale_failed=1
+  fi
+
+  local composition_root="$scratch/r129_composition_gap_neg"
+  mkdir -p "$composition_root/docs/contracts" \
+           "$composition_root/docs/logs/releases" \
+           "$composition_root/agent-service/src/main/java/com/huawei/ascend/service/agent/spi"
+  cat > "$composition_root/docs/contracts/contract-catalog.md" <<'SHEOF'
+**Active SPI interfaces (33 total):**
+
+**Count by module:**
+
+| Module | Count |
+|---|---:|
+| `agent-service` | 9 (`Agent`) |
+| `agent-execution-engine` | 7 (`Planner`) |
+| `agent-bus` | 4 (`IngressGateway`) |
+| `agent-middleware` | 12 (`ModelGateway`) |
+| `agent-evolve` | 1 (`SlowTrackJudge`) |
+SHEOF
+  cat > "$composition_root/docs/logs/releases/2026-05-25-l0-rc49-current.en.md" <<'SHEOF'
+---
+release_candidate_commit: 0123456789abcdef0123456789abcdef01234567
+status: formal-release-ready
+---
+
+- Active SPI interfaces: 33 total (19 pre-rc43 + 14 rc43).
+SHEOF
+  cat > "$composition_root/docs/contracts/chat-advisor.v1.yaml" <<'SHEOF'
+advised_request:
+  required_fields:
+    - requestEnvelope   # raw map drift
+binding:
+  sequence_id: advisor-model-hook-order/v1
+  agent_definition_field: advisorBindings
+SHEOF
+  cat > "$composition_root/docs/contracts/agent-definition.v1.yaml" <<'SHEOF'
+agent_definition:
+  optional_fields:
+    - plannerBinding
+SHEOF
+  cat > "$composition_root/docs/contracts/model-streaming.v1.yaml" <<'SHEOF'
+hook_binding:
+  sequence_id: different-order/v1
+SHEOF
+  cat > "$composition_root/agent-service/src/main/java/com/huawei/ascend/service/agent/spi/AgentDefinition.java" <<'SHEOF'
+package com.huawei.ascend.service.agent.spi;
+public record AgentDefinition(String agentId) {}
+SHEOF
+  local composition_failed=0
+  if ! python3 "$repo_root/gate/lib/check_contract_spi_count_truth.py" --root "$composition_root" >/dev/null 2>&1; then
+    composition_failed=1
+  fi
+
+  if [[ $stale_failed -eq 1 && $composition_failed -eq 1 ]]; then
+    ok "rule129_contract_spi_count_truth_stale_deferred_neg" "promoted stale-deferred rows and advisor composition drift fail"
   else
-    fail "rule129_contract_spi_count_truth_stale_deferred_neg" "expected stale deferred Skill row to fail"
+    fail "rule129_contract_spi_count_truth_stale_deferred_neg" "expected stale deferred row and advisor composition drift to fail"
   fi
 }
 

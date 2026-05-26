@@ -1,8 +1,10 @@
 package com.huawei.ascend.engine.planner.spi;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Planner output: a DAG of steps with dependencies, branch points,
@@ -43,5 +45,52 @@ public record Plan(
         branches = List.copyOf(branches);
         loops = List.copyOf(loops);
         metadata = Map.copyOf(metadata);
+        if (planId.isBlank()) {
+            throw new IllegalArgumentException("planId must be non-blank");
+        }
+        validateDependencies(steps, dependencies);
+    }
+
+    private static void validateDependencies(List<PlanStep> steps, Map<String, List<String>> dependencies) {
+        Set<String> stepIds = new HashSet<>();
+        for (PlanStep step : steps) {
+            if (!stepIds.add(step.stepId())) {
+                throw new IllegalArgumentException("duplicate stepId: " + step.stepId());
+            }
+        }
+        for (Map.Entry<String, List<String>> entry : dependencies.entrySet()) {
+            String stepId = entry.getKey();
+            if (stepId == null || !stepIds.contains(stepId)) {
+                throw new IllegalArgumentException("unknown dependency stepId: " + stepId);
+            }
+            for (String prerequisite : entry.getValue()) {
+                if (prerequisite == null || !stepIds.contains(prerequisite)) {
+                    throw new IllegalArgumentException("unknown dependency prerequisite: " + prerequisite);
+                }
+            }
+        }
+        Set<String> visiting = new HashSet<>();
+        Set<String> visited = new HashSet<>();
+        for (String stepId : stepIds) {
+            detectCycle(stepId, dependencies, visiting, visited);
+        }
+    }
+
+    private static void detectCycle(
+            String stepId,
+            Map<String, List<String>> dependencies,
+            Set<String> visiting,
+            Set<String> visited) {
+        if (visited.contains(stepId)) {
+            return;
+        }
+        if (!visiting.add(stepId)) {
+            throw new IllegalArgumentException("dependency cycle detected at stepId: " + stepId);
+        }
+        for (String prerequisite : dependencies.getOrDefault(stepId, List.of())) {
+            detectCycle(prerequisite, dependencies, visiting, visited);
+        }
+        visiting.remove(stepId);
+        visited.add(stepId);
     }
 }

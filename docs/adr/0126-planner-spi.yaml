@@ -84,7 +84,15 @@ decision: |
     `maxIterations`.
   - **`PlanningRationale`** record: `reasoningTrace`, `consideredAlternatives`.
   - **`PlanningBudget`** / **`StepBudget`** records: max steps,
-    max wall-clock, max attribution-cost.
+    max wall-clock, max attribution-cost. Constructor-level invariants
+    validate non-null wall-clock values and finite non-negative
+    `maxCostUnits`; `PlanningBudget.maxSteps` remains `> 0`.
+  - **Constructor-level plan invariants**: `Plan` rejects blank
+    `planId`, duplicate step ids, dependencies that reference unknown
+    steps or prerequisites, and dependency cycles. `PlanStep` rejects
+    blank `stepId`, `displayName`, and `skillKey`. Provider/TCK-level
+    validation still owns planner-specific branch-condition expression
+    dialects and loop termination semantics.
 
   Relationship to existing `plan-projection.v1.yaml`:
 

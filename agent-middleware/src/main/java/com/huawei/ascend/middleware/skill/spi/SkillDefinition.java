@@ -43,6 +43,9 @@ public record SkillDefinition(
         if (skillKey.isBlank()) {
             throw new IllegalArgumentException("skillKey must be non-blank");
         }
+        if (displayName.isBlank()) {
+            throw new IllegalArgumentException("displayName must be non-blank");
+        }
     }
 
     /** {@code capacityKey} default = {@link #skillKey()}. */

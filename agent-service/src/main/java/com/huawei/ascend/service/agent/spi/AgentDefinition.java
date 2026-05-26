@@ -5,6 +5,7 @@ import com.huawei.ascend.middleware.memory.spi.MemoryRef;
 import com.huawei.ascend.engine.planner.spi.PlannerRef;
 import com.huawei.ascend.middleware.skill.spi.SkillRef;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,6 +26,7 @@ import java.util.Set;
  * @param toolBindings    bound {@code Skill}s (any {@code SkillKind}).
  * @param memoryBindings  per-category memory store bindings.
  * @param plannerBinding  optional {@code Planner} reference.
+ * @param advisorBindings ordered advisor bindings resolved by name.
  * @param systemPrompt    agent-level system prompt; never null.
  * @param safetyPolicy    safety policy (ADR-0051).
  * @param metadata        free-form metadata.
@@ -38,9 +40,26 @@ public record AgentDefinition(
         Set<SkillRef> toolBindings,
         Map<MemoryCategory, MemoryRef> memoryBindings,
         Optional<PlannerRef> plannerBinding,
+        List<AdvisorBinding> advisorBindings,
         String systemPrompt,
         SafetyPolicy safetyPolicy,
         Map<String, Object> metadata) {
+
+    public AgentDefinition(
+            String agentId,
+            String tenantId,
+            String displayName,
+            String description,
+            ModelRef modelBinding,
+            Set<SkillRef> toolBindings,
+            Map<MemoryCategory, MemoryRef> memoryBindings,
+            Optional<PlannerRef> plannerBinding,
+            String systemPrompt,
+            SafetyPolicy safetyPolicy,
+            Map<String, Object> metadata) {
+        this(agentId, tenantId, displayName, description, modelBinding, toolBindings, memoryBindings,
+                plannerBinding, List.of(), systemPrompt, safetyPolicy, metadata);
+    }
 
     public AgentDefinition {
         Objects.requireNonNull(agentId, "agentId");
@@ -51,11 +70,13 @@ public record AgentDefinition(
         Objects.requireNonNull(toolBindings, "toolBindings");
         Objects.requireNonNull(memoryBindings, "memoryBindings");
         Objects.requireNonNull(plannerBinding, "plannerBinding");
+        Objects.requireNonNull(advisorBindings, "advisorBindings");
         Objects.requireNonNull(systemPrompt, "systemPrompt");
         Objects.requireNonNull(safetyPolicy, "safetyPolicy");
         Objects.requireNonNull(metadata, "metadata");
         toolBindings = Set.copyOf(toolBindings);
         memoryBindings = Map.copyOf(memoryBindings);
+        advisorBindings = List.copyOf(advisorBindings);
         metadata = Map.copyOf(metadata);
         if (agentId.isBlank()) {
             throw new IllegalArgumentException("agentId must be non-blank");

@@ -26,6 +26,15 @@ agent_definition:
     - metadata           # map<string, any>
   optional_fields:
     - plannerBinding     # Optional<PlannerRef { plannerId }>
+    - advisorBindings    # list<AdvisorBinding>; default empty; resolved by advisorName
+
+advisor_binding:
+  required_fields:
+    - advisorName        # string, non-blank; resolves ChatAdvisor / StreamingChatAdvisor bean or registry entry
+    - mode               # SYNC | STREAMING | BOTH
+    - orderOverride      # Optional<int>; per-agent ordering override when present
+    - metadata           # map<string, any>
+  spi_purity: "same-package carrier under service.agent.spi; no dependency on middleware.advisor.spi"
 
 safety_policy:
   required_fields:

@@ -42,6 +42,14 @@ class PlannerSpiCarrierImmutabilityTest {
 
     @Test
     void planCopiesListsMapsAndNestedDependencyLists() {
+        PlanStep start = new PlanStep(
+                "start",
+                "Start",
+                "prepare",
+                Map.of("query", "hello"),
+                Optional.empty(),
+                Optional.empty(),
+                STEP_BUDGET);
         PlanStep step = new PlanStep(
                 "step",
                 "Search",
@@ -50,7 +58,7 @@ class PlannerSpiCarrierImmutabilityTest {
                 Optional.empty(),
                 Optional.empty(),
                 STEP_BUDGET);
-        List<PlanStep> steps = new ArrayList<>(List.of(step));
+        List<PlanStep> steps = new ArrayList<>(List.of(start, step));
         List<String> prerequisites = new ArrayList<>(List.of("start"));
         Map<String, List<String>> dependencies = new HashMap<>(Map.of("step", prerequisites));
         List<BranchPoint> branches = new ArrayList<>(List.of(
@@ -68,7 +76,7 @@ class PlannerSpiCarrierImmutabilityTest {
         loops.clear();
         metadata.put("planner", "mutated");
 
-        assertThat(plan.steps()).containsExactly(step);
+        assertThat(plan.steps()).containsExactly(start, step);
         assertThat(plan.dependencies()).containsEntry("step", List.of("start"));
         assertThat(plan.branches()).hasSize(1);
         assertThat(plan.loops()).hasSize(1);
@@ -134,5 +142,63 @@ class PlannerSpiCarrierImmutabilityTest {
         assertThat(loop.initialContext()).containsEntry("trace", "t1");
         assertThatThrownBy(() -> graph.edges().put("new", "value"))
                 .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void planRejectsDuplicateUnknownAndCyclicStepDependencies() {
+        PlanStep start = new PlanStep(
+                "start",
+                "Start",
+                "search",
+                Map.of(),
+                Optional.empty(),
+                Optional.empty(),
+                STEP_BUDGET);
+        PlanStep finish = new PlanStep(
+                "finish",
+                "Finish",
+                "summarise",
+                Map.of(),
+                Optional.empty(),
+                Optional.empty(),
+                STEP_BUDGET);
+
+        assertThatThrownBy(() -> new Plan(
+                "plan",
+                List.of(start, start),
+                Map.of(),
+                List.of(),
+                List.of(),
+                Map.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("duplicate");
+        assertThatThrownBy(() -> new Plan(
+                "plan",
+                List.of(start),
+                Map.of("finish", List.of("start")),
+                List.of(),
+                List.of(),
+                Map.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unknown");
+        assertThatThrownBy(() -> new Plan(
+                "plan",
+                List.of(start, finish),
+                Map.of("start", List.of("finish"), "finish", List.of("start")),
+                List.of(),
+                List.of(),
+                Map.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cycle");
+    }
+
+    @Test
+    void budgetsRejectInvalidCostUnits() {
+        assertThatThrownBy(() -> new StepBudget(Duration.ofSeconds(1), -1.0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxCostUnits");
+        assertThatThrownBy(() -> new PlanningBudget(1, Duration.ofSeconds(1), Double.NaN))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxCostUnits");
     }
 }

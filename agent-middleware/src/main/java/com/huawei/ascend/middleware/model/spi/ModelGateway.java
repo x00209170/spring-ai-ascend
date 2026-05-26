@@ -7,8 +7,8 @@ import java.util.stream.Stream;
  * Tenant-scoped LLM invocation boundary.
  *
  * <p>Authority: ADR-0121. The reference adapter
- * {@code SpringAiChatModelGateway} (Wave C1) wraps Spring AI's
- * {@code ChatModel} (ADR-0125).
+ * {@code SpringAiChatModelGateway} wraps Spring AI's {@code ChatModel}
+ * (ADR-0125).
  *
  * <p>Implementations:
  * <ul>
@@ -48,11 +48,12 @@ public interface ModelGateway {
      * <p>Authority: ADR-0129, schema at
      * {@code docs/contracts/model-streaming.v1.yaml}.
      *
-     * <p>Hook binding: {@code HookPoint.BEFORE_LLM} fires once with
-     * {@link ModelInvocation} before stream open;
-     * {@code HookPoint.AFTER_LLM} fires once with the terminal
-     * {@code Complete.finalResponse()}. Per-chunk hooks are not
-     * declared at L0.
+     * <p>Hook binding: sequence {@code advisor-model-hook-order/v1}
+     * fires {@code HookPoint.BEFORE_LLM} once with {@link ModelInvocation}
+     * before ordered streaming advisors open the provider stream, then
+     * fires {@code HookPoint.AFTER_LLM} once after outbound advisors
+     * produce the final translated {@link ModelResponse}. Per-chunk hooks
+     * are not declared at L0.
      *
      * <p>SPI purity per Rule R-D: the return type is
      * {@link java.util.stream.Stream} — Reactor {@code Flux} is
@@ -61,16 +62,18 @@ public interface ModelGateway {
      * friendly iterator behind this signature.
      *
      * @param invocation tenant-scoped invocation; never null.
-     * @return a finite ordered stream of chunks; never null. The stream
-     *         MUST contain at most one {@link ModelResponseChunk.Complete}
-     *         element which MUST be the last.
+     * @return a finite ordered stream of chunks; never null. A successful
+     *         stream MUST contain exactly one
+     *         {@link ModelResponseChunk.Complete} element which MUST be the
+     *         last. A cancelled stream may close before Complete, and
+     *         provider/runtime errors surface as exceptions from the stream.
      */
     default Stream<ModelResponseChunk> stream(ModelInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation");
         throw new UnsupportedOperationException(
                 getClass().getSimpleName()
                         + ": streaming is design-only at L0; "
-                        + "W2 LLM gateway wave wires Spring AI ChatModel.stream(...) "
+                        + "the LLM gateway implementation wires Spring AI ChatModel.stream(...) "
                         + "behind virtual-thread isolation.");
     }
 

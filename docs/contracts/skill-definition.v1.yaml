@@ -25,6 +25,13 @@ skill_definition:
     - outputSchema       # JSON schema string
   optional_fields:
     - capacityKey        # defaults to skillKey when omitted
+  constructor_validated:
+    - skillKey non-blank
+    - kind non-null
+    - displayName non-blank
+    - description non-null
+    - inputSchema non-null
+    - outputSchema non-null
 
 skill_kinds:
   - TOOL                 # LLM-callable function (Spring AI ToolCallback adapter is one)

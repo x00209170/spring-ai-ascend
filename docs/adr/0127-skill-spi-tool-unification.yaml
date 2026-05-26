@@ -67,7 +67,10 @@ decision: |
     customers attach via `@Bean` + `@ConfigurationProperties`:
     `skillKey`, `kind`, `displayName`, `description`,
     `inputSchema` (JSON schema string), `outputSchema`,
-    `capacityKey` (defaults to `skillKey`).
+    `capacityKey` (defaults to `skillKey`). Constructor-level
+    invariants reject blank `skillKey` and `displayName`; JSON-schema
+    semantic validation remains a registry/TCK obligation before W2
+    runtime promotion.
   - **`SkillRef`** record — opaque reference type used in
     `Agent.toolBindings` (Wave B5) and elsewhere; carries
     `skillKey` only.

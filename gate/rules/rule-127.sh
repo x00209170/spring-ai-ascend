@@ -5,8 +5,9 @@
 
 # Rule 127 — release_note_no_pending_evidence (enforcer E175)
 #
-# Current release notes that claim a shipped / release decision MUST NOT carry
-# placeholder evidence tokens or non-SHA candidate commits.
+# Current release notes that claim a shipped / release / closure decision MUST
+# NOT carry live placeholder tokens; current review responses are checked too.
+# Formal notes must also carry non-placeholder candidate commits.
 #
 # scope_surfaces: docs/logs/releases/*.md, gate/lib/check_release_note_current_truth.py
 # ---------------------------------------------------------------------------

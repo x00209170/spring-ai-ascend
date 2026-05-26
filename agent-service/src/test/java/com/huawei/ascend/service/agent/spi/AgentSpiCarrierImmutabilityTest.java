@@ -27,6 +27,8 @@ class AgentSpiCarrierImmutabilityTest {
         Map<MemoryCategory, MemoryRef> memories = new HashMap<>(Map.of(
                 MemoryCategory.M3_SEMANTIC,
                 new MemoryRef("semantic", MemoryCategory.M3_SEMANTIC)));
+        List<AdvisorBinding> advisors = new ArrayList<>(List.of(
+                new AdvisorBinding("pii-redaction", AdvisorBinding.Mode.BOTH, Optional.of(10), Map.of())));
         Map<String, Object> metadata = new HashMap<>(Map.of("owner", "team"));
 
         AgentDefinition definition = new AgentDefinition(
@@ -38,21 +40,52 @@ class AgentSpiCarrierImmutabilityTest {
                 tools,
                 memories,
                 Optional.of(new PlannerRef("planner")),
+                advisors,
                 "system",
                 SafetyPolicy.permissive(),
                 metadata);
 
         tools.add(new SkillRef("shell"));
         memories.put(MemoryCategory.M5_KNOWLEDGE, new MemoryRef("kb", MemoryCategory.M5_KNOWLEDGE));
+        advisors.add(new AdvisorBinding("cache", AdvisorBinding.Mode.SYNC, Optional.empty(), Map.of()));
         metadata.put("owner", "mutated");
 
         assertThat(definition.toolBindings()).extracting(SkillRef::skillKey).containsExactly("search");
         assertThat(definition.memoryBindings()).containsOnlyKeys(MemoryCategory.M3_SEMANTIC);
+        assertThat(definition.advisorBindings()).extracting(AdvisorBinding::advisorName)
+                .containsExactly("pii-redaction");
         assertThat(definition.metadata()).containsEntry("owner", "team");
         assertThatThrownBy(() -> definition.toolBindings().add(new SkillRef("new")))
                 .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> definition.advisorBindings().add(
+                new AdvisorBinding("new", AdvisorBinding.Mode.STREAMING, Optional.empty(), Map.of())))
+                .isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> definition.metadata().put("new", "value"))
                 .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void advisorBindingValidatesNameModeAndCopiesMetadata() {
+        Map<String, Object> metadata = new HashMap<>(Map.of("tier", "policy"));
+
+        AdvisorBinding binding = new AdvisorBinding(
+                "policy",
+                AdvisorBinding.Mode.SYNC,
+                Optional.of(1),
+                metadata);
+
+        metadata.put("tier", "mutated");
+
+        assertThat(binding.metadata()).containsEntry("tier", "policy");
+        assertThat(binding.mode()).isEqualTo(AdvisorBinding.Mode.SYNC);
+        assertThat(binding.orderOverride()).contains(1);
+        assertThatThrownBy(() -> binding.metadata().put("new", "value"))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> new AdvisorBinding(" ", AdvisorBinding.Mode.BOTH, Optional.empty(), Map.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("advisorName");
+        assertThatThrownBy(() -> new AdvisorBinding("policy", null, Optional.empty(), Map.of()))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test

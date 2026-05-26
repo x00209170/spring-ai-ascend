@@ -31,6 +31,22 @@ import java.util.Objects;
  * Java type system pins both suspension paths at compile time.
  *
  * <p>Executors must not catch this exception.
+ *
+ * <p><b>Vocabulary Glossary.</b> Authority: ADR-0137 + ADR-0100.
+ * Academic prose ("InterruptSignal" / "interrupt primitive") refers to THIS class.
+ * ADR-0100 §rejected-framings #2 explicitly RETAINS the checked-exception
+ * form of {@code SuspendSignal} as a Tier-A competitive differentiator — the Java
+ * compiler enforces caller-side handling, Rule R-G ArchUnit guards depend on the
+ * checked shape, and cancellation flows use exception-flow cross-thread
+ * propagation. Synonym mapping:
+ * <ul>
+ *   <li>"InterruptSignal" ≡ {@code SuspendSignal} (this class)</li>
+ *   <li>"InterruptReason" ≡ {@code SuspendReason} (sealed interface in
+ *       {@code com.huawei.ascend.service.runtime.resilience.spi.SuspendReason})</li>
+ *   <li>"Yield" / "ON_YIELD" ≡ {@code HookPoint.ON_YIELD} cooperative-scheduling
+ *       hint (Authority: ADR-0100 §coexistence — does NOT trigger state-machine
+ *       transition, coexists alongside SuspendSignal)</li>
+ * </ul>
  */
 public final class SuspendSignal extends Exception {
 

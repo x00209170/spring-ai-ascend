@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the latest release note does not publish placeholder evidence."""
+"""Validate the latest active release note does not publish live placeholders."""
 
 from __future__ import annotations
 
@@ -10,10 +10,11 @@ from pathlib import Path
 
 
 PLACEHOLDER_PATTERNS = (
-    "pending-formal-validator-run",
-    "TO BE GENERATED",
-    "TBD",
-    "TODO",
+    ("pending-formal-validator-run", re.compile(r"pending-formal-validator-run")),
+    ("TO BE GENERATED", re.compile(r"TO BE GENERATED")),
+    ("TBD", re.compile(r"\bTBD\b")),
+    ("TODO-template", re.compile(r"\bTODO-template\b")),
+    ("TODO", re.compile(r"\bTODO\b")),
 )
 
 
@@ -41,6 +42,37 @@ def frontmatter(text: str) -> dict[str, str]:
     return result
 
 
+def is_allowed_placeholder_citation(line: str) -> bool:
+    """Allow classification prose that names the placeholder family itself."""
+    allowed_markers = (
+        "F-placeholder-leaks-into-active-corpus",
+        "placeholder token",
+        "placeholder tokens",
+        "anonymous slugs",
+    )
+    return any(marker in line for marker in allowed_markers)
+
+
+def placeholder_hits(path: Path, text: str) -> list[str]:
+    hits: list[str] = []
+    in_fence = False
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+        if in_fence or is_allowed_placeholder_citation(line):
+            continue
+        for label, pattern in PLACEHOLDER_PATTERNS:
+            if pattern.search(line):
+                hits.append(f"{path.as_posix()}:{line_no}:{label}")
+    return hits
+
+
+def latest_review_response(root: Path) -> Path | None:
+    review_dir = root / "docs" / "logs" / "reviews"
+    files = sorted(review_dir.glob("*response*.md")) if review_dir.is_dir() else []
+    return sorted(files, key=lambda path: path.name)[-1] if files else None
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="Repository root")
@@ -57,23 +89,33 @@ def main(argv: list[str]) -> int:
     if fm.get("superseded_by"):
         return 0
     status = fm.get("status", "")
-    releaseish = (
+    active_note = (
         fm.get("formal_release") == "true"
         or "ship" in status
         or "release" in status
+        or "closure" in status
         or "Release Decision" in text
+        or "Release Note" in text
     )
-    if not releaseish:
-        return 0
+    if active_note:
+        hits = placeholder_hits(release.relative_to(root), text)
+        if hits:
+            rel = release.relative_to(root).as_posix()
+            print(f"{rel}: current release note contains live placeholder tokens: {', '.join(hits)}")
+            return 1
 
-    hits = [pattern for pattern in PLACEHOLDER_PATTERNS if pattern in text]
-    if hits:
-        rel = release.relative_to(root).as_posix()
-        print(f"{rel}: current release note contains placeholder evidence tokens: {', '.join(hits)}")
-        return 1
+    response = latest_review_response(root)
+    if response is not None:
+        response_text = response.read_text(encoding="utf-8", errors="replace")
+        hits = placeholder_hits(response.relative_to(root), response_text)
+        if hits:
+            rel = response.relative_to(root).as_posix()
+            print(f"{rel}: current review response contains live placeholder tokens: {', '.join(hits)}")
+            return 1
 
     candidate = fm.get("release_candidate_commit", "")
-    if not re.fullmatch(r"[0-9a-f]{40}", candidate):
+    formal_note = fm.get("formal_release") == "true" or candidate or "formal" in status
+    if formal_note and not re.fullmatch(r"[0-9a-f]{40}", candidate):
         rel = release.relative_to(root).as_posix()
         print(f"{rel}: release_candidate_commit must be a 40-character git SHA")
         return 1

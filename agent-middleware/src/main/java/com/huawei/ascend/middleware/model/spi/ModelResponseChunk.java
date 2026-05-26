@@ -9,15 +9,17 @@ import java.util.Objects;
  * {@code docs/contracts/model-streaming.v1.yaml}.
  *
  * <p>Emitted by {@link ModelGateway#stream(ModelInvocation)} as a
- * finite ordered sequence. The stream MUST contain at most one
- * {@link Complete} element which MUST be the last element; all
- * preceding elements are {@link ContentDelta} or {@link ToolCallDelta}
- * fragments in arrival order.
+ * finite ordered sequence. A successful stream MUST contain exactly one
+ * {@link Complete} element which MUST be the last element; all preceding
+ * elements are {@link ContentDelta} or {@link ToolCallDelta} fragments
+ * in arrival order. A cancelled stream may close before Complete, and
+ * provider/runtime errors surface as exceptions from the stream.
  *
- * <p>Hook binding (ADR-0073): {@code HookPoint.BEFORE_LLM} fires
- * once before stream open; {@code HookPoint.AFTER_LLM} fires once on
- * the terminal {@link Complete} chunk with
- * {@link Complete#finalResponse()}.
+ * <p>Hook binding (ADR-0073): sequence
+ * {@code advisor-model-hook-order/v1} fires {@code HookPoint.BEFORE_LLM}
+ * once before ordered streaming advisors open the provider stream and
+ * {@code HookPoint.AFTER_LLM} once after outbound advisors produce the
+ * final translated response.
  *
  * <p>SPI purity per Rule R-D: imports only {@code java.*} +
  * same-package siblings.
@@ -65,7 +67,7 @@ public sealed interface ModelResponseChunk
     /**
      * Terminal chunk carrying the fully assembled response.
      *
-     * <p>Emitted exactly once at end-of-stream. The assembled
+     * <p>Emitted exactly once on successful end-of-stream. The assembled
      * {@link ModelResponse} surfaces {@code finishReason},
      * {@code usage}, the complete content string, and the assembled
      * tool calls — equivalent to what

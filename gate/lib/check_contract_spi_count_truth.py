@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate contract-catalog SPI counts against the latest release note."""
+"""Validate contract-catalog SPI truth against the latest release note."""
 
 from __future__ import annotations
 
@@ -10,6 +10,12 @@ from pathlib import Path
 
 
 PROMOTED_NAMES = ("Skill", "AgentRegistry")
+
+
+def read_text(path: Path) -> str:
+    if not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8", errors="replace")
 
 
 def latest_release(root: Path) -> Path | None:
@@ -50,6 +56,81 @@ def latest_release_spi_total(text: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def contract_surface_failures(root: Path) -> list[str]:
+    """Check cross-surface declarations that review found can drift silently."""
+
+    failures: list[str] = []
+    chat = read_text(root / "docs" / "contracts" / "chat-advisor.v1.yaml")
+    if not chat:
+        return failures
+
+    agent_contract = read_text(root / "docs" / "contracts" / "agent-definition.v1.yaml")
+    streaming_contract = read_text(root / "docs" / "contracts" / "model-streaming.v1.yaml")
+    agent_definition_java = read_text(
+        root
+        / "agent-service"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "huawei"
+        / "ascend"
+        / "service"
+        / "agent"
+        / "spi"
+        / "AgentDefinition.java"
+    )
+    advisor_binding_java = read_text(
+        root
+        / "agent-service"
+        / "src"
+        / "main"
+        / "java"
+        / "com"
+        / "huawei"
+        / "ascend"
+        / "service"
+        / "agent"
+        / "spi"
+        / "AdvisorBinding.java"
+    )
+
+    if "requestEnvelope" in chat or "responseEnvelope" in chat:
+        failures.append("chat-advisor contract must use typed modelRequest/modelResponse carriers, not raw envelopes")
+    if "modelRequest" in chat and "AdvisedModelRequest" not in chat:
+        failures.append("chat-advisor modelRequest field must name AdvisedModelRequest")
+    if "modelResponse" in chat and "AdvisedModelResponse" not in chat:
+        failures.append("chat-advisor modelResponse field must name AdvisedModelResponse")
+
+    if "advisorBindings" in chat or "AgentDefinition.advisorBindings" in chat:
+        if "advisorBindings" not in agent_contract:
+            failures.append("chat-advisor binding claims advisorBindings but agent-definition contract lacks the field")
+        if "AdvisorBinding" not in agent_contract:
+            failures.append("agent-definition contract must describe AdvisorBinding when chat-advisor binds through it")
+        if "List<AdvisorBinding> advisorBindings" not in agent_definition_java:
+            failures.append("AgentDefinition.java must carry List<AdvisorBinding> advisorBindings")
+        if "record AdvisorBinding" not in advisor_binding_java:
+            failures.append("AdvisorBinding.java same-package SPI carrier is missing")
+        joined = "\n".join([chat, agent_contract, agent_definition_java])
+        if re.search(r"advisorBindings[^\\n;]*ChatAdvisor|List<ChatAdvisor>\\s+advisorBindings", joined):
+            failures.append("AgentDefinition advisorBindings must not depend on ChatAdvisor; use AdvisorBinding by name")
+
+    chat_sequence = re.search(r"sequence_id:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)", chat)
+    streaming_sequence = re.search(
+        r"sequence_id:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)", streaming_contract
+    )
+    if chat_sequence and streaming_contract:
+        if not streaming_sequence:
+            failures.append("model-streaming contract must declare the advisor/model hook sequence_id")
+        elif streaming_sequence.group(1) != chat_sequence.group(1):
+            failures.append(
+                "chat-advisor and model-streaming hook sequence_id values must match "
+                f"({chat_sequence.group(1)} != {streaming_sequence.group(1)})"
+            )
+
+    return failures
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="Repository root")
@@ -82,6 +163,8 @@ def main(argv: list[str]) -> int:
             failures.append(
                 f"{release.relative_to(root)} active SPI total {release_total} != catalog total {total}"
             )
+
+    failures.extend(contract_surface_failures(root))
 
     if failures:
         print("; ".join(failures))
