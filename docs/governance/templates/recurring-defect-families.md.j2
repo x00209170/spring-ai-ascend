@@ -70,7 +70,7 @@ agentic surfaces.
 | 13 | F-nonatomic-run-status-write | Non-Atomic Runtime State Write Loses Tenant or Terminal-State Invariants | 5 (rc35-correctness-batch, rc35-second-pass, rc36, rc38, rc39-formal-release-transaction) | 🟡 monitoring (rc39 broadened to tenant-owned runtime state; RunRepository SPI made abstract, save calls source-guarded to create-only sites, TaskStateStore writes made atomic) |
 | 14 | F-project-tool-pin-drift | Project-Local Dev-Tool Pin Drift and Manifest Inconsistency | 2 (rc40-codegraph-mcp-onboarding + rc50-nodegraph-evidence) | ✅ structurally addressed (Rule 125 / E173 gates package.json exact-pin + lockfileVersion>=3 + .mcp.json relative-shim ref; rc50 adds local `.codegraph` nodegraph evidence without committing the SQLite database) |
 | 15 | F-l0-agentic-primitive-gap | L0 Agentic-Primitive Contract Surface Gap | 3 (rc41-final-release-readiness + rc50-post-closure-senior-architect-review + rc51-agentic-completeness) | ✅ closed (rc51 — agentic-completeness wave adds 5 new SPI interfaces + 6 structural carriers + 4 contract YAMLs + 2 contract supplements + 7 ADRs 0129-0135 closing the developer-ergonomics-tier residual of the rc43 closure-by-construction) |
-| 16 | F-agentic-contract-composition-gap | Agentic Contract Composition and Semantic-Closure Gap | 2 (rc51-agentic-completeness-review + rc52-agentic-completeness-corrective) | 🟡 monitoring (rc52 — streaming advisor sibling, ConversationWindow, ModelFinishReason enum, same-package carriers, and formal-release evidence validator close cited surfaces; broader historical non-agent-middleware SPI coupling remains explicitly out of scope) |
+| 16 | F-agentic-contract-composition-gap | Agentic Contract Composition and Semantic-Closure Gap | 3 (rc51-agentic-completeness-review + rc52-agentic-completeness-corrective + rc53-post-closure-agentic-composition-review) | 🟡 monitoring (rc52 closed the cited surfaces; rc53 reopens the same family in narrower composition form: ChatAdvisor is not bound into AgentDefinition, advisor envelopes are schema-less maps, and streaming advisor hook ordering remains underspecified) |
 | 17 | F-design-artifact-omits-tenant-spine | Design Artefact Omits tenantId First-Class Field | 1 (rc53-wave-1-agent-service-l1-4plus1-rewrite) | 🟡 monitoring (ADR-0136 + ADR-0138 §3 red line at the L1 design layer; gate-rule for tenantId-less ER blocks is a W5+ candidate) |
 | 18 | F-design-doc-violates-three-track-bus | Design Artefact Proposes Queue / Event-Bus Abstraction Bypassing Rule R-E Three-Track Channels | 1 (rc53-wave-1-agent-service-l1-4plus1-rewrite) | 🟡 monitoring (ADR-0138 §3 red line binds Internal Event Queue to bus-channels.yaml three-track manifest; physical-isolation vs durability-tier conflation is structurally rejected at L1) |
 | 19 | F-design-doc-language-bypasses-invariant | Design Artefact Wording Implies Bypass of Reactive / RLS / No-Sleep Invariants | 1 (rc53-wave-1-agent-service-l1-4plus1-rewrite) | 🟡 monitoring (ADR-0139 narrowed Fast-Path semantics forbid bypass-implying language; risk-phrase + invariant-preservation-clause gate-rule is a W5+ candidate) |
@@ -802,6 +802,16 @@ non-atomic formal-release publication. The sweep found additional latent
 surfaces in retrieval (`Retriever` returning vector `Document`), human
 family-view/template drift, and D-9 kernel-vs-gate wording drift.
 
+**rc53 recurrence.** The post-closure agentic-composition review
+(`docs/logs/reviews/2026-05-26-l0-rc53-post-closure-agentic-composition-review.en.md`)
+found the same root cause in a narrower form after the rc52 repair:
+`ChatAdvisor` exists as a primitive, but `AgentDefinition` has no advisor
+binding despite ADR-0132 / `chat-advisor.v1.yaml` claiming
+agent-definition-time composition; `AdvisedRequest` / `AdvisedResponse`
+are schema-less maps with no canonical mapping to `ModelInvocation` /
+`ModelResponse`; and the streaming advisor chain is not ordered relative
+to `BEFORE_LLM` / `AFTER_LLM`.
+
 **Prevention.**
 
 - Rule R-D — agentic SPI package purity is interpreted as no dependencies
@@ -814,9 +824,9 @@ family-view/template drift, and D-9 kernel-vs-gate wording drift.
 - `SpiPurityGeneralizedArchTest` pins the same-package dependency boundary
   for every `agent-middleware..spi..` class.
 
-**Cleanup status.** `monitoring` — the cited rc51 surfaces are corrected by
-rc52, but the family is new and needs a three-release cool-down before it can
-be marked closed.
+**Cleanup status.** `monitoring` — the cited rc51 surfaces were corrected by
+rc52, but rc53 shows that strict same-package SPI purity can still leave
+developer-facing composition semantics underspecified.
 
 **Open residual.** The rc52 strict no-dependency enforcement covers the
 new agent-middleware contract surfaces. Broader historical SPI packages in
@@ -827,8 +837,10 @@ The rc52 formal-publication follow-up also re-ran the recurring-family
 ledger freshness check after the release note and CLAUDE template publication
 surfaces changed; no additional problem type was found beyond this family,
 so the canonical recurring-family count remained 16. rc53 wave-1 (agent-service
-L1 4+1 rewrite) registers 4 new design-side families and the canonical count
-becomes 20.
+L1 4+1 rewrite) registered 4 new design-side families and the canonical count
+became 20. The rc53 post-closure agentic-composition review does not add a
+new family; it extends this existing family and keeps the canonical count at
+20.
 
 ### F-design-artifact-omits-tenant-spine — Design Artefact Omits tenantId First-Class Field
 
