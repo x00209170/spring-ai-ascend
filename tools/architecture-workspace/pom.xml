@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Wave 0 spike POM. NOT a reactor module.
+  Production architecture-workspace Maven module.
   Authority: ADR-0147 (Structurizr Workspace Authority).
-  This module is deliberately outside spring-ai-ascend-parent's <modules>
-  so it cannot be pulled into the production build. Removed at Wave 7
-  per the migration plan.
+
+  This module is DELIBERATELY NOT a member of the spring-ai-ascend-parent
+  reactor (root pom.xml does NOT list it under <modules>). It is invoked
+  via `./mvnw -f tools/architecture-workspace/pom.xml ...` from the gate.
+  No production module depends on com.structurizr:* — verified by Rule G-7
+  and the impact matrix at docs/governance/architecture-workspace-impact-matrix.yaml.
+
+  Lifecycle per the migration plan
+  (D:\.claude\plans\structurizr-d-chao-workspace-spring-ai-adaptive-hellman.md):
+    W1: WorkspaceProjectionCli + ProfileValidator + NormalizedModelWriter
+    W3: fragment/* emitters added (modules, SPI, enforcers, principles, rules, ADR-graph)
+    W4: gate/lib/build_architecture_projection.py added (reverse projection)
+    W7: structurizr-dsl version bump policy ratified
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -12,12 +22,12 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.huawei.ascend.tools</groupId>
-  <artifactId>architecture-workspace-spike</artifactId>
-  <version>0.0.1-SPIKE</version>
+  <artifactId>architecture-workspace</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>architecture-workspace-spike</name>
-  <description>Wave 0 spike — validates Structurizr DSL parse + profile + projection on agent-bus.</description>
+  <name>architecture-workspace</name>
+  <description>Build-time tool that parses architecture/workspace.dsl, validates the Spring AI Ascend Architecture Profile, emits normalized JSON, and (W3+) emits fragment DSL from existing YAML authorities.</description>
 
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
@@ -55,11 +65,14 @@
   <build>
     <testResources>
       <!--
-        WSL+NTFS workaround: maven-resources-plugin 3.4.0 setLastModifiedTime
-        fails with FileSystemException: Operation not permitted on
-        cross-filesystem boundaries. The .dsl fixtures are read by tests
-        via `new File("src/test/resources/...")` so they don't need to be
-        on the test classpath.
+        Exclude *.dsl from test-resources copying. The .dsl fixtures are
+        opened via `new File("src/test/resources/...")` directly from the
+        test working directory (Maven sets cwd to module root). Avoiding
+        the copy step works around a WSL+NTFS issue where
+        maven-resources-plugin 3.4.0's setLastModifiedTime call fails with
+        FileSystemException: Operation not permitted on cross-filesystem
+        boundaries. Other test resources (yaml, properties, etc.) are
+        copied normally.
       -->
       <testResource>
         <directory>src/test/resources</directory>
@@ -84,7 +97,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.5.0</version>
         <configuration>
-          <mainClass>com.huawei.ascend.tools.architecture.spike.SpikeCli</mainClass>
+          <mainClass>com.huawei.ascend.tools.architecture.WorkspaceProjectionCli</mainClass>
         </configuration>
       </plugin>
     </plugins>
