@@ -7,7 +7,7 @@
 #
 # Every L0/L1/L2 architecture artefact MUST declare a level: + view:
 # front-matter (YAML at top of file for .md; top-level key for .yaml).
-# Targets: ARCHITECTURE.md, agent-*/ARCHITECTURE.md, docs/L2/**/*.md (excluding
+# Targets: ARCHITECTURE.md, architecture/docs/L1/agent-*.md architecture/docs/L1/agent-service/ARCHITECTURE.md, architecture/docs/L2/**/*.md (excluding
 # README.md while empty), docs/adr/*.yaml.
 # ---------------------------------------------------------------------------
 _r37_fail=0
@@ -108,7 +108,7 @@ for d in sorted(os.listdir('.')):
     p = os.path.join(d, 'ARCHITECTURE.md')
     if os.path.isfile(p) and p != 'ARCHITECTURE.md':
         targets_md.append(p.replace('\\', '/'))
-targets_md.extend(sorted(glob.glob('docs/L2/**/*.md', recursive=True)))
+targets_md.extend(sorted(glob.glob('architecture/docs/L2/**/*.md', recursive=True)))
 for p in targets_md: check_md(p)
 
 for p in sorted(glob.glob('docs/adr/*.yaml')):

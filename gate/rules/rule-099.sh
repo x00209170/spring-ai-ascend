@@ -98,7 +98,7 @@ else
   fi
 fi
 # rc15 widening (Rule G-3.e scope to module ARCHITECTURE.md — sub-check (b),
-# enforcer E151 per ADR-0091): scan agent-*/ARCHITECTURE.md for the
+# enforcer E151 per ADR-0091): scan architecture/docs/L1/agent-*.md architecture/docs/L1/agent-service/ARCHITECTURE.md for the
 # specific over-claim phrasing pattern (`over-cap[acity]? callers are
 # SUSPENDED` and close variants). The rc14 M-γ defect surfaced when
 # `agent-service/ARCHITECTURE.md:315-317` said "over-cap callers are
@@ -111,7 +111,7 @@ fi
 # Admissible if the line carries decision-envelope wording or an explicit
 # defer marker.
 _r99b_hits=$(grep -rnE '(over-cap|over-capacity)( callers| requests)?[^.]*(are SUSPENDED|is SUSPENDED|transitions to SUSPENDED)' \
-             agent-*/ARCHITECTURE.md 2>/dev/null \
+             architecture/docs/L1/agent-*.md architecture/docs/L1/agent-service/ARCHITECTURE.md 2>/dev/null \
              | grep -vE '(decision envelope|SkillResolution\.reject|deferred to R-K|deferred to Rule R-K|deferred per Rule R-K|W2 scheduler admission)' || true)
 if [[ -n "$_r99b_hits" ]]; then
   _r99b_first=$(echo "$_r99b_hits" | head -3 | tr '\n' '|')

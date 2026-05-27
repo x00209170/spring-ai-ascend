@@ -13,7 +13,7 @@
 # agent-middleware post-ADR-0073) MUST NOT carry a "skeleton" status.
 # ---------------------------------------------------------------------------
 _r81_fail=0
-for _r81_arch in agent-*/ARCHITECTURE.md; do
+for _r81_arch in architecture/docs/L1/agent-*.md architecture/docs/L1/agent-service/ARCHITECTURE.md; do
   [[ -f "$_r81_arch" ]] || continue
   _r81_status=$(awk 'BEGIN{infm=0} /^---[[:space:]]*$/{infm=!infm; next} infm && /^status:/{print; exit}' "$_r81_arch" 2>/dev/null)
   if [[ "$_r81_status" == *skeleton* ]]; then

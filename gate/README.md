@@ -1,6 +1,6 @@
 # gate/ — Architecture-Sync Gate
 
-> Document-corpus consistency checks for spring-ai-ascend. **143 active gate rules** (canonical bash, executable rule sections counted from `# Rule N — slug` headers), backed by **260 self-tests** (`gate/test_architecture_sync_gate.sh` derives the total at runtime). The canonical numbers live in [`docs/governance/architecture-status.yaml#architecture_sync_gate.baseline_metrics`](../docs/governance/architecture-status.yaml) (single source of truth — Rule G-2 sub-clause .b numeric-agreement check rejects stale counts here; Rule G-5 sub-clause .c enforces `active_gate_checks` AND `enforcer_rows` against live extractors).
+> Document-corpus consistency checks for spring-ai-ascend. **144 active gate rules** (canonical bash, executable rule sections counted from `# Rule N — slug` headers), backed by **260 self-tests** (`gate/test_architecture_sync_gate.sh` derives the total at runtime). The canonical numbers live in [`docs/governance/architecture-status.yaml#architecture_sync_gate.baseline_metrics`](../docs/governance/architecture-status.yaml) (single source of truth — Rule G-2 sub-clause .b numeric-agreement check rejects stale counts here; Rule G-5 sub-clause .c enforces `active_gate_checks` AND `enforcer_rows` against live extractors).
 >
 > **Python ≥ 3.10 required** for `gate/build_architecture_graph.py` and `gate/migrate_adrs_to_yaml.py`. Install once: `pip install -r gate/requirements.txt`. Rule R-H (`architecture_graph_well_formed`) fails fast with a clear message if PyYAML is missing.
 >
@@ -17,8 +17,8 @@ It does **not** prove the running system behaves correctly. That is the operator
 ## Canonical entrypoint
 
 ```bash
-bash gate/check_parallel.sh                 # 143 active gate rules, parallel (~7min wall-clock); emits parallel_summary trailer per Rule G-5 sub-clause .a
-bash gate/check_architecture_sync.sh        # 143 active gate rules, serial   (~24min wall-clock); terminates at # === END OF RULES === marker
+bash gate/check_parallel.sh                 # 144 active gate rules, parallel (~7min wall-clock); emits parallel_summary trailer per Rule G-5 sub-clause .a
+bash gate/check_architecture_sync.sh        # 144 active gate rules, serial   (~24min wall-clock); terminates at # === END OF RULES === marker
 bash gate/test_architecture_sync_gate.sh    # 260 self-tests (~20s); TOTAL derived at runtime per Rule G-5 sub-clause .b; fails closed when passed != TOTAL
 python gate/build_architecture_graph.py     # regenerate the architecture-graph from canonical inputs
 ```

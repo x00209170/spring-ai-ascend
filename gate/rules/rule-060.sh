@@ -6,7 +6,7 @@
 # Rule 60 — schema_first_domain_contracts (enforcer E85, Rule 48, ADR-0077)
 #
 # Forbid new prose-defined enum sites in the architecture corpus. Scan
-# ARCHITECTURE.md (root) + agent-*/ARCHITECTURE.md for the prose-enum pattern
+# ARCHITECTURE.md (root) + architecture/docs/L1/agent-*.md architecture/docs/L1/agent-service/ARCHITECTURE.md for the prose-enum pattern
 # `<UPPERCASE_TYPE> | <UPPERCASE_TYPE>` outside fenced code blocks and
 # markdown tables. For every match, the rule passes only when one of:
 #   (a) the file path appears as a prefix line in gate/schema-first-grandfathered.txt

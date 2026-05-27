@@ -7098,6 +7098,34 @@ SHEOF
   fi
 }
 
+test_rule_130_feature_lifecycle_validity_pos() {
+  # Rule G-14.a — every SAA Feature in architecture/features/features.dsl
+  # declares saa.status in the 9-state lifecycle set.
+  local dsl="architecture/features/features.dsl"
+  if [[ ! -f "$dsl" ]]; then
+    skip "rule_130_feature_lifecycle_validity_pos" "$dsl missing — no SAA Feature corpus yet"
+    return
+  fi
+  local valid="proposed accepted design_only ready_for_impl implemented_unverified test_verified shipped deprecated removed"
+  local bad=""
+  while IFS= read -r status; do
+    status=$(echo "$status" | tr -d '\r')
+    [[ -z "$status" ]] && continue
+    local match=0
+    for s in $valid; do
+      if [[ "$status" == "$s" ]]; then match=1; break; fi
+    done
+    if [[ $match -eq 0 ]]; then
+      bad="$bad $status"
+    fi
+  done < <(grep -oE '"saa\.status"[[:space:]]+"[^"]+"' "$dsl" | sed -E 's/.*"saa\.status"[[:space:]]+"([^"]+)".*/\1/')
+  if [[ -n "$bad" ]]; then
+    fail "rule_130_feature_lifecycle_validity_pos" "Rule G-14.a violation: invalid lifecycle states in $dsl:$bad"
+    return
+  fi
+  ok "rule_130_feature_lifecycle_validity_pos" "Rule G-14.a / Rule 130: all features.dsl saa.status values are in the 9-state lifecycle set"
+}
+
 # ---------------------------------------------------------------------------
 # PR-E4: Parallel orchestrator.
 #

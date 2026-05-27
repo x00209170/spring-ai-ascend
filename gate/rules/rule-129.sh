@@ -25,3 +25,4 @@ if [[ $_r129_rc -ne 0 ]]; then
 else
   pass_rule "contract_spi_count_truth"
 fi
+

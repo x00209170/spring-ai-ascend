@@ -1543,3 +1543,11 @@
   view: development
   artifact: gate/check_architecture_sync.sh#contract_spi_count_truth
   asserts: "Rule 129 — contract-catalog active SPI total, module-count sum, and the latest release note's Active SPI total MUST agree; promoted SPIs such as Skill and AgentRegistry MUST NOT remain listed as deferred design-only rows; Agent/advisor composition claims MUST be backed by AgentDefinition fields, typed advisor carriers, and the shared advisor/model hook sequence."
+
+- id: E178
+  constraint_ref: "Rule G-14 (Feature Lifecycle Validity); ADR-0151 + ADR-0153 W5 closure"
+  kind: gate-script
+  level: L0
+  view: development
+  artifact: gate/check_architecture_sync.sh#feature_lifecycle_validity
+  asserts: "Rule 130 — every SAA Feature element in architecture/features/features.dsl MUST declare saa.status from the 9-state lifecycle set (proposed/accepted/design_only/ready_for_impl/implemented_unverified/test_verified/shipped/deprecated/removed). Sub-clause .a enforced blocking at W5; sub-clauses .b (forward-only transitions vs git history), .c (shipped requires non-empty verificationTestFqns resolving to real test classes), .d (deprecated requires saa.sunsetDate + relates_to ADR) remain advisory pending follow-up soak."
