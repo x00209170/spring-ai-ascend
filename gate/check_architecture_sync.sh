@@ -598,7 +598,8 @@ _deleted_plan_refs=('docs/plans/engineering-plan-W0-W4.md' 'docs/plans/roadmap-W
 # pre-built file list. Identical "first match wins" semantics.
 _r15_files=$(find . -name '*.md' \
   ! -path './docs/archive/*' \
-  ! -path './docs/logs/reviews/*' \
+  ! -path './docs/logs/*' \
+  ! -path './knowledge/*' \
   ! -path './docs/adr/*' \
   ! -path './docs/delivery/*' \
   ! -path './docs/v6-rationale/*' \

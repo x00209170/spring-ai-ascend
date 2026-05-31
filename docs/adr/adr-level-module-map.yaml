@@ -1,3 +1,5 @@
+level: L0
+view: scenarios
 generated_from:
 - docs/adr/ADR-CLASSIFICATION.md
 - docs/adr/**/*.{md,yaml}

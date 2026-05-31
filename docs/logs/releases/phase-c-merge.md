@@ -6,6 +6,15 @@ authority: "ADR-0078 + ARCHITECTURE.md §2"
 
 # Phase C — agent-platform + agent-runtime → agent-service
 
+## Baselines (canonical)
+
+| Metric | Count |
+|---|---|
+| §4 constraints | 65 |
+| ADRs | 139 |
+| gate rules | 157 |
+| self-tests | 287 |
+
 ## §1 Status
 
 - **Status:** DRAFT (transitions to ACCEPTED on first commit landing on `main`).
