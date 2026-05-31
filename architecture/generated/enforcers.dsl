@@ -1445,7 +1445,7 @@ enforcer_E111 = element "E111" "Enforcer" "For every kind=(platform,domain) modu
     }
 }
 
-enforcer_E112 = element "E112" "Enforcer" "docs/runbooks/debug-first-evidence.md exists with the canonical title 'Evidence-First Debug Sequence', AND docs/governance/rules/rule-D-3.b.md references the runbook path — catches both runbook del..." "SAA Enforcer" {
+enforcer_E112 = element "E112" "Enforcer" "docs/harness/debug-first-evidence.md exists with the canonical title 'Evidence-First Debug Sequence', AND docs/governance/rules/rule-D-3.b.md references the runbook path — catches both runbook dele..." "SAA Enforcer" {
     properties {
         "saa.id" "ENF-E112"
         "saa.kind" "gate-script"
