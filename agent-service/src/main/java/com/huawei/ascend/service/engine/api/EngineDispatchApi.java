@@ -1,16 +1,21 @@
-package com.huawei.ascend.service.engine.spi;
+package com.huawei.ascend.service.engine.api;
 
 /**
- * Engine dispatch SPI.
+ * Engine dispatch API.
  *
- * <p>The sole external entry point for task-centric-control to call the engine.
- * Only responsible for async enqueuing. Does not directly execute Agents.
- * Does not directly return real execution status. Real execution status is
- * written back through TaskControlClient.
+ * <p>The sole inbound entry point for task-centric-control to call the engine.
+ * Implemented by the engine, called by task-centric-control. Only responsible
+ * for async enqueuing. Does not directly execute Agents. Does not directly
+ * return real execution status. Real execution status is written back through
+ * the outbound SPI {@code com.huawei.ascend.service.engine.spi.TaskControlClient}.
  *
- * <p>Design authority: {@code docs/architecture/l1/2026-05-30-l1--agent-service-engine-model-design.md}.
+ * <p>This is an API (provided/inbound interface), not an SPI: the engine
+ * implements it and external callers invoke it. See the engine model design
+ * (§2.1 directional definition, §4 API definition) for the API/SPI taxonomy.
+ *
+ * <p>Design authority: {@code 2026-05-30-l1--agent-service-engine-model-design.md}.
  */
-public interface EngineDispatchSpi {
+public interface EngineDispatchApi {
 
     /**
      * Enqueue an Agent execution request.

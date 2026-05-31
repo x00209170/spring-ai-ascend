@@ -1,11 +1,12 @@
-package com.huawei.ascend.service.engine.spi;
+package com.huawei.ascend.service.engine.api;
 
 /**
- * Enqueue status returned by {@link EngineDispatchSpi}.
+ * Enqueue status returned by {@link EngineDispatchApi}.
  *
  * <p>Indicates whether the engine accepted the enqueue request.
  * Does not represent the real execution status; real execution status
- * is written back through TaskControlClient.
+ * is written back through the outbound SPI
+ * {@code com.huawei.ascend.service.engine.spi.TaskControlClient}.
  */
 public enum EnqueueEngineStatus {
     /**

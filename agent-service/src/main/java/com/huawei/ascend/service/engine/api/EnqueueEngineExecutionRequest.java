@@ -1,4 +1,4 @@
-package com.huawei.ascend.service.engine.spi;
+package com.huawei.ascend.service.engine.api;
 
 import com.huawei.ascend.service.engine.model.EngineExecutionScope;
 import com.huawei.ascend.service.engine.model.EngineInput;
