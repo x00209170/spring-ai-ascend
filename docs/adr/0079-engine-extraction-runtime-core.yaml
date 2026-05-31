@@ -1,0 +1,94 @@
+id: ADR-0079
+title: "T2.B2 engine extraction with shared agent-runtime-core (resolves the Run/RunContext back-dep)"
+status: superseded
+governance_infra: true
+superseded_by:
+  - ADR-0088
+date: 2026-05-18
+level: L1
+view: development
+freeze_id: null
+
+supersedes: []
+extends:
+  - ADR-0072
+  - ADR-0078
+relates_to:
+  - ADR-0073
+
+decision_one_liner: |
+  Create agent-runtime-core hosting Run / RunContext / SuspendSignal /
+  ExecutorDefinition / TraceContext / IdempotencyRecord / Orchestrator SPI /
+  Checkpointer SPI / S2cCallback SPI. Both agent-service and agent-execution-
+  engine depend on agent-runtime-core, breaking the back-dep cycle that
+  blocked T2.B2.
+
+context: |
+  ADR-0072 declared agent-execution-engine as an independent module owning
+  the engine envelope + executor SPIs. The naive extraction surfaced a
+  back-dep: EngineRegistry / ExecutorAdapter / GraphExecutor /
+  AgentLoopExecutor all reference Run / RunContext / SuspendSignal from
+  agent-runtime. After Phase C (ADR-0078), the runtime kernel lives in
+  agent-service.runtime.*. Pulling engine code into agent-execution-engine
+  would mean engine -> service, but service ALSO needs engine SPIs ->
+  cycle.
+
+  agent-execution-engine/ARCHITECTURE.md (lines 26-37, pre-T2.B2) named
+  two clean approaches: (a) extract a shared agent-runtime-core, (b)
+  make engine SPI carry primitives only. Option (a) was chosen for purity
+  per Phase C user decision (2026-05-18).
+
+decision: |
+  - Create new module agent-runtime-core. Kind: domain. Plane: compute_control.
+    Pure-Java; no Spring; no middleware.
+  - Move the following from agent-service into agent-runtime-core
+    (packages preserved as com.huawei.ascend.service.runtime.*):
+      runs/Run.java, RunMode.java, RunStatus.java, RunStateMachine.java,
+      runs/spi/RunRepository.java (SPI — relocated to runs.spi sub-package by the 2026-05-18 SPI integrity remediation),
+      orchestration/spi/Orchestrator.java, RunContext.java, SuspendSignal.java,
+      orchestration/spi/Checkpointer.java, TraceContext.java, ExecutorDefinition.java,
+      idempotency/IdempotencyRecord.java,
+      s2c/spi/S2cCallbackTransport.java, S2cCallbackEnvelope.java, S2cCallbackResponse.java.
+  - Move the following from agent-service into agent-execution-engine.
+    NOTE: the engine-adapter SPI files were initially landed in
+    com.huawei.ascend.service.runtime.orchestration.spi (split-package with
+    agent-runtime-core); the 2026-05-18 SPI integrity remediation relocated
+    them to their final home com.huawei.ascend.engine.spi to eliminate the
+    cross-module split. EngineRegistry + EngineEnvelope remain in
+    com.huawei.ascend.service.runtime.engine (engine implementation, not SPI):
+      engine/EngineRegistry.java, EngineEnvelope.java,
+      engine.spi/ExecutorAdapter.java, GraphExecutor.java, AgentLoopExecutor.java,
+      EngineMatchingException.java, EngineHookSurface.java.
+  - Dependency graph:
+      agent-runtime-core: depends on nothing (java.* only)
+      agent-middleware: depends on nothing (java.* only)
+      agent-execution-engine: depends on agent-runtime-core + agent-middleware + snakeyaml
+      agent-service: depends on agent-runtime-core + agent-execution-engine + agent-middleware
+  - Reactor count: 8 -> 9 (agent-runtime-core added).
+
+consequences:
+  positive:
+    - "Engine extraction completes: EngineRegistry, EngineEnvelope, and the executor SPIs now live in the dedicated agent-execution-engine module."
+    - "Runtime kernel types (Run, RunContext, SuspendSignal) become a shared core with stable contracts both agent-service and agent-execution-engine consume."
+    - "No back-dep cycle. Build graph is a strict DAG."
+    - "AgentExecutionEngine team can evolve engine semantics independently of AgentService."
+  negative:
+    - "Reactor count bumps 8 -> 9 (still 1 fewer than pre-Phase-C 9; net break-even with prior six-module materialization)."
+    - "Packages are temporarily SHARED across modules (agent-runtime-core hosts com.huawei.ascend.service.runtime.runs while agent-service still has classes in com.huawei.ascend.service.runtime.runs.* — but the package is non-overlapping at class level since each file lives in exactly one module). Treated as acceptable since JPMS module-info is not in use; classpath mode tolerates."
+    - "Future W3 refactor may rename packages to com.huawei.ascend.runtimecore.* / com.huawei.ascend.engine.* to align with Java module boundary best practice. Out of scope for T2.B2."
+
+alternatives_considered:
+  - alternative: "Engine SPI carries primitives only (option b from agent-execution-engine ARCHITECTURE.md). RunContext gets reconstructed inside the engine adapters via runId/tenantId."
+    why_rejected: "Mirrors the HookContext solution used for T2.B1 middleware extraction. But Run is a richer aggregate than HookPoint+HookContext: parent run id, suspend state, idempotency record, trace context — none of which can be cleanly reconstructed from runId alone without an extra repository round-trip. Option (a) preserves the rich domain type."
+
+verification:
+  cli:
+    - "./mvnw clean verify -> BUILD SUCCESS (all 10 modules including new agent-runtime-core)"
+    - "bash gate/check_parallel.sh -> GATE PASS (78+ rules)"
+  gate:
+    - "module_count_invariant (Rule 28e / E27) -> expected count 9 (was 8 post-Phase-C; T2.B2 adds agent-runtime-core)"
+    - "module_metadata_present_and_complete -> agent-runtime-core/module-metadata.yaml valid"
+    - "dfx_yaml_present_and_wellformed -> docs/dfx/agent-runtime-core.yaml valid"
+
+enforcer_rows: []
+gate_rules: []

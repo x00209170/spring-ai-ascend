@@ -1,0 +1,199 @@
+id: ADR-0115
+title: "agent-service L1 expansion acceptance — dual modes, 4-layer state, Dual-Track router, A2A as protocol boundary"
+status: accepted
+governance_infra: true
+date: 2026-05-23
+level: L1
+view: logical
+affects_level: L0, L1
+affects_view: logical, development, process, physical, scenarios
+authors:
+  - chao
+relates_to:
+  - ADR-0019
+  - ADR-0020
+  - ADR-0021
+  - ADR-0049
+  - ADR-0051
+  - ADR-0073
+  - ADR-0088
+  - ADR-0100
+  - ADR-0101
+  - ADR-0103
+  - ADR-0104
+  - ADR-0112
+extends:
+  - ADR-0100
+  - ADR-0112
+context: |
+  The 2026-05-22 L1 expansion proposal
+  (`docs/logs/reviews/2026-05-22-agent-service-l1-expansion-proposal.en.md`)
+  introduces 10+ conceptual additions: dual deployment modes,
+  dual integration models, dual agent form factors, 4-layer state
+  model, Message-vs-Task plane, Dual-Track Fast/Slow-Path router,
+  Heterogeneous Framework anti-corruption + Shadow Tool Interceptor,
+  Google `a2a-java` SDK adoption, Task-Centric state machine,
+  Polymorphic Dispatcher.
+
+  This ADR ACCEPTS the proposal as L1 direction with three explicit
+  reconciliations against current architectural stances (per
+  document-review response):
+
+  1. Package root preserved per ADR-0104 (`com.huawei.ascend.service.*`,
+     NOT `com.huawei.ascend.agent.service.*`).
+  2. A2A as protocol boundary, NOT SDK pervasion.
+  3. Run keeps platform-spine identity; Task layers ABOVE Run.
+
+  Plus θ.10 (Shadow Tool Interceptor) DEFERRED to W3+ agent-evolve
+  scope.
+
+decision: |
+  ## Part A — Dual deployment modes (accept)
+
+  - Platform-Centric (W0-W2 primary): business integrates only
+    agent-client; service+engine+bus+middleware hosted centrally.
+  - Business-Centric (W3+ rollout): business co-deploys
+    service+engine for low latency; platform hosts governance plane.
+  - Topology invariance: `client → service → engine` chain
+    preserved in BOTH modes per Rule R-I.1 + ArchUnit
+    `EdgeToComputeDirectLinkArchTest`.
+
+  Mapping to existing 5-plane topology (P-I): the two modes are
+  PHYSICAL-VIEW variations, NOT new planes.
+
+  ## Part B — 4-layer state model (partial accept per S3)
+
+  | Layer | Reconciliation in our architecture |
+  |---|---|
+  | Run | KEEPS Run.java Java identity (ADR-0020 DFA). |
+  | Task | NEW outer-layer entity at `agent-service/.../service/task/Task.java`. One Task maps 1:N to Runs. W2. |
+  | Session | Existing per ADR-0061 (TraceContext.sessionId). No new entity. |
+  | Memory | Existing per ADR-0051 / ADR-0034 / ADR-0082. |
+
+  Run.status DFA remains authoritative; rewriting to use Task as
+  primary orchestrable unit would invalidate ADR-0020 + ADR-0021
+  + ~50 enforcer rows. Per stance S3.
+
+  W2 relationship:
+
+      Task (A2A lifecycle states)
+        └── Run[] (one or more; ADR-0020 DFA)
+            └── Hook chain + InterruptSignal yields (ADR-0112)
+
+  ## Part C — Message-vs-Task plane separation (accept)
+
+  Message = natural-language content (data plane; CausalPayloadEnvelope
+  `tag: STATEMENT`). Task = structured execution plan (control
+  plane; `tag: COMMAND`).
+  - Inbound: agent-service compiles NL Messages → structured Tasks
+    via `ContextProjector` SPI (W2, already at
+    `com.huawei.ascend.service.session.spi.ContextProjector`).
+  - Outbound: Message content wrapped in `StateDelta.newMessages`
+    (ADR-0112). Control-plane uses `InterruptSignal`, NOT parsed text.
+
+  ## Part D — Dual-Track Fast/Slow-Path router (accept)
+
+  Engine yields `InterruptSignal` (ADR-0112). `DualTrackRouter`
+  (NEW W2 component at
+  `agent-service/.../service/orchestrator/DualTrackRouter.java`)
+  intercepts and routes per weight:
+  - Fast-Path (in-memory bypass): low-overhead resources; in-thread
+    synchronous resumption; no state dehydration. Maps to
+    `SuspendReason.AwaitTimer` (≤100ms) + `RateLimited` retry.
+  - Slow-Path (durable orchestration): high-latency / human-loop /
+    sandbox; 3-level persistence (Memory → Postgres → Temporal);
+    thread released; Temporal orchestrates resumption. Maps to
+    SyncOrchestrator + Checkpointer + Temporal child workflow per
+    ADR-0021.
+
+  Decision policy declared in
+  `docs/governance/dual-track-routing-policy.yaml` (W2 follow-up — not
+  yet authored; will codify per-`InterruptType` Fast-Path/Slow-Path
+  routing thresholds + tenant-quota interactions).
+
+  ## Part E — A2A as protocol boundary, NOT SDK pervasion (S4 reject)
+
+  Proposal proposes `a2a-java` SDK as backpressure transport + P2P
+  bus + task lifecycle (§§1.3.5, 3.4, 5.1).
+
+  Accepted A2A surface:
+  - Envelope shape per `docs/contracts/a2a-envelope.v1.yaml` (W2 NEW;
+    mirrors A2A spec but independently-defined).
+  - State transitions per `InterruptType` (5 values per ADR-0112) at wire.
+  - `a2a-java` SDK = OPTIONAL dependency for A2A protocol
+    conformance testing in `agent-bus` test scope ONLY.
+
+  Rejected:
+  - Pervasive SDK type imports across `agent-service.api` +
+    `agent-service.orchestrator` + `agent-service.task`.
+  - SDK as connection-tunnel / routing-matrix / session-correlation
+    owner — these are `agent-bus` + `agent-middleware` responsibilities.
+
+  Per stance S4 + memory analog (study patterns, bound dependency).
+
+  ## Part F — Package root preserved per ADR-0104 (S5 reject)
+
+  Proposal §5.2 declares `com.huawei.ascend.agent.service.*`.
+  REJECTED. Adopted package tree (proposal §5.2 transcribed with
+  `.agent.` segment dropped):
+
+      agent-service/src/main/java/com/huawei/ascend/service/
+      ├── api/{rest, a2a/}                # a2a/ NEW W2
+      ├── dispatcher/{strategy/}          # strategy/ NEW W2
+      ├── orchestrator/
+      │   ├── DualTrackRouter.java        # NEW W2 (Part D)
+      │   └── handler/                    # NEW W2: InterruptSignal handlers
+      ├── task/{repository/}              # extant
+      ├── session/{projection/}           # projection/ NEW W2: ContextProjector
+      ├── engine/{spi, adapter, workflow, react, heterogeneous}
+      │                                   # workflow/, react/ NEW W2
+      │                                   # heterogeneous/ DEFERRED W3+ (Part G)
+      └── runtime/                        # extant: Run, RunStateMachine, ...
+
+  No `.agent.` segment. No package-root migration.
+
+  ## Part G — Shadow Tool Interceptor (defer W3+)
+
+  Heterogeneous framework anti-corruption (LangChain, LlamaIndex,
+  Spring AI as foreign engine) DEFERRED to W3+ `agent-evolve` scope.
+  Shadow Tool Interceptor pattern ACCEPTED as W3+ design direction.
+
+consequences: |
+  Positive:
+  - Closes θ.3–θ.10 (8 of 12 proposal-decisions accepted) +
+    θ.11 partial (A2A protocol-only) + θ.12 reject (package root).
+  - Resolves L1 design proposal with three explicit reconciliations.
+  - 4-layer state model gives coherent Task↔Run↔Session↔Memory
+    vocab without invalidating Run.status DFA spine.
+  - Message-vs-Task plane codifies what was implicit.
+  - Dual-Track router gives clean home for fast-path optimizations.
+
+  Negative:
+  - Proposal authors may push back on package-root + A2A SDK
+    boundary; mitigated by S4 + S5 stances + ADR-0104 prior-art.
+  - Task as new layer + Run inner means W2 introduces Task as new
+    persistence entity alongside Run; schema migration + DFA
+    mapping needs care.
+  - Shadow Tool Interceptor deferral may surprise reviewers
+    expecting W2 heterogeneous hosting; documented in
+    `agent-evolve/ARCHITECTURE.md` as W3+ scope.
+
+  Compounding: net positive — bounded SDK dependencies + preserved
+  spine.
+
+alternatives_considered: |
+  - (A) Accept proposal WHOLESALE incl. package-root migration —
+    rejected; third root-namespace migration in a year is unjustified.
+  - (B) Reject proposal entirely — rejected; substantive insights
+    are architecturally sound.
+  - (C) `a2a-java` SDK as bus substrate — rejected per S4.
+  - (D) Task REPLACES Run (proposal §1.4 literal) — rejected per S3.
+  - (E) Shadow Tool Interceptor at W2 — rejected; W3+ scope.
+
+references: |
+  - ARCHITECTURE.md §1.1 + §2 + §4 #9 + §4 #51
+  - Rule R-I + Rule R-I.1
+  - ADR-0020, ADR-0021, ADR-0049, ADR-0051, ADR-0073, ADR-0088,
+    ADR-0100, ADR-0101, ADR-0103, ADR-0104, ADR-0112
+  - docs/logs/reviews/2026-05-22-agent-service-l1-expansion-proposal.en.md
+  - docs/logs/reviews/2026-05-22-agent-execution-engine-friction-resolution.en.md

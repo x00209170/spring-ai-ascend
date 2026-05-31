@@ -1,0 +1,67 @@
+contract: AgentService-ToolGateway
+status: draft
+provider: ToolGatewayCapability
+consumer: AgentService
+operation: invokeSkill
+description: "受治理的 skill/tool 调用，覆盖权限、capacity、幂等、审计和错误分类。"
+request:
+  required:
+    - tenantId
+    - taskId
+    - stepId
+    - attemptId
+    - skillKey
+    - inputRef
+    - traceContext
+  optional:
+    - runId
+response:
+  oneOf:
+    - ToolCompleted
+    - ToolFailed
+    - ToolSuspended
+    - ToolDenied
+    - ToolRateLimited
+state:
+  tool_call_record_owner: ToolGatewayCapability
+  task_state_owner: TaskStateStore
+  run_repository_is_compatibility_alias: true
+idempotency:
+  key: tenantId + taskId + stepId + attemptId + skillKey + inputRef
+retry:
+  owner: Workflow
+  retryable_errors:
+    - TOOL_TIMEOUT
+    - TEMPORARY_PROVIDER_UNAVAILABLE
+  non_retryable_errors:
+    - PERMISSION_DENIED
+    - SKILL_NOT_FOUND
+errors:
+  retryable:
+    - TOOL_TIMEOUT
+    - RATE_LIMITED
+  non_retryable:
+    - PERMISSION_DENIED
+    - INVALID_TOOL_INPUT
+observability:
+  required_fields:
+    - tenantId
+    - traceId
+    - taskId
+    - stepId
+    - attemptId
+    - skillKey
+    - outcome
+  compatibility_fields:
+    - runId
+security:
+  required_context:
+    - tenantId
+    - actorId
+compatibility:
+  additive_response_allowed: true
+  error_reclassification_requires_adr: true
+contract_tests:
+  - permission_denied_has_no_side_effect
+  - rate_limited_returns_suspend_reason
+  - duplicate_attempt_does_not_repeat_side_effect

@@ -1,0 +1,144 @@
+id: ADR-0126
+title: "Planner SPI: `Planner.plan(PlanningRequest)` returning a `Plan` DAG (steps, dependencies, branch points, loop annotations); distinguishes planner OUTPUT from `plan-projection.v1.yaml` scheduler INPUT"
+status: accepted
+product_claim: "PC-001|PC-004"
+date: 2026-05-25
+level: L0
+view: development
+affects_level: L0, L1
+affects_view: development, logical
+authors:
+  - chao
+relates_to:
+  - ADR-0120    # Wave A1 brand & Audience B alignment (KEEP)
+  - ADR-0032    # Scope-Based Run Hierarchy + Planner Contract Minimal (extended)
+  - ADR-0052    # Skill Topology Scheduler + Capability Bidding
+context: |
+  ADR-0032 named `PlanState` and `RunPlanRef` as the L0 planner
+  taxonomy but defined no `Planner` SPI — no input contract (goal,
+  context, constraints), no output contract (plan / step / branch
+  / loop). The existing `docs/contracts/plan-projection.v1.yaml`
+  describes scheduler INPUT (one step's skill / budget / memory
+  scope) not planner OUTPUT.
+
+  Without a planner shape at L0, the W4 implementer designs from
+  scratch with no boundary to honor, and intermediate waves (W2
+  scheduler admission, W3 cost-attribution) cannot reference
+  planner-emitted plans.
+
+decision: |
+  Land the `Planner` SPI under
+  `com.huawei.ascend.engine.planner.spi` (agent-execution-engine
+  module — Planner output is a `Plan` DAG that the engine consumes,
+  so the natural home is engine-side; the cross-cutting model /
+  skill / memory primitives stay in middleware). Status:
+  design_only at rc44.
+
+  Public surface:
+
+  - **`Planner`** interface:
+      - `Mono<PlanningResult> plan(PlanningRequest request)`
+        (Reactive per Rule R-G; non-blocking — planners may call
+        LLMs which are non-blocking I/O.)
+
+  - **`PlanningRequest`** record:
+      - `String tenantId` (Rule R-C.c)
+      - `String goal` (free-text user goal)
+      - `Map<String, Object> context` (run-context snapshot)
+      - `List<SkillRef> availableSkills` (per Wave B2 SkillRef)
+      - `List<MemoryRef> availableMemories` (per Wave B3
+        MemoryRef)
+      - `PlanningBudget budget` (max steps, max wall-clock,
+        max cost in attribution units)
+      - `PlanningStrategy strategy` (enum: SEQUENTIAL,
+        DAG, REACT, TREE_OF_THOUGHT, CUSTOM)
+
+  - **`PlanningResult`** sealed:
+      - `PlanningSuccess(Plan plan, PlanningRationale rationale)`
+      - `PlanningError(String reason, String detail)`
+      - `PlanningInfeasible(String reason, List<String>
+                            unmetConstraints)`
+
+  - **`Plan`** record (DAG):
+      - `String planId`
+      - `List<PlanStep> steps`
+      - `Map<String, List<String>> dependencies` (stepId ->
+        prerequisite stepIds)
+      - `List<BranchPoint> branches` (conditional step
+        selections)
+      - `List<LoopAnnotation> loops` (loops with termination
+        conditions)
+      - `Map<String, Object> metadata`
+
+  - **`PlanStep`** record:
+      - `String stepId`
+      - `String displayName`
+      - `SkillRef skill` (which Skill executes the step)
+      - `Map<String, Object> inputs`
+      - `Optional<MemoryRef> readScope`
+      - `Optional<MemoryRef> writeScope`
+      - `StepBudget stepBudget`
+
+  - **`BranchPoint`** record: `stepId`, `condition` (expression
+    string), `truePath` (next stepId), `falsePath` (next stepId).
+  - **`LoopAnnotation`** record: `entryStepId`, `terminationCondition`,
+    `maxIterations`.
+  - **`PlanningRationale`** record: `reasoningTrace`, `consideredAlternatives`.
+  - **`PlanningBudget`** / **`StepBudget`** records: max steps,
+    max wall-clock, max attribution-cost. Constructor-level invariants
+    validate non-null wall-clock values and finite non-negative
+    `maxCostUnits`; `PlanningBudget.maxSteps` remains `> 0`.
+  - **Constructor-level plan invariants**: `Plan` rejects blank
+    `planId`, duplicate step ids, dependencies that reference unknown
+    steps or prerequisites, and dependency cycles. `PlanStep` rejects
+    blank `stepId`, `displayName`, and `skillKey`. Provider/TCK-level
+    validation still owns planner-specific branch-condition expression
+    dialects and loop termination semantics.
+
+  Relationship to existing `plan-projection.v1.yaml`:
+
+      Planner.plan(PlanningRequest) -> Plan
+                                        |
+                                        v
+              ProjectionService.project(Plan, PlanStep)
+                                        |
+                                        v
+                  plan-projection.v1.yaml (per-step
+                  scheduler admission record)
+
+  The `Plan` is the SOURCE; `PlanProjection` is the per-step
+  DERIVED scheduler-input. ADR-0032 is extended (not superseded)
+  by adding the Planner SPI; the projection contract continues
+  unchanged.
+
+  Contract schemas: `docs/contracts/planning-request.v1.yaml` and
+  `docs/contracts/plan.v1.yaml` (both status: design_only).
+
+consequences: |
+  Positive:
+  - W2 scheduler admission has a typed input to validate against
+    (Plan / PlanStep), not free-form prose.
+  - W4 planner implementer (LLM-driven planner, rule-based
+    planner, RL planner) has a fixed output target.
+  - Customers can compose their own planners (e.g., a
+    domain-specific rule planner) without inventing new
+    plan-shape semantics.
+
+  Negative / residual:
+  - DAG shape (steps + dependencies + branches + loops) is rich;
+    simple sequential planners use only `steps` + linear
+    `dependencies`. Acceptable: simple cases have trivial
+    serialization.
+  - `Planner` is design_only at rc44; W4 ships the first
+    reference implementation.
+
+alternatives_considered: |
+  - (A) Tree-only plan shape (no DAG). Rejected: real-world
+    multi-agent plans need joins (multiple prerequisites for
+    one step), which is a DAG.
+  - (B) Imperative `Plan` as a list of `Runnable` lambdas.
+    Rejected: defeats serialization (cannot send plan to a
+    different process); defeats inspection (cannot dry-run a
+    plan before executing).
+  - (C) Wait for W4 to design the planner shape. Rejected:
+    leaves the L0 contract gap open; W2-W3 work loses a target.

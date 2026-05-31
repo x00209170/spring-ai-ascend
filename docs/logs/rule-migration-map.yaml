@@ -1,0 +1,643 @@
+# Rule Namespace Ratchet — old `Rule N` integer → new prefix-namespace ID map.
+#
+# Authority: ADR-0086 (Rule Namespace Ratchet) — to be accepted at the atomic-ratchet PR.
+# Generated: 2026-05-19 from Authority-Surface Cleanup migration plan.
+#
+# Schema:
+#   - old_rule:           integer (1..100, plus deferred rule subclauses by string id)
+#   - new_id:             string (D-<n> | R-<letter> | G-<n> | M-<n>)
+#   - sub_clause:         optional ".<letter>" sub-clause suffix (only when multiple
+#                         old rules merge into one new rule)
+#   - principle_ref:      optional principle backref for R-* rules
+#   - status:             one of {active | deferred | retired}
+#   - enforcer_rows_preserved: list of E<n> enforcer ids that survive the migration
+#                         (used by the Wave 5 coverage parity audit)
+#   - rationale:          one-line reason for the new placement
+#
+# Reading the map:
+#   * R-A through R-M = one rule per L0 governing principle P-A..P-M.
+#   * D-* = daily engineering discipline (root-cause, simplicity, tests, async).
+#   * G-* = cross-cutting governance (graph truth, doc truth, kernel coherence, gate self-consistency, byte budget, linux-first dev).
+#   * M-* = module hygiene (skeleton; schema-first contracts).
+#   * Sub-clauses (.a, .b, ...) keep section-per-assertion granularity inside merged rules;
+#     gate/check_architecture_sync.sh continues to emit one `# Rule <new-id>.<letter>` header
+#     per assertion so per-rule duration tracking and enforcer attribution stay intact.
+
+version: 1
+authority: ADR-0086
+generated_at: 2026-05-19
+
+# ---------------------------------------------------------------------------
+# D-* — Daily Engineering Discipline (8 rules)
+# ---------------------------------------------------------------------------
+
+migrations:
+  - old_rule: 1
+    new_id: D-1
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: []
+    rationale: "Root-Cause + Strongest-Interpretation Before Plan — standalone process rule"
+
+  - old_rule: 2
+    new_id: D-2
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: []
+    rationale: "Simplicity & Surgical Changes — standalone process rule"
+
+  - old_rule: 3
+    new_id: D-3
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: []
+    rationale: "Pre-Commit Checklist — merged with Rule 79 under D-3 (Evidence-First Debug)"
+
+  - old_rule: 79
+    new_id: D-3
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E112]
+    rationale: "Evidence-First Debug Sequence — merged into D-3 (both pre-commit and debug discipline)"
+
+  - old_rule: 4
+    new_id: D-4
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: []
+    rationale: "Three-Layer Testing with Honest Assertions — design-time gate; kept separate from D-5 (ship-time)"
+
+  - old_rule: 9
+    new_id: D-5
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: []
+    rationale: "Self-Audit Ship Gate — ship-time gate; kept separate from D-4 (different lifecycle)"
+
+  - old_rule: 10
+    new_id: D-6
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: [E21]
+    rationale: "Posture-Aware Defaults — standalone configuration rule"
+
+  - old_rule: 5
+    new_id: D-7
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: []
+    rationale: "Concurrency / Async Resource Lifetime — standalone resource pattern"
+
+  - old_rule: 6
+    new_id: D-8
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: []
+    rationale: "Single Construction Path Per Shared Resource — standalone wiring pattern"
+
+  # ---------------------------------------------------------------------------
+  # R-* — Principle Operationalisation (13 rules, one per P-A..P-M)
+  # ---------------------------------------------------------------------------
+
+  - old_rule: 29
+    new_id: R-A
+    sub_clause: null
+    principle_ref: P-A
+    status: active
+    enforcer_rows_preserved: [E29]
+    rationale: "Business/Platform Decoupling Enforcement → P-A"
+
+  - old_rule: 30
+    new_id: R-B
+    sub_clause: null
+    principle_ref: P-B
+    status: active
+    enforcer_rows_preserved: [E30]
+    rationale: "Competitive Baselines Required → P-B"
+
+  - old_rule: 28
+    new_id: R-C
+    sub_clause: ".a"
+    principle_ref: P-C
+    status: active
+    enforcer_rows_preserved: [E15, E16, E17, E18, E19, E27, E28, E29, E30]
+    rationale: "Code-as-Contract → P-C; primary sub-clause"
+
+  - old_rule: 31
+    new_id: R-C
+    sub_clause: ".b"
+    principle_ref: P-C
+    status: active
+    enforcer_rows_preserved: [E31]
+    rationale: "Independent Module Evolution → P-C; shared P-C surface with code-as-contract"
+
+  - old_rule: 11
+    new_id: R-C
+    sub_clause: ".c"
+    principle_ref: P-C
+    status: active
+    enforcer_rows_preserved: [E2, E11]
+    rationale: "Contract Spine (tenantId required) → P-C; record-class enforcement"
+
+  - old_rule: 20
+    new_id: R-C
+    sub_clause: ".d"
+    principle_ref: P-C
+    status: active
+    enforcer_rows_preserved: [E9]
+    rationale: "Run State Transition Validity → P-C; runtime correctness"
+
+  - old_rule: 21
+    new_id: R-C
+    sub_clause: ".e"
+    principle_ref: P-C
+    status: active
+    enforcer_rows_preserved: [E2, E4]
+    rationale: "Tenant Propagation Purity → P-C; package dependency direction"
+
+  - old_rule: 32
+    new_id: R-D
+    sub_clause: ".a"
+    principle_ref: P-D
+    status: active
+    enforcer_rows_preserved: [E3, E32]
+    rationale: "SPI + DFX + TCK Co-Design → P-D; primary SPI design rule"
+
+  - old_rule: 75
+    new_id: R-D
+    sub_clause: ".b"
+    principle_ref: P-D
+    status: active
+    enforcer_rows_preserved: [E105]
+    rationale: "SPI packages populated (resolve to real .java)"
+
+  - old_rule: 76
+    new_id: R-D
+    sub_clause: ".c"
+    principle_ref: P-D
+    status: active
+    enforcer_rows_preserved: [E106]
+    rationale: "No split SPI packages (one Maven module owns each .spi.*)"
+
+  - old_rule: 77
+    new_id: R-D
+    sub_clause: ".d"
+    principle_ref: P-D
+    status: active
+    enforcer_rows_preserved: [E107]
+    rationale: "SPI packages dot-spi convention (.spi. or .spi$)"
+
+  - old_rule: 78
+    new_id: R-D
+    sub_clause: ".e"
+    principle_ref: P-D
+    status: active
+    enforcer_rows_preserved: [E108]
+    rationale: "DFX spi_packages matches module-metadata.yaml"
+
+  - old_rule: 85
+    new_id: R-D
+    sub_clause: ".f"
+    principle_ref: P-D
+    status: active
+    enforcer_rows_preserved: [E117, E118]
+    rationale: "Catalog SPI row matches module SPI metadata"
+
+  - old_rule: 95
+    new_id: R-D
+    sub_clause: ".g"
+    principle_ref: P-D
+    status: active
+    enforcer_rows_preserved: [E131]
+    rationale: "SPI catalog exhaustiveness (every public SPI cataloged or marked internal)"
+
+  - old_rule: 35
+    new_id: R-E
+    sub_clause: null
+    principle_ref: P-E
+    status: active
+    enforcer_rows_preserved: [E35]
+    rationale: "Three-Track Channel Isolation → P-E"
+
+  - old_rule: 36
+    new_id: R-F
+    sub_clause: null
+    principle_ref: P-F
+    status: active
+    enforcer_rows_preserved: [E36, E5]
+    rationale: "Cursor Flow Mandate → P-F"
+
+  - old_rule: 37
+    new_id: R-G
+    sub_clause: null
+    principle_ref: P-G
+    status: active
+    enforcer_rows_preserved: [E37, E66]
+    rationale: "Reactive External I/O (no RestTemplate/JdbcTemplate in runtime) → P-G"
+
+  - old_rule: 38
+    new_id: R-H
+    sub_clause: null
+    principle_ref: P-H
+    status: active
+    enforcer_rows_preserved: [E38, E67]
+    rationale: "No Thread.sleep in business code / Chronos Hydration → P-H"
+
+  - old_rule: 39
+    new_id: R-I
+    sub_clause: null
+    principle_ref: P-I
+    status: active
+    enforcer_rows_preserved: [E39, E68]
+    rationale: "Five-Plane Manifest (deployment_plane declared) → P-I"
+
+  - old_rule: 40
+    new_id: R-J
+    sub_clause: ".a"
+    principle_ref: P-J
+    status: active
+    enforcer_rows_preserved: [E40, E69]
+    rationale: "Storage-Engine Tenant Isolation (RLS on tenant_id tables) → P-J"
+
+  - old_rule: 24
+    new_id: R-J
+    sub_clause: ".b"
+    principle_ref: P-J
+    status: active
+    enforcer_rows_preserved: [E105, E106]
+    rationale: "Cancel re-authorization (HTTP-layer tenant cross-check) → P-J extension"
+
+  - old_rule: 41
+    new_id: R-K
+    sub_clause: null
+    principle_ref: P-K
+    status: active
+    enforcer_rows_preserved: [E41, E70]
+    rationale: "Skill Capacity Matrix → P-K"
+
+  - old_rule: 42
+    new_id: R-L
+    sub_clause: null
+    principle_ref: P-L
+    status: active
+    enforcer_rows_preserved: [E42, E71]
+    rationale: "Sandbox Permission Subsumption → P-L"
+
+  - old_rule: 43
+    new_id: R-M
+    sub_clause: ".a"
+    principle_ref: P-M
+    status: active
+    enforcer_rows_preserved: [E84]
+    rationale: "Engine Envelope Single Authority (EngineRegistry.resolve) → P-M"
+
+  - old_rule: 44
+    new_id: R-M
+    sub_clause: ".b"
+    principle_ref: P-M
+    status: active
+    enforcer_rows_preserved: [E76]
+    rationale: "Strict Engine Matching (no silent reinterpretation)"
+
+  - old_rule: 45
+    new_id: R-M
+    sub_clause: ".c"
+    principle_ref: P-M
+    status: active
+    enforcer_rows_preserved: [E73, E74, E75]
+    rationale: "Runtime-Owned Middleware via Engine Hooks"
+
+  - old_rule: 46
+    new_id: R-M
+    sub_clause: ".d"
+    principle_ref: P-M
+    status: active
+    enforcer_rows_preserved: [E81, E82, E83, E89, E90, E92]
+    rationale: "S2C Callback Envelope + Lifecycle Bound"
+
+  - old_rule: 47
+    new_id: R-M
+    sub_clause: ".e"
+    principle_ref: P-M
+    status: active
+    enforcer_rows_preserved: [E78]
+    rationale: "Evolution Scope Default Boundary"
+
+  - old_rule: 80
+    new_id: R-M
+    sub_clause: ".f"
+    principle_ref: P-M
+    status: active
+    enforcer_rows_preserved: [E113]
+    rationale: "S2cCallbackSignal historical-only in authority (corpus-text-truth complement)"
+
+  # ---------------------------------------------------------------------------
+  # G-* — Cross-Cutting Governance (7 rules)
+  # ---------------------------------------------------------------------------
+
+  - old_rule: 33
+    new_id: G-1
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: [E57]
+    rationale: "Layered 4+1 Discipline (level: + view: front-matter)"
+
+  - old_rule: 34
+    new_id: G-1
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E58, E59]
+    rationale: "Architecture-Graph Truth (generated, DAG, idempotent)"
+
+  - old_rule: 25
+    new_id: G-2
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: [E16, E25]
+    rationale: "Architecture-Text Truth — shipped row evidence + path existence + prose claim backing"
+
+  - old_rule: 82
+    new_id: G-2
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E115]
+    rationale: "Baseline Metrics Single Source — structured baseline_metrics + numeric-agreement"
+
+  - old_rule: 84
+    new_id: G-2
+    sub_clause: ".c"
+    status: active
+    enforcer_rows_preserved: [E116]
+    rationale: "Active Module ARCHITECTURE Path Truth (agent-*/ARCHITECTURE.md)"
+
+  - old_rule: 86
+    new_id: G-2
+    sub_clause: ".d"
+    status: active
+    enforcer_rows_preserved: [E119]
+    rationale: "Root ARCHITECTURE Count + Path Truth (root file + fenced-tree-block SPI ownership)"
+
+  - old_rule: 87
+    new_id: G-2
+    sub_clause: ".e"
+    status: active
+    enforcer_rows_preserved: [E120]
+    rationale: "Status YAML allowed_claim Module Name Truth"
+
+  - old_rule: 94
+    new_id: G-2
+    sub_clause: ".f"
+    status: active
+    enforcer_rows_preserved: [E129, E130]
+    rationale: "Active Corpus Deleted-Module Name Truth (corpus-wide, with vocab files)"
+
+  - old_rule: 97
+    new_id: G-2
+    sub_clause: ".g"
+    status: active
+    enforcer_rows_preserved: [E135, E136]
+    rationale: "Release-Note Numeric Truth (latest release-note prose vs live graph)"
+
+  - old_rule: 98
+    new_id: G-2
+    sub_clause: ".h"
+    status: active
+    enforcer_rows_preserved: [E137, E138]
+    rationale: "Broad-Corpus Deleted-Module-Name Truth (ops/, contracts/, module-metadata)"
+
+  - old_rule: 67
+    new_id: G-3
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: [E97]
+    rationale: "CLAUDE.md Kernel Size Bounded (per-rule line cap)"
+
+  - old_rule: 68
+    new_id: G-3
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E98]
+    rationale: "CLAUDE.md Kernel Matches Card (byte-match)"
+
+  - old_rule: 69
+    new_id: G-3
+    sub_clause: ".c"
+    status: active
+    enforcer_rows_preserved: [E99]
+    rationale: "Every Active Rule Has a Card (no orphan cards)"
+
+  - old_rule: 96
+    new_id: G-3
+    sub_clause: ".d"
+    status: active
+    enforcer_rows_preserved: [E133]
+    rationale: "Kernel-Deferred Clause Coherence (every CLAUDE-deferred sub-clause cited in kernel OR card)"
+
+  - old_rule: 99
+    new_id: G-3
+    sub_clause: ".e"
+    status: active
+    enforcer_rows_preserved: [E139, E140]
+    rationale: "Kernel Terminal-Verb vs Shipped-Decision Check"
+
+  - old_rule: 100
+    new_id: G-3
+    sub_clause: ".f"
+    status: active
+    enforcer_rows_preserved: [E141, E142]
+    rationale: "Kernel-Implementation Disjunction Truth"
+
+  - old_rule: 70
+    new_id: G-4
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: [E100]
+    rationale: "Always-Loaded Byte Budget"
+
+  - old_rule: 71
+    new_id: G-4
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E101]
+    rationale: "Deferred Doc Not In Always-Loaded Set"
+
+  - old_rule: 88
+    new_id: G-5
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: [E121]
+    rationale: "Serial/Parallel Gate Slug Parity"
+
+  - old_rule: 89
+    new_id: G-5
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E122]
+    rationale: "Self-Test Harness Fail-Closed Coverage"
+
+  - old_rule: 91
+    new_id: G-5
+    sub_clause: ".c"
+    status: active
+    enforcer_rows_preserved: [E123, E124]
+    rationale: "Baseline Metric Matches Executable Manifest"
+
+  - old_rule: 92
+    new_id: G-5
+    sub_clause: ".d"
+    status: active
+    enforcer_rows_preserved: [E125]
+    rationale: "Gate Rules Corpus Freshness (every gate section has a shadow file)"
+
+  - old_rule: 72
+    new_id: G-6
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: [E102]
+    rationale: "Rule Duration Regression Check"
+
+  - old_rule: 73
+    new_id: G-6
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E103]
+    rationale: "Gate Config Well-Formed (schema-validated)"
+
+  - old_rule: 74
+    new_id: G-7
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: [E104]
+    rationale: "Linux-First Dev Environment (canonical verification env)"
+
+  # ---------------------------------------------------------------------------
+  # M-* — Module Hygiene (2 rules)
+  # ---------------------------------------------------------------------------
+
+  - old_rule: 81
+    new_id: M-1
+    sub_clause: null
+    status: active
+    enforcer_rows_preserved: [E114]
+    rationale: "Skeleton Module Has No Production Java"
+
+  - old_rule: 48
+    new_id: M-2
+    sub_clause: ".a"
+    status: active
+    enforcer_rows_preserved: [E64, E65]
+    rationale: "Schema-First Domain Contracts"
+
+  - old_rule: 83
+    new_id: M-2
+    sub_clause: ".b"
+    status: active
+    enforcer_rows_preserved: [E116]
+    rationale: "Design-Only Contract Registered in Catalog"
+
+  - old_rule: 93
+    new_id: M-2
+    sub_clause: ".c"
+    status: active
+    enforcer_rows_preserved: [E128]
+    rationale: "DFX Stem Matches Module (orphan-detection)"
+
+  # ---------------------------------------------------------------------------
+  # Deferred rules — keep their integer ids but reassign new namespace at activation
+  # ---------------------------------------------------------------------------
+
+  - old_rule: 7
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred (CLAUDE-deferred.md Rule 7)"
+
+  - old_rule: 8
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 12
+    new_id: retired
+    sub_clause: null
+    status: retired
+    rationale: "Pre-rc taxonomy slot reused into other rule numbers; never activated as standalone"
+
+  - old_rule: 13
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 14
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 15
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 16
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 17
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 18
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 19
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 22
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred (PayloadCodec)"
+
+  - old_rule: 23
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 26
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred"
+
+  - old_rule: 27
+    new_id: deferred
+    sub_clause: null
+    status: deferred
+    rationale: "Deferred (W0 idempotency activated, but follow-ups deferred)"
+
+# ---------------------------------------------------------------------------
+# Coverage parity inventory — sanity check before ratchet
+# ---------------------------------------------------------------------------
+coverage_parity:
+  total_old_rules: 67   # active engineering rules per CLAUDE.md head count
+  total_new_rules: 30   # 8 D + 13 R + 7 G + 2 M
+  total_sub_clauses: 38 # sub-clauses across merged rules
+  deferred_count: 13
+  retired_count: 1
+  enforcer_rows_preserved_total: 142   # MUST match enforcers.yaml row count
+  # Wave 5 audit will verify each enforcer row's constraint_ref resolves through this map.

@@ -1,0 +1,163 @@
+id: ADR-0086
+title: "Rule Namespace Ratchet — adopt P-/R-/D-/G-/M- prefix scheme"
+status: accepted
+governance_infra: true
+date: 2026-05-19
+level: L0
+view: scenarios
+
+context: |
+  At L0 pre-publication, the engineering-rule corpus had accumulated 67 active
+  rules + 13 deferred + 87 ADRs + 142 enforcer rows + 112 gate sections
+  across 11 RC cycles. CLAUDE.md was organised by chronological "prevention
+  waves" (e.g. `### rc7 post-corrective review response prevention wave`),
+  and rule kernels carried `Closes rcN ...` problem-origin tags. The user
+  observed (2026-05-19) that 100 rules at L0 pre-publication is bloated:
+  rule content can be preserved while rule count is compressed.
+
+  Migration plan: (historical session plan, local-only)
+
+decision: |
+  Adopt a prefixed namespace for engineering rules:
+    * D-<n>     — Daily engineering discipline (8 rules: D-1..D-8)
+    * R-<letter> — Principle operationalisation (13 rules: R-A..R-M, one per P-A..P-M)
+    * G-<n>     — Cross-cutting governance (7 rules: G-1..G-7)
+    * M-<n>     — Module hygiene (2 rules: M-1..M-2)
+  Total: 30 active rules. Sub-clauses use lowercase letters (.a, .b, ...) to
+  preserve section-per-assertion granularity inside merged rules.
+
+  Gate parser (`gate/check_architecture_sync.sh`) accepts the new header format:
+    # Rule <prefix>-<id>[.<letter>] — <slug>
+
+  Coverage parity contract: every old rule (1..100) maps to ≥1 new rule
+  sub-clause; every enforcer row in `docs/governance/enforcers.yaml` references
+  a current rule via the migration map; no assertion is dropped.
+
+migration_map: docs/logs/rule-migration-map.yaml
+coverage_parity_audit: docs/logs/migration-coverage-report.md  # written in Wave 5
+
+supersedes:
+  - ADR-0083  # rc9 baseline taxonomy — superseded by single active_engineering_rules field + the new namespace
+  - ADR-0084  # rc10 corpus-truth wave — retracted; content carried forward through this ADR
+  - ADR-0085  # rc11 kernel-truth + retraction — content absorbed into docs/logs/governance-waves.md
+
+extends:
+  - ADR-0064  # Layer-0 Governing Principles — principle ↔ R-rule pairing
+  - ADR-0068  # Layered 4+1 + Architecture Graph — graph regenerated with new node IDs
+
+authority_inputs:
+  - "User decision 2026-05-19 — three trade-offs (full namespace migration / full ADR triage / complete rcN scrub) confirmed via AskUserQuestion"
+  - "Plan agent validation 2026-05-19 — defensible compression floor of ~36 rules informed the final 30; risks enumerated"
+  - "Explore agents 2026-05-19 — corpus survey (67 active engineering rules; 142 rcN-tagged files; 467 rcN occurrences across .md/.yaml/.java)"
+
+ratchet_scope:
+  authority_surface_canonical:
+    description: |
+      Per rc11 review P1-1 closure (user decision 2026-05-19), the D/R/G/M
+      namespace is canonical ONLY for semantic-authority surfaces. Gate
+      implementation-layer identifiers retain numeric form by design (see
+      `gate_layer_boundary:` below).
+    files_renamed:
+      - "docs/governance/rules/rule-NN.md → docs/governance/rules/<new-id>[<sub-clause>].md"
+    files_rewritten:
+      - "CLAUDE.md — full kernel index re-grouped by D/R/G/M sections"
+      - "docs/governance/rules/*.md — every rule-card `rule_id:` frontmatter namespaced (rc12 K-α finished the 19 cards still carrying numeric rule_id)"
+      - "docs/governance/enforcers.yaml — every constraint_ref string updated (rc12 K-α finished the 9 `Rule 28[a-i]` rows)"
+      - "docs/governance/principle-coverage.yaml — operationalised_by_rules updated to new ids; legacy P1/P2/P3/E1 block moved to docs/logs/principle-history.yaml"
+      - "docs/governance/architecture-status.yaml — `baseline_metrics.active_engineering_rules` 67→30; `allowed_claim` Rule N references updated where active (deferred-rule + gate-section refs intentionally retain numeric)"
+      - "docs/governance/architecture-graph.yaml — regenerated (rule-node ids namespaced)"
+      - "docs/governance/rule-history.md — appended cross-reference table (old → new id)"
+    files_bulk_edited:
+      - "docs/adr/*.{md,yaml} — 591 Rule N citations rewritten via migration map"
+      - "agent-*/src/test/java/**/*.java — 142 Javadoc Rule N citations rewritten"
+    cards_retired:
+      - "Rules fully subsumed by merged-rule sub-clauses (e.g. rule-R-M.md → R-M.f content) move to docs/logs/rule-card-archive/"
+
+gate_layer_boundary:
+  description: |
+    Gate implementation-layer identifiers retain numeric form by design.
+    The migration map (`docs/logs/rule-migration-map.yaml`) keeps
+    bi-directional addressability between numeric gate identifiers and
+    namespaced authority identifiers; the gate parser accepts both forms.
+  retained_numeric:
+    - "gate/check_architecture_sync.sh — `# Rule N — slug` section headers"
+    - "gate/rules/rule-NNN.sh — filenames (one per gate section)"
+    - "gate/test_architecture_sync_gate.sh — `test_rule_<N>_*` function names"
+    - "gate/log/runs/*/per-rule.ndjson — `rule_id: N` integer keys (Rule G-6.a duration tracking)"
+  rationale: |
+    Gate sections are implementation artefacts (executable shell sections /
+    file paths / test function names). The semantic authority of "what the
+    rule says" lives in CLAUDE.md + rule cards + enforcers + architecture
+    graph. Decoupling these layers (a) lets the gate filesystem grow
+    monotonically without churning rule numbers on every migration, and
+    (b) keeps per-rule-duration ndjson + benchmark median files stable
+    under rule-set evolution. The bi-directional map keeps gate output
+    addressable from authority surfaces and vice versa.
+  gated_by:
+    - "Rule G-3.c (every active rule has a card) — pairs namespaced kernel with namespaced card"
+    - "Rule 101 (rc12 rule_namespace_authority_completeness) — gates semantic-authority parity (kernel ↔ card ↔ enforcer ↔ baseline)"
+    - "gate/build_architecture_graph.py rule_extract regex — accepts both numeric and namespaced rule ids"
+    - "Rule 100 disjunction-allowlist gate logic accepts both integer and namespaced rule ids"
+
+transitional_gate:
+  name: rule-migration-truth
+  scope: |
+    One-shot gate check active during Wave 4 + Wave 5 verification:
+      * Every row in `docs/logs/rule-migration-map.yaml` has both old_rule and new_id.
+      * Every old rule (1..100) appears in the map (active OR deferred OR retired).
+      * Every `enforcer.constraint_ref` in enforcers.yaml resolves to a current rule via the map.
+      * Every old rule's kernel_assertion text appears (verbatim) in the new rule's body or card.
+    Removed in Wave 5 Step 5C after coverage parity audit passes.
+
+backward_compat:
+  name: gate/lib/resolve_rule_id.sh
+  scope: |
+    Translator: accepts both old (`Rule R-H`) and new (`Rule R-H`) ids for one release cycle.
+    After the next release ships, deprecate old ids entirely; commit-message CI advisory directs
+    to the migration map.
+
+consequences:
+  positive:
+    - "CLAUDE.md kernel bytes drop from 45000 cap to ~25000 (45% under cap)"
+    - "Rule count: 67 → 30 (55% reduction); meets user's `100 rules is bloated` complaint"
+    - "Categorical readability: `R-K — Skill Capacity` signals the rule's category at a glance vs `Rule R-K`"
+    - "Wave history rcN-free in active corpus (kernels + headers); rcN literals contained to docs/logs/"
+  negative:
+    - "591 ADR citations + 235 release-note citations + 142 Javadoc citations require bulk rewrite"
+    - "External tooling that pins rule numbers must adopt the resolve_rule_id translator (one release cycle)"
+    - "Atomic ratchet PR — large blast radius (~300 files in one commit); reviewer cost high"
+    - "Locked-ADR predecessors (ADR-0001..0027 subset) move to docs/adr/locked/; readers must follow INDEX.md"
+
+verification:
+  - "bash gate/check_architecture_sync.sh — GATE: PASS post-ratchet"
+  - "bash gate/check_parallel.sh — GATE: PASS (serial/parallel parity G-5.a)"
+  - "bash gate/test_architecture_sync_gate.sh — Tests passed: N/N (G-5.b coverage)"
+  - "diff <(bash gate/build_architecture_graph.sh) <(bash gate/build_architecture_graph.sh) — empty (G-1.b idempotency)"
+  - "./mvnw verify — green (Javadoc edits only on Java side)"
+  - "grep -rn 'rc[0-9]\\+' docs/ --exclude-dir=logs --exclude-dir=archive | grep -v retracted-tags.txt → ~0 hits"
+
+cross_references:
+  - "docs/logs/rule-migration-map.yaml — full audit-trail bridge"
+  - "docs/logs/governance-waves.md — narrative of waves 1..11 that produced the original rule corpus"
+  - "docs/logs/adr-triage-manifest.md — locked/active/archive classification of all 85 ADRs"
+  - ".claude/plans/rc1-rc2-docs-logs-ai-agent-spi-adr-rule-scalable-pond.md — full migration plan"
+
+execution_status: |
+  As of 2026-05-19 (rc12 close):
+    * Wave 1 (logs partition + ADR triage) — COMPLETE; gate GATE: PASS.
+    * Wave 2 (Rule R-M sub-clause .f / G-2.b / G-2.f / G-2.h redesign with external vocabulary files) — COMPLETE.
+    * Wave 3 (rcN scrub) — PARTIAL; cluster headers + kernel paragraphs scrubbed; body sections retain
+      rcN narrative as intentional history. Gate GATE: PASS.
+    * Wave 4 (atomic ratchet, authority-surface scope) — COMPLETE; CLAUDE.md kernel index re-grouped to
+      D-/R-/G-/M- namespace; rule-card filenames renamed; principle-coverage updated; ~1825 bulk
+      substitutions across 152 files. Gate sections + gate/rules/*.sh filenames intentionally retained
+      numeric per `gate_layer_boundary:` above (rc11 review P1-1 boundary decision).
+    * Wave 5 (coverage parity audit) — COMPLETE; 81/81 migrations resolved; report at
+      docs/logs/migration-coverage-report.md.
+    * Wave 6 Stream A (rc12 K-α — finish authority surfaces) — COMPLETE; 19 rule-card `rule_id:`
+      frontmatter updated; 9 enforcer `Rule 28[a-i]` references migrated to `Rule R-C.a`;
+      `architecture-status.yaml#baseline_metrics.active_engineering_rules: 67 → 30`; ADR-0086
+      `gate_layer_boundary:` section added; migration-coverage-report updated with live graph counts
+      + boundary clarification; new Rule 101 prevention gate (rule_namespace_authority_completeness).
+    * Wave 6 Stream C (rc12 K-γ — baseline metric drift) — COMPLETE; graph counts 394/533 → live
+      364/525; gate/README narrative refreshed; Rule G-2.b widened to gate graph/test/adr counts.

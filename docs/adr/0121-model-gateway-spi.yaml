@@ -1,0 +1,98 @@
+id: ADR-0121
+title: "ModelGateway SPI: tenant-scoped, hook-bound, pure-Java `ModelResponse invoke(ModelInvocation)` shape; Spring AI ChatModel is the reference adapter"
+status: accepted
+product_claim: "PC-004"
+date: 2026-05-25
+level: L0
+view: development
+affects_level: L0, L1
+affects_view: development, logical
+authors:
+  - chao
+relates_to:
+  - ADR-0120    # Wave A1 brand & Audience B alignment (KEEP)
+  - ADR-0122    # Wave A3 Tool-Skill resolution (tool args carry SkillRef)
+  - ADR-0125    # Wave A2 Spring AI canonical integration boundary
+  - ADR-0073    # Engine hooks + HookPoint (BEFORE_LLM / AFTER_LLM bind here)
+  - ADR-0061    # Telemetry vertical (TraceContext propagation through ModelGateway)
+context: |
+  The senior-architect L0 review identified the absence of a
+  `ModelGateway` SPI as a contract-layer defect: `pom.xml` imports
+  `spring-ai-bom` but zero production Java imports any Spring AI
+  type; the `LlmGatewayHookChainOnlyTest` ArchUnit guard had no
+  production LLM adapter shell to inspect; the hook surface (ADR-0073)
+  names BEFORE_LLM / AFTER_LLM hooks but defines no LLM envelope for
+  them to wrap.
+
+  ADR-0125 resolved the Spring AI integration boundary in favour of
+  Path (a) — Spring AI is canonical and the platform decorates.
+  This ADR specifies the decorator shape.
+
+decision: |
+  Land the `ModelGateway` SPI in
+  `com.huawei.ascend.middleware.model.spi.ModelGateway`
+  (agent-middleware module). Status: design_only at rc43;
+  runtime_enforced when the W2 LLM gateway implementation ships per
+  ADR-0061 §7.
+
+  - **Signature**: `ModelResponse invoke(ModelInvocation invocation);`.
+    The SPI remains pure Java per Rule R-D. Rule R-G is enforced at the
+    runtime implementation boundary: provider calls must be routed
+    through virtual-thread isolation or an internal reactive bridge before
+    the W2 adapter is promoted from design_only.
+  - **Tenant scope**: `ModelInvocation` carries `tenantId` (Rule
+    R-C.c). Cross-tenant access via `ModelGateway.invoke` fails closed
+    per posture before provider I/O.
+  - **Hook binding**: `HookPoint.BEFORE_LLM` fires with
+    `ModelInvocation`; `HookPoint.AFTER_LLM` fires with
+    `ModelResponse`. Hook short-circuit per ADR-0073.
+  - **Capacity arbitration**: per-model rate limits MAY arbitrate
+    via `ResilienceContract.resolve(tenant, "model:" + modelId)`;
+    the W2 LLM gateway implementation owns the call site.
+  - **Reference adapter**: `SpringAiChatModelGateway` in Wave C1
+    wraps Spring AI's `org.springframework.ai.chat.model.ChatModel`.
+  - **Value types** ship in the same package:
+    `ModelInvocation` (record: modelId, messages, tools, parameters,
+                       tenantId, hookContext)
+    `ModelResponse` (record: content, toolCalls, finishReason,
+                     usage, metadata)
+    `Message` (sealed: SystemMessage, UserMessage, AssistantMessage,
+               ToolResultMessage)
+    `ModelUsage` (record: promptTokens, completionTokens, totalTokens)
+
+  Contract schema lives at `docs/contracts/model-invocation.v1.yaml`
+  (status: design_only, runtime_enforced: false). Catalog row added
+  in the same wave's PR.
+
+consequences: |
+  Positive:
+  - The W2 runtime LLM hook-chain guard remains staged for functional
+    provider calls, while the Wave C1 Spring AI adapter shell is now
+    covered by a non-vacuous design-only assertion: it may reference
+    `ChatModel`, but its `invoke` body cannot call the provider before
+    hook binding ships.
+  - W2 LLM gateway implementations have a fixed pure-Java target
+    signature and tenant/hook/capacity contract.
+  - Customers can swap providers (OpenAI direct, Anthropic direct,
+    custom Ascend-NPU adapter) by implementing `ModelGateway`
+    without touching Spring AI.
+
+  Negative / residual:
+  - Implementations must isolate Spring AI's synchronous `ChatModel`
+    call internally (virtual threads or an implementation-local reactive
+    bridge) before W2 promotion. The SPI itself intentionally does not
+    expose Reactor types.
+  - `ModelGateway` is design_only until W2; no runtime binding
+    today.
+
+alternatives_considered: |
+  - (A) Reactive SPI signature. Rejected for L0: it violates Rule R-D's
+    SPI-purity discipline by pushing a runtime library type into the
+    public platform contract. Rule R-G still applies to runtime code; the
+    adapter implementation, not the SPI carrier, owns blocking isolation.
+  - (B) Spring AI `ChatModel` re-exported directly as the platform's
+    interface. Rejected by ADR-0125 (Path c).
+  - (C) Separate `ChatModelGateway` + `CompletionModelGateway` for
+    chat vs completion APIs. Rejected: Spring AI consolidated on
+    chat-style API; legacy completion stays internal to provider
+    adapters.

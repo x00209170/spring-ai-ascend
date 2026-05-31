@@ -1,0 +1,150 @@
+id: ADR-0125
+title: "Spring AI integration boundary: Spring AI is the canonical Model / Tool / Vector / Embedding abstraction; platform SPIs are thin decorators"
+status: accepted
+product_claim: "PC-001|PC-004"
+date: 2026-05-25
+level: L0
+view: scenarios
+affects_level: L0, L1
+affects_view: scenarios, logical, development
+authors:
+  - chao
+relates_to:
+  - ADR-0120    # Wave A1 — brand & Audience B alignment (KEEP)
+  - ADR-0117    # rc37 Ascend/Kunpeng strategic repositioning
+  - ADR-0061    # Telemetry vertical (Hook SPI binding surface)
+  - ADR-0073    # Engine hooks + RuntimeMiddleware (hook points BEFORE_LLM / AFTER_LLM / BEFORE_TOOL / AFTER_TOOL)
+context: |
+  Per ADR-0120 (Wave A1), the team committed to keeping the
+  `spring-ai-ascend` brand and the Audience B promise. The downstream
+  contract-surface waves (B1 ModelGateway, B2 Skill, B4 Vector /
+  Retriever / Embedding) need a decided integration boundary before
+  they can name their SPI signatures.
+
+  The current state — `pom.xml` imports `spring-ai-bom 2.0.0-M5`, the
+  `OssApiProbe` checks the Spring AI classpath, the runtime LLM
+  hook-chain guard is staged for W2, and zero production Java file
+  imports any Spring AI type — is the worst option: the brand promise is
+  set without delivery.
+
+  Three integration boundaries are credible:
+
+  - **Path (a) Spring AI canonical, platform decorates.** Platform SPIs
+    (`ModelGateway`, `Skill`, `VectorStore`, `Retriever`,
+    `EmbeddingModel`) are thin shapes whose REFERENCE adapter wraps
+    Spring AI's `ChatModel` / `ToolCallback` / `VectorStore` /
+    `DocumentRetriever` / `EmbeddingModel`. The decorator adds
+    tenant scoping (Rule R-C.c), hook binding (`HookPoint.BEFORE_LLM`
+    /`AFTER_LLM` etc.), `ResilienceContract` pass-through, and
+    `TraceContext` propagation. Customers wiring custom providers
+    implement the platform SPI directly; Spring AI is the reference.
+
+  - **Path (b) Platform abstraction primary, Spring AI is one adapter
+    among many.** Platform defines abstractions independent of Spring
+    AI; Spring AI adapters live alongside LangChain4j / native
+    Ascend-NPU / direct OpenAI adapters as peers. Maximises freedom
+    but discards the brand alignment.
+
+  - **Path (c) Re-export Spring AI types directly.** Platform exposes
+    `org.springframework.ai.*` types as part of its own public API;
+    customers consume Spring AI through the platform's namespace.
+    Brand alignment is maximal but the platform loses the ability to
+    add tenant scoping / hooks / capacity arbitration at the API
+    boundary.
+
+decision: |
+  Adopt **Path (a)**: Spring AI is the canonical Model / Tool / Vector
+  / Embedding / Retrieval abstraction. The platform's SPIs are thin
+  decorators that:
+
+  1. **Re-express Spring AI's input/output shape** in the platform's
+     own packages (`com.huawei.ascend.middleware.model.spi.ModelGateway`
+     etc.) using platform-native value records. The decorator translates
+     between platform records and Spring AI types at the adapter
+     boundary.
+
+  2. **Add platform cross-cutting concerns** the Spring AI types do
+     not natively carry:
+     - `tenantId` scoping per Rule R-C.c (every method accepts a
+       tenant carrier — explicit `tenantId` arg or implicit via
+       `RunContext.tenantId()`).
+     - Hook binding via `HookDispatcher` — `BEFORE_LLM`/`AFTER_LLM`
+       fire around `ModelGateway.invoke(...)`; `BEFORE_TOOL`/
+       `AFTER_TOOL` around `Skill.execute(...)`; `BEFORE_MEMORY`/
+       `AFTER_MEMORY` around `MemoryStore` / `VectorStore` /
+       `Retriever` accesses (existing `HookPoint` enum per ADR-0073).
+     - `ResilienceContract.resolve(tenant, skill)` pass-through for
+       capacity arbitration on `Skill.execute(...)` and (when the
+       per-model capacity row exists) on `ModelGateway.invoke(...)`.
+     - `TraceContext` propagation (Telemetry vertical per ADR-0061).
+
+  3. **Live as REFERENCE adapters under
+     `agent-service/src/main/java/com/huawei/ascend/service/integration/springai/`**,
+     posture-gated: `dev` posture wires Spring AI adapters
+     automatically; `research` and `prod` require explicit
+     `@ConfigurationProperties` binding per Rule R-A (no surprise
+     opaque defaults in production).
+
+  4. **Are the FIRST place production Spring AI imports land in the
+     repository.** The Wave C1 adapter shells are design-only and covered
+     by `LlmGatewayHookChainOnlyTest`: they may hold Spring AI beans, but
+     cannot invoke providers until W2 hook/capacity binding ships.
+
+  5. **Coexist with future Ascend-NPU-optimised native adapters** by
+     virtue of the SPI being independent of any one provider. The
+     Ascend-NPU adapter (roadmap, not L0 scope) implements the same
+     platform SPI without going through Spring AI.
+
+consequences: |
+  Positive:
+  - Brand-vs-shipped alignment is restored: the project name
+    `spring-ai-ascend` matches the canonical model abstraction
+    delivered.
+  - Audience B (external Spring developers) gets a familiar surface:
+    Spring AI types they already know, decorated with platform value
+    (tenant scoping, hooks, capacity, tracing).
+  - Customers who want to swap Spring AI for direct provider SDKs
+    implement the platform SPI without dragging Spring AI; the
+    abstraction is real, not nominal.
+  - The W2 deferred Rule 19 (Runtime Hook Conformance) acquires a
+    real binding target instead of staying vacuous.
+
+  Negative / residual:
+  - Coupling to Spring AI's evolution: when Spring AI changes
+    `ChatModel` or `ToolCallback` signatures, the platform's
+    decorator must keep up. Mitigation: the `spring-ai-bom` is
+    version-pinned in `pom.xml`; major-version bumps go through ADR.
+  - The platform cannot insulate customers from Spring AI's
+    correctness defects when they show through the adapter — but
+    this is the same boundary every framework decorator faces.
+  - Adapters add one indirection vs raw Spring AI; for trivial use
+    cases customers may bypass and use Spring AI directly. Rule R-A's
+    `@ConditionalOnMissingBean` pattern accommodates this by
+    construction (custom beans override).
+
+  Forward / staging boundaries:
+  - This ADR LANDS in Wave A2 (rc43) as a decision; the adapters
+    themselves ship in Wave C1 (rc47).
+  - Phase B SPI signatures (ADR-0121 / ADR-0124 in particular) MUST
+    mirror Spring AI's shape closely enough that the Wave C1 adapter
+    is a straight delegation — not a translation layer with semantic
+    surprises.
+
+alternatives_considered: |
+  - (B) **Platform abstraction primary, Spring AI is one adapter
+    among many.** Rejected: discards brand alignment; multiplies
+    adapter maintenance; doubles the cognitive load for Audience B
+    who already speaks Spring AI fluently; Ascend-NPU adapters can
+    still be peers under Path (a) — they bypass Spring AI entirely,
+    not the platform SPI.
+
+  - (C) **Re-export Spring AI types directly.** Rejected: gives up
+    tenant scoping, hook binding, capacity arbitration at the API
+    boundary; converts the platform into a thin Spring AI repackager
+    with no architectural value; collides with Rule R-C.c (every
+    SPI must carry tenant scope) which Spring AI's types do not.
+
+  - (D) **Mixed: re-export some types (e.g., `Message`) but decorate
+    others.** Rejected: introduces inconsistent boundary; trains
+    customers to inspect type origins case-by-case; complicates
+    versioning when Spring AI bumps shared types.

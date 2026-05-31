@@ -1,0 +1,150 @@
+id: ADR-0081
+title: "ResilienceContract dual-surface reconciliation (operation-policy + skill-capacity)"
+status: accepted
+governance_infra: true
+date: 2026-05-18
+level: L0
+view: logical
+freeze_id: null
+
+supersedes: []
+extends:
+  - ADR-0030
+  - ADR-0044
+  - ADR-0070
+  - ADR-0080
+supersedes_partial:
+  - "ADR-0030 §HD-C.3 W2 evolution claim (operation surface extending to (tenantId, operationId))"
+  - "ADR-0044 ResilienceContract row 'Planned scope evolution' column"
+relates_to:
+  - ADR-0079
+
+decision_one_liner: |
+  ResilienceContract is dual-surface: resolve(operationId) is operation-policy
+  routing (W0+; the legacy axis from ADR-0030) and resolve(tenant, skill) is
+  skill-capacity arbitration (W1.x Phase 9+; introduced by ADR-0070 and enforced
+  by Rule R-K.b). The pre-ADR-0070 plan to extend the operation surface to
+  (tenantId, operationId) is superseded by ADR-0070's skill axis — capacity uses
+  (tenant, skill), NOT a renamed operation argument. The two axes MUST NOT be
+  conflated. Contract catalog, ADR-0030, and ADR-0044 are amended in place.
+
+context: |
+  ADR-0030 (Skill-Dimensional Resource Arbitration, 2026-05-12) introduced
+  ResilienceContract as the architectural boundary for tenant-aware resilience.
+  Its post-W0 evolution claim said: "ResilienceContract.resolve(operationId)
+  extends to accept (tenantId, operationId) at W2." ADR-0044 (SPI Contract
+  Precision + Memory Metadata Reconciliation, 2026-05-12) inherited the same
+  claim in its per-SPI scope table: "tenant-aware (tenantId, operationId) at
+  W2 (ADR-0030)".
+
+  ADR-0070 (Cursor Flow + Skill-Capacity Runtime, 2026-05-17) shipped the
+  actual tenant-aware variant. The signature it introduced was
+  resolve(tenant, skill) — NOT resolve(tenantId, operationId). The intent
+  shifted: instead of routing an operation's resilience policy by tenant, the
+  new overload arbitrates *skill capacity* across tenants. The skill axis is
+  the cross-cutting capacity dimension; the operation axis is the legacy
+  per-operation policy routing surface. CLAUDE.md Rule R-K.b enforces the new
+  overload at runtime via SkillCapacityRegistry.
+
+  At v2.0.0-rc6 (2026-05-18) the Java SPI exposes BOTH methods. The
+  default implementation of resolve(tenant, skill) throws
+  UnsupportedOperationException so legacy single-arg implementations stay
+  source-compatible without silently admitting every caller. The production
+  binding (DefaultSkillResilienceContract) overrides the two-arg form and
+  consults SkillCapacityRegistry.tryAcquire(tenant, skill).
+
+  The Codex rc6 post-response architecture review (P1-1, 2026-05-18) found
+  that contract-catalog.md:58, ADR-0030:223, and ADR-0044:77 still
+  described only the pre-ADR-0070 "(tenantId, operationId) at W2" future
+  even though the active rule (Rule R-K.b) ships the (tenant, skill) overload.
+  The risk is W2 implementer drift: a future contributor reading the older
+  ADR text would add a third (tenantId, operationId) overload to the
+  contract, conflating operation routing with skill capacity.
+
+  ADR-0081 records the formal reconciliation: dual-surface, with the older
+  "(tenantId, operationId)" evolution claim explicitly superseded by the
+  (tenant, skill) skill axis. The two axes are orthogonal and must not be
+  collapsed.
+
+decision: |
+  - ResilienceContract exposes two distinct surfaces (already on the Java
+    contract; this ADR codifies the semantics across the authority corpus):
+      * resolve(String operationId) — OPERATION-POLICY ROUTING.
+        - Axis: operation identifier -> ResiliencePolicy triple.
+        - Authority: ADR-0030 (origin), Rule R-K (general resilience routing).
+        - Status: W0+ shipped; production binding is YamlResilienceContract.
+        - Forward evolution: kept open for operation-attribute extensions
+          (e.g., operation-side hedging policy). Future extensions MUST NOT
+          add a tenant axis here — tenant capacity arbitration lives on the
+          (tenant, skill) surface.
+      * resolve(String tenant, String skill) — SKILL-CAPACITY ARBITRATION.
+        - Axis: (tenant, skill) -> SkillResolution {admitted, suspendReason?}.
+        - Authority: ADR-0070 (origin), Rule R-K.b (runtime enforcement).
+        - Status: W1.x Phase 9+ shipped; production binding is
+          DefaultSkillResilienceContract, backed by YamlSkillCapacityRegistry
+          consulting docs/governance/skill-capacity.yaml.
+        - Over-cap callers receive admitted=false carrying
+          SuspendReason.RateLimited so the orchestrator maps to
+          RunStatus.SUSPENDED, not FAILED (Chronos Hydration interlock
+          with Rule R-H).
+        - Forward evolution: kept open for skill-graph routing
+          (skill -> sub-skill capacity inheritance). Future extensions MUST
+          NOT add an operationId axis here — operation-side policy routing
+          lives on the resolve(operationId) surface.
+  - Supersession scope (PARTIAL, not full):
+      * ADR-0030 §HD-C.3 "ResilienceContract.resolve(operationId) extends to
+        accept (tenantId, operationId) at W2." -> SUPERSEDED by ADR-0070's
+        skill axis. ADR-0030 remains the origin authority for the
+        operation-policy surface; only the W2 evolution claim is narrowed.
+        ADR-0030 is amended in place at line 223 with a pointer to this ADR.
+      * ADR-0044 catalog row "tenant-aware (tenantId, operationId) at W2
+        (ADR-0030)" -> SUPERSEDED by ADR-0070's skill axis. The row is
+        rewritten in place to the dual-surface form.
+  - Contract catalog row (docs/contracts/contract-catalog.md §2, the
+    "Per-SPI tenant scope" row for ResilienceContract) is rewritten as
+    "dual-surface: operation-policy + skill-capacity" with explicit
+    pointers to ADR-0030, ADR-0070, and this ADR.
+  - Java Javadoc on ResilienceContract.java is extended with @see
+    cross-references to ADR-0030 / ADR-0070 / ADR-0080 / ADR-0081 so
+    IDE hover surfaces the supersession.
+
+consequences:
+  positive:
+    - "Closes rc6 review P1-1: contract catalog, ADR-0030, and ADR-0044 now reflect the actual two-axis Java surface."
+    - "Pins the semantic boundary: operation-policy routing and skill-capacity arbitration are orthogonal axes that MUST NOT be conflated by a W2 implementer."
+    - "Preserves both ADR-0030 (operation axis origin) and ADR-0070 (skill axis origin) as living authority documents; supersession is partial and scoped, not wholesale."
+    - "No Java code change required (the dual-surface is already shipped per ADR-0070); only authority documents are amended."
+  negative:
+    - "ADR-0030 and ADR-0044 carry inline amendment text alongside their original prose. Readers must read the amendment to understand the current evolution path."
+    - "The dual-surface co-location on a single ResilienceContract interface is a stylistic choice (alternative: split into two interfaces ResilienceContract + SkillCapacityContract). Kept co-located because the production binding DefaultSkillResilienceContract already implements both, and W2 implementers benefit from a single injection point."
+
+alternatives_considered:
+  - alternative: "Split into two SPIs: ResilienceContract (operation-policy) + SkillCapacityContract (skill-capacity)."
+    why_rejected: "Java surface today already co-locates the two methods on one interface. Splitting would force a binary-incompatible change to existing callers + tests + Spring wiring with no semantic benefit — the production binding DefaultSkillResilienceContract implements both; a single injection point keeps callers simple. The naming risk (a reader assuming the two methods share an axis) is addressed by Javadoc + ADR-0081 cross-refs, not by splitting types."
+  - alternative: "Mark ADR-0030 as fully superseded and remove the W2 evolution claim."
+    why_rejected: "Full supersession erases ADR-0030's role as the operation-policy axis origin authority. Future operation-attribute extensions still need to cite ADR-0030. Partial supersession (W2 evolution claim only) preserves both axes' authority trails."
+  - alternative: "Defer the reconciliation; mark the catalog row with a TODO."
+    why_rejected: "The rc6 reviewer's risk (W2 implementer drift) is real and immediate — the next person to read ADR-0030 would build the (tenantId, operationId) extension and conflict with the live (tenant, skill) overload. Deferral re-creates the dual-classification defect Rule R-D sub-clause .f was supposed to prevent."
+
+verification:
+  cli:
+    - "./mvnw clean verify -> BUILD SUCCESS (no Java change in rc7 or rc8)"
+    - "bash gate/check_architecture_sync.sh -> GATE: PASS (74 active gate rules; rc8 baseline)"
+    - "bash gate/check_parallel.sh -> GATE: PASS; parallel_summary trailer shows 74/74 rule parity per Rule G-5 sub-clause .a (rc8 baseline)"
+    - "bash gate/test_architecture_sync_gate.sh -> Tests passed: 149/149 (rc8 baseline; TOTAL derived at runtime per Rule G-5 sub-clause .b)"
+  corpus:
+    - "docs/contracts/contract-catalog.md ResilienceContract row carries 'dual-surface' language with ADR-0070 + ADR-0081 pointers"
+    - "docs/adr/0030-skill-spi-lifecycle-resource-matrix.md:223 paragraph amended with supersession marker pointing to ADR-0070 + ADR-0081"
+    - "docs/adr/0044-spi-contract-precision-and-memory-metadata-reconciliation.md:77 row rewritten to dual-surface form"
+    - "agent-service/src/main/java/com/huawei/ascend/service/runtime/resilience/spi/ResilienceContract.java Javadoc carries @see cross-references to ADR-0030 / ADR-0070 / ADR-0080 / ADR-0081"
+
+enforcer_rows: []
+gate_rules: []
+notes: |
+  No new gate rule added for ADR-0081. The pattern (multi-axis SPI scope drift)
+  is rare — the rc7 corpus-wide F-β sweep found only ResilienceContract as a
+  real case; SuspendSignal, ExecutorAdapter, HookPoint are accurately
+  documented. Rule G-2 sub-clause .a (architecture-text truth) + Rule R-C.a (code-as-contract)
+  already cover the general invariant; a dedicated prevention rule would
+  over-fit on a single instance. If a second multi-axis SPI scope drift is
+  found in a future wave, a Rule 88-style prevention gate should be revisited.

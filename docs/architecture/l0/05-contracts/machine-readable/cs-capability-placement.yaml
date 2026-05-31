@@ -1,0 +1,88 @@
+schema_id: cs-capability-placement
+status: draft
+version: 0.1.0
+authority:
+  - ADR-0033
+  - ADR-0049
+  - ADR-0051
+  - ADR-0074
+  - ADR-0101
+purpose: >
+  Draft machine-readable shape for C-Side / S-Side capability placement,
+  local tool handoff, local context assembly, platform middleware invocation,
+  and hybrid enterprise capability placement.
+participants:
+  - agent-client
+  - agent-bus
+  - agent-service
+  - agent-execution-engine
+  - agent-middleware
+deployment_variants:
+  - platform_centric
+  - weak_department_paas
+  - protected_local_capability
+  - business_centric
+  - hybrid_enterprise_individual
+placement_values:
+  - platform_hosted_service
+  - local_client
+  - business_service
+  - platform_middleware
+  - delegated_adapter
+  - federation_remote
+capability_request:
+  required:
+    - tenantId
+    - traceId
+    - taskId
+    - taskCursorRef
+    - capabilityRef
+    - placement
+    - idempotencyKey
+    - redactionPolicyRef
+  optional:
+    - runId
+    - businessRuleSubsetRef
+    - skillPoolLimitRef
+    - delegationGrantRef
+    - requestedTimeout
+    - inputSummary
+capability_result:
+  required:
+    - tenantId
+    - traceId
+    - taskId
+    - capabilityRef
+    - placement
+    - outcome
+    - evidenceRef
+  optional:
+    - runId
+    - resultRef
+    - resultSummary
+    - businessFactEvents
+    - costReceipt
+    - errorEnvelope
+outcomes:
+  - OK
+  - DENIED
+  - TIMEOUT
+  - LOCAL_UNAVAILABLE
+  - PLATFORM_ADAPTER_UNAVAILABLE
+  - DELEGATION_REQUIRED
+  - PLACEHOLDER_VIOLATION
+invariants:
+  - hosted_service_configuration_is_tenant_scoped_and_audited
+  - c_side_business_fact_not_platform_owned_by_default
+  - local_tool_handoff_uses_s2c_or_yield
+  - platform_public_service_uses_middleware_adapter
+  - placeholder_preserved_roundtrip
+  - execution_locus_trace_present
+  - no_credential_leak_from_c_side_to_s_side
+tests:
+  - weak_department_hosted_service_onboarding
+  - sensitive_context_not_persisted_by_platform
+  - local_tool_uses_s2c_handoff
+  - platform_public_service_uses_middleware_adapter
+  - execution_locus_trace_present
+  - placeholder_preserved_roundtrip

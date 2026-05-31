@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  spring-ai-ascend parent POM.
+
+  Per docs/cross-cutting/oss-bill-of-materials.md (cycle-11) and the
+  ADRs in docs/cross-cutting/design-decisions.md (cycle-12). All
+  versions pinned at the parent; module POMs do NOT override versions.
+
+  Wave: W0 (cycle-13). U-level promotion: critical-path deps move from
+  U1 (BoM doc-verified) to U2 (probe-code-verified) when a real
+  `mvn dependency:resolve` + `mvn compile` pass on the user's machine
+  or in CI.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.huawei.ascend</groupId>
+  <artifactId>spring-ai-ascend-parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>spring-ai-ascend parent</name>
+  <description>Parent POM for the spring-ai-ascend agent runtime.</description>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.5</version>
+    <relativePath/>
+  </parent>
+
+  <modules>
+    <module>spring-ai-ascend-dependencies</module>
+    <module>agent-client</module>
+    <module>agent-bus</module>
+    <module>agent-middleware</module>
+    <module>agent-execution-engine</module>
+    <module>agent-evolve</module>
+    <module>agent-service</module>
+    <module>spring-ai-ascend-graphmemory-starter</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+    <!-- BoM-pinned versions (Step 3 W0 upgrade to latest stable). -->
+    <spring-ai.version>2.0.0-M5</spring-ai.version>
+    <spring-cloud.version>2025.1.1</spring-cloud.version>
+    <temporal.version>1.35.0</temporal.version>
+    <mcp.version>1.0.0</mcp.version>
+    <langchain4j.version>1.14.1</langchain4j.version>
+    <resilience4j.version>2.4.0</resilience4j.version>
+    <caffeine.version>3.2.4</caffeine.version>
+    <flyway.version>11.19.1</flyway.version>
+    <testcontainers.version>1.21.4</testcontainers.version>
+    <wiremock.version>3.9.1</wiremock.version>
+    <restassured.version>5.5.2</restassured.version>
+    <!-- Groovy override: RestAssured 5.5.2 pulls 5.0.4 which NPEs in
+         MetaClass property lookup under JDK 21 during applyProxySettings.
+         5.0.6 is the latest stable patch on the 5.0.x line. -->
+    <groovy.version>5.0.6</groovy.version>
+    <opentelemetry-agent.version>2.10.0</opentelemetry-agent.version>
+    <logstash-logback.version>8.0</logstash-logback.version>
+    <springdoc.version>3.0.3</springdoc.version>
+    <tika.version>3.3.0</tika.version>
+    <archunit.version>1.4.2</archunit.version>
+    <spotbugs.maven.plugin.version>4.8.6.6</spotbugs.maven.plugin.version>
+    <maven.pmd.plugin.version>3.26.0</maven.pmd.plugin.version>
+    <maven.checkstyle.plugin.version>3.6.0</maven.checkstyle.plugin.version>
+    <checkstyle.version>10.20.2</checkstyle.version>
+
+    <!-- Test parallelization toggle (T1.1). Override with -DjunitParallel=false
+         to debug suspected concurrency-related test failures. -->
+    <junitParallel>true</junitParallel>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Spring AI BOM pulls in all spring-ai-* artifacts at one pinned version. -->
+      <dependency>
+        <groupId>org.springframework.ai</groupId>
+        <artifactId>spring-ai-bom</artifactId>
+        <version>${spring-ai.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Spring Cloud BOM (Vault + Config + Gateway). -->
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Temporal Java SDK. -->
+      <dependency>
+        <groupId>io.temporal</groupId>
+        <artifactId>temporal-sdk</artifactId>
+        <version>${temporal.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.temporal</groupId>
+        <artifactId>temporal-testing</artifactId>
+        <version>${temporal.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- MCP Java SDK. -->
+      <dependency>
+        <groupId>io.modelcontextprotocol.sdk</groupId>
+        <artifactId>mcp</artifactId>
+        <version>${mcp.version}</version>
+      </dependency>
+
+      <!-- langchain4j (alternate RAG profile + document-loader catalog). -->
+      <dependency>
+        <groupId>dev.langchain4j</groupId>
+        <artifactId>langchain4j-bom</artifactId>
+        <version>${langchain4j.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Resilience4j (Boot 3/4 compatible via spring-boot3 artifact). -->
+      <dependency>
+        <groupId>io.github.resilience4j</groupId>
+        <artifactId>resilience4j-spring-boot3</artifactId>
+        <version>${resilience4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.resilience4j</groupId>
+        <artifactId>resilience4j-reactor</artifactId>
+        <version>${resilience4j.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.github.resilience4j</groupId>
+        <artifactId>resilience4j-circuitbreaker</artifactId>
+        <version>${resilience4j.version}</version>
+      </dependency>
+
+      <!-- Caffeine. -->
+      <dependency>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>${caffeine.version}</version>
+      </dependency>
+
+      <!-- Flyway. -->
+      <dependency>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-core</artifactId>
+        <version>${flyway.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.flywaydb</groupId>
+        <artifactId>flyway-database-postgresql</artifactId>
+        <version>${flyway.version}</version>
+      </dependency>
+
+      <!-- Testcontainers BOM. -->
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers-bom</artifactId>
+        <version>${testcontainers.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- WireMock for LLM provider stubs in tests. -->
+      <dependency>
+        <groupId>org.wiremock</groupId>
+        <artifactId>wiremock-standalone</artifactId>
+        <version>${wiremock.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- RestAssured for E2E tests. -->
+      <dependency>
+        <groupId>io.rest-assured</groupId>
+        <artifactId>rest-assured</artifactId>
+        <version>${restassured.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- Groovy version override (see properties block for rationale). -->
+      <dependency>
+        <groupId>org.apache.groovy</groupId>
+        <artifactId>groovy</artifactId>
+        <version>${groovy.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.groovy</groupId>
+        <artifactId>groovy-xml</artifactId>
+        <version>${groovy.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.groovy</groupId>
+        <artifactId>groovy-json</artifactId>
+        <version>${groovy.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- springdoc-openapi for OpenAPI 3 generation. -->
+      <dependency>
+        <groupId>org.springdoc</groupId>
+        <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        <version>${springdoc.version}</version>
+      </dependency>
+
+      <!-- Logstash JSON encoder for Logback. -->
+      <dependency>
+        <groupId>net.logstash.logback</groupId>
+        <artifactId>logstash-logback-encoder</artifactId>
+        <version>${logstash-logback.version}</version>
+      </dependency>
+
+      <!-- Apache Tika for document parsing tools. -->
+      <dependency>
+        <groupId>org.apache.tika</groupId>
+        <artifactId>tika-core</artifactId>
+        <version>${tika.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tika</groupId>
+        <artifactId>tika-parsers-standard-package</artifactId>
+        <version>${tika.version}</version>
+      </dependency>
+
+      <!-- ArchUnit for module dependency direction tests. -->
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- Local com.huawei.ascend modules — managed here so consumers never need inline <version>. -->
+      <dependency>
+        <groupId>com.huawei.ascend</groupId>
+        <artifactId>agent-client</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.huawei.ascend</groupId>
+        <artifactId>agent-bus</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.huawei.ascend</groupId>
+        <artifactId>agent-middleware</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.huawei.ascend</groupId>
+        <artifactId>agent-execution-engine</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.huawei.ascend</groupId>
+        <artifactId>agent-evolve</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.huawei.ascend</groupId>
+        <artifactId>agent-service</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.huawei.ascend</groupId>
+        <artifactId>spring-ai-ascend-graphmemory-starter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <repositories>
+    <!-- Spring Milestones for Spring AI 2.0-M5 (not yet on Maven Central). -->
+    <repository>
+      <id>spring-milestones</id>
+      <name>Spring Milestones</name>
+      <url>https://repo.spring.io/milestone</url>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <pluginRepositories>
+    <pluginRepository>
+      <id>spring-milestones</id>
+      <name>Spring Milestones</name>
+      <url>https://repo.spring.io/milestone</url>
+      <snapshots><enabled>false</enabled></snapshots>
+    </pluginRepository>
+  </pluginRepositories>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+          <configuration>
+            <excludes>
+              <exclude>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+              </exclude>
+            </excludes>
+          </configuration>
+        </plugin>
+        <!--
+          Parallel test execution (T1.1):
+          - forkCount=1 + reuseForks=true keeps a single JVM per module so Spring's
+            ApplicationContext cache survives across test classes. Combined with
+            ./mvnw -T 1C the reactor builds 4+ modules in parallel JVMs.
+          - junit.jupiter.execution.parallel.* runs test CLASSES concurrently inside
+            each JVM (methods stay same_thread to avoid intra-class shared-state races).
+          - Local opt-out: -DjunitParallel=false reverts to sequential.
+        -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+            <forkCount>1</forkCount>
+            <reuseForks>true</reuseForks>
+            <properties>
+              <configurationParameters>
+                junit.jupiter.execution.parallel.enabled=${junitParallel}
+                junit.jupiter.execution.parallel.mode.default=same_thread
+                junit.jupiter.execution.parallel.mode.classes.default=concurrent
+                junit.jupiter.execution.parallel.config.strategy=fixed
+                junit.jupiter.execution.parallel.config.fixed.parallelism=4
+                junit.jupiter.execution.parallel.config.fixed.max-pool-size=4
+              </configurationParameters>
+            </properties>
+          </configuration>
+        </plugin>
+        <!--
+          Failsafe keeps test CLASSES same-thread within a fork: Spring Boot 4.0.5
+          isn't fully thread-safe at SpringApplication.run() initialization, and
+          two ITs booting contexts concurrently in the same JVM hit
+          ConcurrentModificationException on shared internals. Cross-module
+          parallelism is delivered by ./mvnw -T 1C (one JVM per reactor thread).
+          Re-evaluate when Spring Boot upgrades or when ITs are refactored to
+          not boot a context.
+        -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <configuration>
+            <includes>
+              <include>**/*IT.java</include>
+            </includes>
+            <forkCount>1</forkCount>
+            <reuseForks>true</reuseForks>
+            <!--
+              RestAssured 5.5.x walks ProxySelector.default during applyProxySettings.
+              Under JDK 21 the path NPEs (groovy MetaClassImpl lookup on Apache
+              HttpClient connectionManager.schemeRegistry that no longer exists in
+              HttpClient 4.5+). Disabling the system-proxy probe is the canonical
+              workaround until RestAssured catches up.
+            -->
+            <argLine>-Djava.net.useSystemProxies=false</argLine>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>com.github.spotbugs</groupId>
+          <artifactId>spotbugs-maven-plugin</artifactId>
+          <version>${spotbugs.maven.plugin.version}</version>
+          <configuration>
+            <effort>Max</effort>
+            <threshold>Low</threshold>
+            <xmlOutput>true</xmlOutput>
+            <htmlOutput>true</htmlOutput>
+            <excludeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs/exclude.xml</excludeFilterFile>
+            <failOnError>false</failOnError>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-pmd-plugin</artifactId>
+          <version>${maven.pmd.plugin.version}</version>
+          <configuration>
+            <rulesets>
+              <ruleset>${maven.multiModuleProjectDirectory}/config/pmd/pmd-ruleset.xml</ruleset>
+            </rulesets>
+            <printFailingErrors>true</printFailingErrors>
+            <linkXRef>false</linkXRef>
+            <failOnViolation>false</failOnViolation>
+            <includeTests>false</includeTests>
+            <targetJdk>21</targetJdk>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>${maven.checkstyle.plugin.version}</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>${checkstyle.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <configLocation>${maven.multiModuleProjectDirectory}/config/checkstyle/checkstyle.xml</configLocation>
+            <consoleOutput>false</consoleOutput>
+            <failsOnError>false</failsOnError>
+            <failOnViolation>false</failOnViolation>
+            <includeTestSourceDirectory>false</includeTestSourceDirectory>
+            <linkXRef>false</linkXRef>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>quality</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>spotbugs-report</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>spotbugs</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-pmd-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>pmd-report</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>pmd</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>checkstyle-report</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>checkstyle</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

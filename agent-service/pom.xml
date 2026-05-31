@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  agent-service: consolidated HTTP edge + cognitive runtime kernel + Run/RunStateMachine/IdempotencyRecord owner.
+
+  Authority: ADR-0078 (agent-service consolidation), ADR-0088 (agent-runtime-core dissolution).
+  Post-rc13 (2026-05-20): Run / RunStatus / RunStateMachine / RunRepository / IdempotencyRecord
+  re-consolidated here after agent-runtime-core dissolved per ADR-0088. The neutral
+  orchestration/engine SPI now lives in agent-bus (bus.spi.engine) per ADR-0158; s2c SPI in
+  agent-bus (bus.spi.s2c).
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.huawei.ascend</groupId>
+    <artifactId>spring-ai-ascend-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>agent-service</artifactId>
+  <name>agent-service</name>
+  <description>Combined HTTP edge + cognitive runtime kernel. Sub-package layering: service.platform owns HTTP/JWT/idempotency/tenant; service.runtime owns orchestration SPI + Run lifecycle + reference executors.</description>
+
+  <dependencies>
+    <!-- Sibling module: agent-execution-engine (EngineRegistry + ExecutorAdapter SPI + orchestration SPI per ADR-0072 + ADR-0088). -->
+    <dependency>
+      <groupId>com.huawei.ascend</groupId>
+      <artifactId>agent-execution-engine</artifactId>
+    </dependency>
+    <!-- Sibling module: agent-bus (S2cCallbackTransport SPI + IngressGateway SPI per ADR-0088 + ADR-0089). -->
+    <dependency>
+      <groupId>com.huawei.ascend</groupId>
+      <artifactId>agent-bus</artifactId>
+    </dependency>
+    <!-- Sibling module: middleware (HookPoint/RuntimeMiddleware/HookDispatcher per ADR-0073). -->
+    <dependency>
+      <groupId>com.huawei.ascend</groupId>
+      <artifactId>agent-middleware</artifactId>
+    </dependency>
+
+    <!-- ====== Platform-side (from former agent-platform) ====== -->
+
+    <!-- Web + actuator. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+
+    <!-- Persistence: JDBC + Postgres + Flyway. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jdbc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Security: OAuth2 resource server (JWT). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
+    <!-- Resilience4j: spring-boot integration + circuit breaker (the latter for tests was in agent-runtime). -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-spring-boot3</artifactId>
+    </dependency>
+
+    <!-- Caching (in-process). -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+
+    <!-- Vault for secrets (W2). -->
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-vault-config</artifactId>
+    </dependency>
+
+    <!-- OpenAPI / Swagger UI. -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    </dependency>
+
+    <!-- Observability: Micrometer + Prometheus. -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+
+    <!-- Logback JSON. -->
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+    </dependency>
+
+    <!-- ====== Runtime-side (from former agent-runtime) ====== -->
+
+    <!-- Spring AI: LLM gateway. -->
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-starter-model-anthropic</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-starter-model-openai</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
+    </dependency>
+
+    <!-- MCP Java SDK. -->
+    <dependency>
+      <groupId>io.modelcontextprotocol.sdk</groupId>
+      <artifactId>mcp</artifactId>
+    </dependency>
+
+    <!-- Temporal Java SDK. -->
+    <dependency>
+      <groupId>io.temporal</groupId>
+      <artifactId>temporal-sdk</artifactId>
+    </dependency>
+
+    <!-- Apache Tika for the document-parser tool. -->
+    <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-core</artifactId>
+    </dependency>
+
+    <!-- ====== Test scope (union of both modules) ====== -->
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.temporal</groupId>
+      <artifactId>temporal-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock-standalone</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-circuitbreaker</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- Boot 4 + springdoc 3.0.3 SpringDocJacksonKotlinModuleConfiguration eagerly
+           wires springdocKotlinObjectMapperProvider which transitively requires
+           YAMLFactory at boot. Without this jar on the runtime classpath the boot
+           jar fails with `NoClassDefFoundError: com.fasterxml.jackson.dataformat.yaml.YAMLFactory`
+           on first context refresh (observed in CI quickstart-smoke job, rc9). -->
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <!--
+        Bring canonical contract YAMLs onto the classpath for runtime
+        self-validation (ADR-0076 R2 pilot). EngineRegistry.readYaml() tries
+        filesystem first, then classpath fallback at "/docs/contracts/<name>.yaml".
+      -->
+      <resource>
+        <directory>${project.basedir}/../docs/contracts</directory>
+        <targetPath>docs/contracts</targetPath>
+        <includes>
+          <include>engine-envelope.v1.yaml</include>
+          <include>engine-hooks.v1.yaml</include>
+          <include>s2c-callback.v1.yaml</include>
+        </includes>
+      </resource>
+      <!--
+        Bring the skill-capacity matrix onto the classpath. YamlSkillCapacityRegistry
+        loads its default path "docs/governance/skill-capacity.yaml" from the filesystem
+        first, then falls back to the classpath at "/docs/governance/skill-capacity.yaml".
+        A packaged jar (and the distroless image, which runs from /app with no docs/
+        tree) has no filesystem copy, so without this resource the registry silently
+        loads an EMPTY matrix and fails closed on every tryAcquire once Rule R-K wiring
+        consults it. Mirrors the docs/contracts engine-YAML bundling above.
+      -->
+      <resource>
+        <directory>${project.basedir}/../docs/governance</directory>
+        <targetPath>docs/governance</targetPath>
+        <includes>
+          <include>skill-capacity.yaml</include>
+        </includes>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <!--
+            Post-Phase-C (ADR-0078): agent-service is BOTH a runnable Spring Boot
+            application (via PlatformApplication) AND a library that
+            spring-ai-ascend-graphmemory-starter depends on. The default
+            repackage goal turns the main jar into an executable jar with
+            classes under BOOT-INF/classes/, which breaks downstream compile.
+            Attach the executable jar under the `boot` classifier instead so
+            the main jar stays a normal library jar consumable by downstream
+            Maven modules.
+          -->
+          <classifier>boot</classifier>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

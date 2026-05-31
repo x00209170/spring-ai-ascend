@@ -1,0 +1,56 @@
+contract: Gateway-Workflow
+status: draft
+provider: Workflow
+consumer: Gateway
+operation: submitIntent
+description: "入口请求转换为受租户、幂等和 trace 约束的执行意图。"
+request:
+  required:
+    - tenantId
+    - actorId
+    - intentType
+    - idempotencyKeyRef
+    - traceContext
+  optional:
+    - taskId
+    - runId
+    - payloadRef
+response:
+  oneOf:
+    - AcceptedCursor
+    - CurrentStatus
+    - RejectedError
+state:
+  owner: TaskStateStore
+  gateway_may_write_task_state: false
+  run_repository_is_compatibility_alias: true
+idempotency:
+  owner: Gateway
+  semantic_key: tenantId + intentType + idempotencyKeyRef
+retry:
+  requester_may_retry: true
+  workflow_retry_owner: Workflow
+errors:
+  retryable:
+    - TEMPORARY_UNAVAILABLE
+  non_retryable:
+    - INVALID_REQUEST
+    - TENANT_MISMATCH
+    - IDEMPOTENCY_CONFLICT
+observability:
+  required_fields:
+    - tenantId
+    - traceId
+    - intentType
+    - idempotencyKeyRef
+security:
+  required_context:
+    - tenantId
+    - actorId
+compatibility:
+  additive_fields_allowed: true
+  breaking_change_requires_adr: true
+contract_tests:
+  - duplicate_task_create_is_idempotent
+  - cross_tenant_is_not_visible
+  - entry_timeout_does_not_mark_failed

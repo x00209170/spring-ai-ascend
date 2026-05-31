@@ -1,0 +1,123 @@
+id: ADR-0124
+title: "VectorStore / Retriever / EmbeddingModel SPIs: tenant-scoped decorators of Spring AI types; RAG becomes a first-class platform extension seam"
+status: accepted
+product_claim: "PC-001|PC-005"
+date: 2026-05-25
+level: L0
+view: development
+affects_level: L0, L1
+affects_view: development, logical
+authors:
+  - chao
+relates_to:
+  - ADR-0120    # Wave A1 brand & Audience B alignment (KEEP)
+  - ADR-0123    # Wave B3 Memory unified SPI (M5 KnowledgeMemoryStore couples to VectorStore)
+  - ADR-0125    # Wave A2 Spring AI canonical boundary (Path a — decorate)
+  - ADR-0034    # Memory & Knowledge Taxonomy (M5 Knowledge Index sits here)
+context: |
+  The senior-architect L0 review identified the absence of
+  `VectorStore` / `Retriever` / `EmbeddingModel` SPIs as the
+  largest practical gap: RAG is the most common agent use case
+  in 2026 and the platform shipped zero contract shape for it,
+  forcing Audience B to bypass `spring-ai-ascend` and use
+  Spring AI directly.
+
+  ADR-0125 chose Path (a) — Spring AI canonical, platform
+  decorates. This ADR specifies the decorator surface for the
+  three RAG primitives so Wave B4 ships deterministically and
+  Wave C1 adapters delegate straight-through.
+
+decision: |
+  Land three SPIs across three sibling packages in agent-middleware:
+
+  - **`com.huawei.ascend.middleware.vector.spi.VectorStore`**
+    interface:
+      - `void add(String tenantId, List<Document> documents)`
+      - `void delete(String tenantId, List<String> documentIds)`
+      - `List<VectorMatch> similaritySearch(String tenantId,
+                                             VectorQuery query)`
+    Value types in the same package: `Document`,
+    `VectorMatch`, `VectorQuery` (record: queryText OR
+    queryEmbedding, topK, similarityThreshold, filter
+    expression, embeddingModelVersion).
+
+  - **`com.huawei.ascend.middleware.retrieval.spi.Retriever`**
+    interface:
+      - `List<RetrievedDocument> retrieve(String tenantId, String query,
+                                           RetrievalOptions options)`
+    Composes one or more `VectorStore`s with reranking /
+    hybrid-search policies; default impl may wrap a single
+    `VectorStore`. `RetrievalOptions` carries topK, score
+    threshold, optional filters. `RetrievedDocument` is deliberately
+    a same-package retrieval carrier so `retrieval.spi` does not
+    import `vector.spi.Document`; adapters translate from vector or
+    provider-native documents before crossing the retrieval boundary.
+
+  - **`com.huawei.ascend.middleware.embedding.spi.EmbeddingModel`**
+    interface:
+      - `Embedding embed(String tenantId, String text)`
+      - `List<Embedding> embedAll(String tenantId, List<String> texts)`
+      - `String modelVersion()` — informs
+        `MemoryMetadata.embeddingModelVersion` per ADR-0123.
+    Value type: `Embedding` (record: vector float[],
+    modelVersion, dimensionality).
+
+  All three SPIs:
+
+  - Carry `tenantId` per Rule R-C.c.
+  - Keep the L0 SPI blocking/pure-Java; asynchronous/reactive provider
+    bindings live behind adapters and do not leak into the public SPI.
+  - Bind to `HookPoint.BEFORE_MEMORY` / `AFTER_MEMORY` via
+    Wave C1 adapters (ADR-0073 hook taxonomy already covers
+    memory hooks).
+  - Are decorated by Wave C1 Spring AI adapters
+    (`SpringAiVectorStore`, `SpringAiDocumentRetriever`,
+    `SpringAiEmbeddingModel`) wrapping the equivalent Spring AI
+    types per ADR-0125.
+  - Couple to ADR-0123's `KnowledgeMemoryStore` (M5):
+    `KnowledgeMemoryStore` typically composes a `VectorStore`
+    + an `EmbeddingModel` + a `Retriever`; the M5 marker is the
+    high-level Memory taxonomy entry, the RAG SPIs here are
+    the low-level pipeline primitives.
+
+  Contract schema lives at `docs/contracts/vector-store.v1.yaml`
+  (covers all three SPIs in one document; status: design_only).
+
+consequences: |
+  Positive:
+  - RAG becomes a first-class extension seam — Audience B can wire
+    custom vector backends (Postgres pgvector, Milvus, Qdrant,
+    Ascend-NPU vector engine) by implementing `VectorStore`
+    without touching Spring AI internals.
+  - Tenant scoping per Rule R-C.c is enforced at the platform
+    boundary; Spring AI's native types do not natively carry
+    tenant, the decorator adds it.
+  - Embedding model versioning flows through `MemoryMetadata`
+    (ADR-0123) so M5 entries can be replayed deterministically
+    even after a model upgrade.
+
+  Negative / residual:
+  - Three sibling packages (vector.spi, retrieval.spi,
+    embedding.spi) instead of one. Reflects Spring AI's own
+    separation; consolidating would obscure responsibilities.
+  - Blocking/pure-Java shape means reactive providers bridge internally
+    in the adapter layer; this is intentional SPI decoupling rather than
+    a reactive contract promise.
+
+  Forward / staging:
+  - Ascend-NPU-optimised vector engine adapter is roadmap, not
+    L0 scope; its target is `VectorStore`, not Spring AI's
+    `VectorStore`. The SPI is what makes the future adapter
+    portable.
+
+alternatives_considered: |
+  - (A) One mega `RagSpi` interface combining all three. Rejected:
+    obscures composition; customers wiring custom vector + reusing
+    Spring AI embedding would have to reimplement the whole
+    interface.
+  - (B) Re-export Spring AI's `VectorStore` directly. Rejected by
+    ADR-0125 Path (c).
+  - (C) Defer Retriever to Wave C, ship only VectorStore +
+    EmbeddingModel at L0. Rejected: Retriever is the natural
+    composition point and the customer-facing surface; deferring
+    it means W2 hybrid-search work has nothing to extend.

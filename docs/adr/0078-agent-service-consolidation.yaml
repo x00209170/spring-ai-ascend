@@ -1,0 +1,221 @@
+id: ADR-0078
+title: "agent-service consolidation: fold agent-platform + agent-runtime into a single Maven module"
+status: accepted
+governance_infra: true
+date: 2026-05-18
+level: L1
+view: development
+freeze_id: null
+
+supersedes:
+  - ADR-0055
+extends:
+  - ADR-0066
+relates_to:
+  - ADR-0026
+
+decision_one_liner: |
+  Merge the two reactor modules agent-platform and agent-runtime into
+  a single new agent-service module. Java packages collapse under one
+  parent namespace com.huawei.ascend.service.* with two siblings
+  service.platform.* and service.runtime.*. Rule R-C.e retargets from
+  cross-module to intra-module sub-package layering. Reactor goes from
+  9 modules to 8.
+
+triggering_inputs:
+  architecture_intent:
+    - path: "ARCHITECTURE.md:75-86"
+      thesis: |
+        ARCHITECTURE.md §2 declared since 2026-05-17 that the Phase C
+        follow-up will fold agent-platform + the runtime kernel into a
+        single agent-service module, returning the reactor to 8
+        substantive modules that map 1:1 to the six L0 team-facing
+        concepts. The corpus has declared this intent without an
+        executing PR; Rule G-2 sub-clause .a (Architecture-Text Truth) requires the
+        text and the code to converge.
+  user_request:
+    - date: 2026-05-18
+      thesis: |
+        User instructed the session to reorganise the repo to merge
+        AgentPlatform and AgentRuntime into AgentService strictly per
+        the architecture design. User confirmed Option A for the
+        package layout (siblings under com.huawei.ascend.service.*).
+
+context: |
+  The two-module split was introduced by ADR-0026 (2026-02) to make
+  the request-scoped tenant-context surface (agent-platform — web
+  controllers, OAuth2 filters, tenant resolution) physically separable
+  from the non-request runtime kernel (agent-runtime — Run records,
+  orchestrator SPIs, suspend/resume machinery). At the time, the team
+  expected agent-platform to grow into a distinct deployable
+  (BFF / API tier in front of a runtime cluster). ADR-0055 then
+  codified the asymmetric dependency: agent-platform may import
+  agent-runtime, but agent-runtime may not import agent-platform —
+  policed by Rule R-C.e (Tenant Propagation Purity, generalised in
+  v2.0.0-rc3 from the original TenantContextHolder-only assertion).
+
+  Six months later the empirical picture is different. The two modules
+  always deploy together; no operator has expressed interest in
+  splitting them; every cross-cutting wave (W1, W2.x Phases 0-7) had
+  to touch both modules in lockstep; the gate-script and governance
+  YAMLs encode 590+ references that all move together. The asymmetry
+  is real and worth keeping (request-scoped concerns SHOULD NOT leak
+  into non-request paths), but it does not require a Maven module
+  boundary — sub-package layering inside one module enforces the same
+  invariant with one fewer pom.xml to maintain.
+
+  Option A (siblings under service) preserves the sub-layering
+  invariant by name: service.platform.* sits next to service.runtime.*
+  and Rule R-C.e generalises naturally to "service.runtime MUST NOT
+  import service.platform". Option B (flat service.* namespace) was
+  rejected because it erases the sub-layering signal in package names
+  and forces every future contributor to re-derive which symbols are
+  request-scoped from context. Option C (rename Maven module only,
+  leave packages alone) was rejected because a single agent-service
+  module with two unrelated top-level Java packages
+  (com.huawei.ascend.service.platform.* + com.huawei.ascend.service.runtime.*) becomes a
+  permanent namespace fossil that future readers will misread as
+  evidence of two modules.
+
+  This ADR covers Phase C only. The later T2.B2 wave will extract
+  Run / RunContext / SuspendSignal into a new agent-runtime-core
+  module to resolve the back-dep snag flagged in
+  agent-execution-engine/ARCHITECTURE.md; that move is the subject of
+  ADR-0079 and restores the reactor to 9 modules.
+
+decision: |
+  - Create a new Maven module agent-service replacing both
+    agent-platform and agent-runtime. Root pom.xml and
+    spring-ai-ascend-dependencies BoM swap the two old <module>
+    entries for one. The cross-module dep
+    (agent-platform → agent-runtime) collapses into an intra-module
+    relationship.
+
+  - Java package rename, mechanical bulk operation:
+      com.huawei.ascend.service.platform.*  →  com.huawei.ascend.service.platform.*
+      com.huawei.ascend.service.runtime.*   →  com.huawei.ascend.service.runtime.*
+    Applied to 164 in-module Java files plus 3 import-site files in
+    spring-ai-ascend-graphmemory-starter (including its
+    AutoConfiguration.imports manifest).
+
+  - Flyway migrations move-as-is from
+    agent-service/src/main/resources/db/migration/ to
+    agent-service/src/main/resources/db/migration/. Flyway tracks by
+    filename + checksum, so production schema-history is unaffected.
+    gate/rls-baseline-grandfathered.txt updates path prefixes
+    accordingly.
+
+  - Gate-script retargeting in gate/check_architecture_sync.sh
+    (51 line touches). Rule D-6 (module_dep_direction) repoints from
+    cross-module to intra-module sub-package check
+    (service.runtime ↛ service.platform). Rule R-G
+    (no_blocking_io_in_runtime_main), Rule R-H (no_thread_sleep), and
+    Rule R-J.a (RLS baseline) repoint their scan paths from
+    agent-service/src/main and agent-service/src/main to the
+    corresponding sub-trees under agent-service. Rule 28j,
+    Rule 65 (module_metadata_pom_dep_parity), and Rule 66
+    (spi_package_exhaustiveness) adjust paths.
+
+  - ArchUnit retargeting: RuntimeMustNotDependOnPlatformTest becomes
+    ServiceRuntimeMustNotDependOnServicePlatformTest with the rule
+    pattern noClasses().resideInAPackage("..service.runtime..")
+    .should().dependOnClassesThat()
+    .resideInAPackage("..service.platform.."). The Rule R-C.e
+    TenantPropagationPurityTest retargets to the same new pattern.
+
+  - Governance YAML updates: bulk-replace agent-platform and
+    agent-runtime references in architecture-graph.yaml,
+    architecture-status.yaml, enforcers.yaml, and
+    principle-coverage.yaml, then de-duplicate rows whose only
+    distinguishing field was the now-collapsed module name. Update
+    architecture-status.yaml#repository_counts.reactor_modules from
+    9 to 8 and internal_modules from 7 to 6. New
+    docs/dfx/agent-service.yaml merges the two old DFX docs across
+    the 5 Rule-R-D.a dimensions.
+
+  - New agent-service/ARCHITECTURE.md (front matter level: L1,
+    view: scenarios) consolidates the prior two per-module
+    ARCHITECTURE.md files. The old files are deleted.
+
+  - ADR-0055 frontmatter gets superseded_by: ADR-0078. ADR-0066
+    frontmatter gets extended_by: ADR-0078. ADR-0026 was already
+    superseded by ADR-0055; no new annotation needed.
+
+  - docs/governance/rule-history.md appends an entry for ADR-0078.
+
+consequences:
+  positive:
+    - "Reactor surface shrinks by one module without weakening any architectural invariant. The sub-layering negative constraint (no service.runtime → service.platform imports) is preserved verbatim in Rule R-C.e's retargeted ArchUnit test."
+    - "Cross-cutting waves no longer need to touch two modules in lockstep for every L0 change. The 6-month empirical pattern (every wave edited both modules together) collapses to one module."
+    - "Governance YAMLs lose ~50 duplicated rows whose only distinguishing field was the agent-platform vs agent-runtime label. architecture-graph.yaml drops a redundant module-to-module edge."
+    - "New contributors no longer have to learn that agent-platform and agent-runtime always deploy together — they ship as one module, one pom.xml, one ARCHITECTURE.md, one DFX file."
+    - "Future T2.B2 wave (ADR-0079) can extract Run/RunContext into agent-runtime-core cleanly because the consolidated agent-service is the single source-side of the move; without Phase C, T2.B2 would have had to disentangle two modules first."
+  negative:
+    - "One fewer module to evolve semver-independently per ADR-0066. agent-platform and agent-runtime previously declared independent module-metadata.yaml versions; agent-service now declares one. Operators who wanted to upgrade the web tier without touching the runtime kernel can no longer do so at module granularity — they must upgrade agent-service as a whole. Mitigation: this matches operational reality (the two were always deployed together)."
+    - "213-file PR diff is large to review. Mitigation: the PR ships as six sequential commits on phase-c-merge branch (skeleton → git mv → package rename → gate/governance retarget → docs corpus retarget → verification). Each commit builds green and is bisectable."
+    - "Permanent ADR coupling: ADR-0055 and ADR-0026 are now historically interesting but no longer normative. Future readers may wonder why the corpus ever distinguished the two modules. Mitigation: ADR-0078's context section records the rationale and the empirical signal that motivated the consolidation."
+
+alternatives_considered:
+  - alternative: "Option B — Flat com.huawei.ascend.service.* namespace, fold both platform and runtime packages up one level (e.g. service.web, service.runs, service.tenant, service.idempotency, service.orchestration, ...)."
+    why_rejected: "Erases the platform/runtime sub-layering signal at the package-name level. Every future contributor would have to re-derive from context which symbols are request-scoped (formerly platform) versus non-request (formerly runtime). Rule R-C.e's negative invariant would have to encode an ad-hoc package list instead of a clean ..service.runtime.. ↛ ..service.platform.. pattern. The flat layout is appropriate when the sub-layering is genuinely gone; here the sub-layering is the same, only the Maven boundary changes."
+  - alternative: "Option C — Rename the Maven module only (agent-platform + agent-runtime → agent-service), leave Java packages untouched (com.huawei.ascend.service.platform.* and com.huawei.ascend.service.runtime.* remain as two top-level namespaces inside one module)."
+    why_rejected: "Permanent namespace fossil: a single Maven module agent-service containing two unrelated top-level Java packages will read to every future reviewer as evidence of an incomplete merge. The cost is ~10x smaller (no Java import rewrites, no ArchUnit retargeting), but it defers the package decision indefinitely and produces an architecturally incoherent module. Option C is appropriate only if the user wants a minimum-risk experimental merge; the user explicitly confirmed Option A."
+  - alternative: "Defer Phase C indefinitely — keep the 9-module reactor, leave the ARCHITECTURE.md §2 'follow-up' language in place, accept that the two modules always ship together."
+    why_rejected: "Violates Rule G-2 sub-clause .a (Architecture-Text Truth) over time. ARCHITECTURE.md §2 has declared the merger as future work since 2026-05-17; the longer the corpus declares an intent without executing it, the more downstream artefacts (release notes, plans, reviews) hedge against the eventual move. The empirical signal (every cross-cutting wave edits both modules together; no operator has split them) is unambiguous; deferring further accumulates dead optionality."
+
+verification:
+  cli:
+    - "./mvnw verify  → BUILD SUCCESS; all existing tests pass plus the retargeted Rule-R-C.e ArchUnit assertion."
+    - "bash gate/check_architecture_sync.sh  → GATE: PASS on every rule, including the retargeted Rule D-6, Rule R-G, Rule R-H, Rule R-J.a, Rule 65, and Rule 66."
+    - "bash gate/test_architecture_sync_gate.sh  → all self-tests GREEN; the explicit-FAIL self-test injecting a service.runtime → service.platform import catches the violation."
+    - "bash gate/build_architecture_graph.sh  → architecture-graph.yaml regenerates idempotently with no dangling node refs (Rule G-1 sub-clause .b)."
+  gate:
+    - "rule_10_module_dep_direction PASS — retargeted to intra-module sub-package check."
+    - "rule_21_tenant_propagation_purity PASS — retargeted ArchUnit test."
+    - "rule_25_architecture_text_truth PASS — every shipped_impl_paths_exist row points at agent-service paths."
+    - "rule_28_code_as_contract PASS — same-PR enforcer retargeting honours the no-deferred-enforcers contract."
+    - "rule_29_business_platform_decoupling PASS — SPI-purity enforcer scans the new package set."
+    - "rule_31_independent_module_evolution PASS against 8 reactor modules."
+    - "rule_32_spi_dfx_tck PASS — new docs/dfx/agent-service.yaml present with 5 dimensions."
+    - "rule_33_layered_4plus1 PASS — new agent-service/ARCHITECTURE.md declares level: L1 view: scenarios."
+    - "rule_34_architecture_graph_truth PASS — graph regen produces byte-identical output on re-run."
+    - "rule_39_five_plane_manifest PASS — agent-service declares deployment_plane: compute_control."
+    - "rule_40_storage_engine_tenant_isolation PASS — RLS baseline scan repointed."
+    - "rule_64_module_count_data_driven PASS — repository_counts.reactor_modules: 8."
+    - "rule_65_module_metadata_pom_dep_parity PASS — agent-service/module-metadata.yaml deps match pom.xml."
+    - "rule_66_spi_package_exhaustiveness PASS — spi_packages list matches on-disk packages."
+  manual:
+    - "Verify agent-platform/ and agent-runtime/ directories no longer exist on disk after Commit 2 of the phase-c-merge branch."
+    - "Verify agent-service/src/main/java/com/huawei/ascend/service/platform/ and .../service/runtime/ both exist and contain the relocated sources."
+    - "Verify spring-ai-ascend-graphmemory-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports references com.huawei.ascend.service.runtime.graphmemory.GraphMemoryAutoConfiguration (not the old com.huawei.ascend.service.runtime.graphmemory path)."
+    - "Verify ADR-0055 frontmatter carries superseded_by: ADR-0078 and ADR-0066 carries extended_by: ADR-0078."
+    - "Verify ARCHITECTURE.md §2 module-layout table lists 8 substantive modules (BoM + agent-client + agent-bus + agent-service + agent-middleware + agent-execution-engine + agent-evolve + graphmemory-starter)."
+
+enforcer_rows:
+  - E1   # rule_10_module_dep_direction — retargeted to intra-module sub-package check (service.runtime ↛ service.platform)
+  - E2   # rule_21_tenant_propagation_purity — ArchUnit pattern retargeted to ..service.runtime.. ↛ ..service.platform..
+  - E27  # module_count_invariant — repository_counts.reactor_modules: 9 → 8
+  - E37  # rule_37_no_blocking_io_in_runtime_main — scan path repointed to agent-service/src/main/java/com/huawei/ascend/service/runtime
+  - E38  # rule_38_no_thread_sleep_in_business_code — scan path repointed to agent-service/src/main/java/com/huawei/ascend/service/{platform,runtime}
+  - E40  # rule_40_storage_engine_tenant_isolation — RLS baseline path repointed to agent-service/src/main/resources/db/migration
+  - E48  # rule_29_business_platform_decoupling — SPI-purity package-set updated to com.huawei.ascend.service.*
+  - E65  # rule_65_module_metadata_pom_dep_parity — re-runs against agent-service/{pom.xml,module-metadata.yaml}
+  - E66  # rule_66_spi_package_exhaustiveness — spi_packages in agent-service/module-metadata.yaml matches on-disk packages
+
+gate_rules:
+  - rule_10_module_dep_direction
+  - rule_21_tenant_propagation_purity
+  - rule_25_architecture_text_truth
+  - rule_28_code_as_contract
+  - rule_29_business_platform_decoupling
+  - rule_31_independent_module_evolution
+  - rule_32_spi_dfx_tck
+  - rule_33_layered_4plus1
+  - rule_34_architecture_graph_truth
+  - rule_37_no_blocking_io_in_runtime_main
+  - rule_38_no_thread_sleep_in_business_code
+  - rule_39_five_plane_manifest
+  - rule_40_storage_engine_tenant_isolation
+  - rule_64_module_count_data_driven
+  - rule_65_module_metadata_pom_dep_parity
+  - rule_66_spi_package_exhaustiveness

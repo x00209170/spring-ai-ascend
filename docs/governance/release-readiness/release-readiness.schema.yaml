@@ -1,0 +1,130 @@
+schema_version: 1
+status: active
+authority: docs/logs/reviews/2026-05-25-l0-release-readiness-root-cause-analysis.en.md
+purpose: >
+  Structured model set for formal release transactions. These models keep
+  release-note evidence, authority refresh, current-vs-forward semantics, and
+  recurring-family closure out of hand-authored prose.
+
+models:
+  ReleaseCandidate:
+    required:
+      - commit_sha
+      - branch
+      - latest_release_note
+      - touched_authority_surfaces
+      - touched_recurring_families
+    fields:
+      commit_sha: Frozen commit used for the formal release decision.
+      branch: Branch or detached HEAD label used to build evidence.
+      latest_release_note: Release note path resolved by rc-number ordering.
+      touched_authority_surfaces: Authority surfaces changed in the wave.
+      touched_recurring_families: Recurring family ids touched by the wave.
+
+  EvidenceBundle:
+    required:
+      - schema_version
+      - repository
+      - latest_release
+      - baseline_metrics
+      - live_metrics
+      - baseline_comparison
+      - release_transaction
+    fields:
+      repository: Commit, branch, and dirty-tree state.
+      latest_release: Latest release-note path plus formal-release frontmatter.
+      baseline_metrics: Canonical baseline values from architecture-status.yaml.
+      live_metrics: Values derived from the frozen tree or command outputs.
+      baseline_comparison: Per-key baseline/live parity result.
+      release_transaction: Required validator and formal-release disciplines.
+
+  AuthoritySurface:
+    required:
+      - path
+      - role
+      - freshness_source
+    fields:
+      path: Repository-relative authority path.
+      role: One of normative, workflow_evidence, generated, derived, historical.
+      freshness_source: The file, command, or digest that proves freshness.
+      regeneration_command: Optional command for generated or derived surfaces.
+      digest: Optional digest for generated surface parity checks.
+
+  CurrentForwardClaim:
+    required:
+      - subject
+      - current_shipped_behavior
+      - current_verified_by
+      - forward_behavior
+      - promotion_trigger
+      - must_not_claim_before
+    fields:
+      subject: Capability or contract being described.
+      current_shipped_behavior: Behavior true at the frozen commit.
+      current_verified_by: Tests, gates, code paths, or contract rows proving it.
+      forward_behavior: Planned behavior outside the current release.
+      promotion_trigger: Condition required before forward behavior may be claimed.
+      must_not_claim_before: Explicit guardrail phrase for release notes and status rows.
+
+  DefectFamilyClosure:
+    required:
+      - family_id
+      - cited_findings
+      - sibling_surfaces_checked
+      - closure_result
+      - residual_risk
+    fields:
+      family_id: Recurring family id from recurring-defect-families.yaml.
+      cited_findings: Review findings that triggered the family hit.
+      sibling_surfaces_checked: Same-shape methods, states, modules, docs, and generated surfaces inspected.
+      closure_result: closed, accepted_residual, or not_ready.
+      residual_risk: Explicit release-note text if not fully closed.
+
+  TemplatedArtifact:
+    required:
+      - template
+      - output
+      - context_loader
+      - bucket
+    fields:
+      template: Path to the *.md.j2 source template under docs/governance/templates/.
+      output: Path to the rendered .md output checked into git.
+      context_loader: Plugin id in gate/lib/load_render_context.py (e.g. release_note, recurring_families).
+      bucket: Either `templated` (rendered output, no hand edits) or `hybrid` (the .md.j2 carries author prose with `{{ slot }}` placeholders).
+      authority_surfaces: Optional list of authority files the loader reads; editing any of them implies a re-render is needed.
+      seed: Optional per-rendering narrative-seed yaml (e.g. release-note hand-authored sections).
+      historical_grandfathered: Optional list of pre-migration outputs exempt from byte-identical regen.
+      wave: Optional wave tag (e.g. W3, W4, W5) recording which wave introduced this entry.
+
+  RenderContext:
+    required:
+      - context_loader
+    fields:
+      context_loader: Plugin name that produced this context.
+      schema_version: Integer, bumped on incompatible context shape changes.
+      generated_at_utc: ISO 8601 timestamp; for audit only, not compared in byte-identical render.
+      data: Plugin-specific payload dict consumed by the template.
+
+  RenderSchema:
+    required:
+      - context_loader
+      - required_keys
+    fields:
+      context_loader: Plugin name this schema describes.
+      required_keys: List of top-level keys the context must declare.
+      optional_keys: List of permitted-but-not-required keys.
+      iteration_keys: List of keys whose contents are iterated by the template (must be sorted-stable lists).
+
+formal_release_rules:
+  - A release note with formal_release true must reference an evidence_bundle.
+  - Numeric baseline claims must come from EvidenceBundle.baseline_comparison.
+  - Staged behavior claims must be expressed as CurrentForwardClaim records.
+  - Every touched recurring family must have a DefectFamilyClosure record.
+  - Generated or shadow corpora must be regenerated, digest-checked, or removed from active authority.
+
+single_source_rendering_rules:
+  - Every dynamic-claim-bearing derived artefact must be classified in docs/governance/templates/surface-classification.yaml as templated or hybrid (Rule G-13.a).
+  - Each entry must declare template, output, context_loader, and bucket fields (TemplatedArtifact required block).
+  - render(template, load_context()) must produce a buffer byte-identical to the committed output (Rule G-13.b).
+  - No dynamic claim (count, path, module name, SPI FQN, ADR id, family id, baseline metric) may appear as free-typed prose outside the inline bucket (Rule G-13.c).
+  - Templates must be deterministic: sorted dict iteration, LC_ALL=C sort, fixed-precision floats, no datetime.now / uuid / random; Jinja2 environment uses trim_blocks=True / lstrip_blocks=True / keep_trailing_newline=True / StrictUndefined.

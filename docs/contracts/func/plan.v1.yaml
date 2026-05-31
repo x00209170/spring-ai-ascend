@@ -1,0 +1,76 @@
+# Plan / PlanStep schema, version 1.
+#
+# Authority: ADR-0126 (Planner SPI).
+# Wave: rc43 Wave B6.
+#
+# Plan is the planner OUTPUT; PlanProjection (the existing
+# plan-projection.v1.yaml) is the per-step scheduler INPUT
+# derived from Plan + PlanStep.
+
+product_claim: "PC-001"
+
+schema: plan/v1
+status: design_only
+runtime_enforced: false
+authority: ADR-0126
+promotion_trigger: "First production Planner implementation (W4 planner)"
+home_module: agent-execution-engine
+home_package: com.huawei.ascend.engine.planner.spi
+
+plan:
+  required_fields:
+    - planId
+    - steps              # list<PlanStep>
+    - dependencies       # map<stepId, list<prerequisiteStepId>>; cycle-free
+    - branches           # list<BranchPoint>
+    - loops              # list<LoopAnnotation>
+    - metadata           # map<string, any>
+
+plan_step:
+  required_fields:
+    - stepId
+    - displayName
+    - skillKey
+    - inputs             # map<string, any>
+    - stepBudget         # StepBudget
+  optional_fields:
+    - readMemoryRef      # which MemoryStore the step may read
+    - writeMemoryRef     # which MemoryStore the step may write
+
+step_budget:
+  required_fields:
+    - maxWallClock       # Duration
+    - maxCostUnits       # finite double >= 0
+
+constructor_validated:
+  plan:
+    - planId non-blank
+    - stepId values unique across steps
+    - dependency map keys reference known stepId values
+    - dependency prerequisites reference known stepId values
+    - dependency graph cycle-free
+  plan_step:
+    - stepId non-blank
+    - displayName non-blank
+    - skillKey non-blank
+  step_budget:
+    - maxWallClock non-null
+    - maxCostUnits finite and >= 0
+
+branch_point:
+  required_fields:
+    - atStepId
+    - condition          # planner-defined expression dialect
+    - truePath           # next stepId
+    - falsePath          # next stepId
+
+loop_annotation:
+  required_fields:
+    - entryStepId
+    - terminationCondition
+    - maxIterations      # > 0
+
+# Relationship: Plan + PlanStep -> ProjectionService.project()
+#               -> docs/contracts/plan-projection.v1.yaml records
+#               per-step scheduler admission (skill / budget /
+#               memory scope).

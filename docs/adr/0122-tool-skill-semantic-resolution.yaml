@@ -1,0 +1,153 @@
+id: ADR-0122
+title: "Tool vs Skill semantic resolution: `Tool` is a `SkillKind` enum value; one unified `Skill` SPI and registry; Spring AI `ToolCallback` is one Skill adapter"
+status: accepted
+product_claim: "PC-001|PC-004"
+date: 2026-05-25
+level: L0
+view: scenarios
+affects_level: L0, L1
+affects_view: scenarios, logical, development
+authors:
+  - chao
+relates_to:
+  - ADR-0120    # Wave A1 — brand & Audience B alignment (KEEP)
+  - ADR-0125    # Wave A2 — Spring AI canonical integration boundary
+  - ADR-0030    # Skill SPI lifecycle, resource matrix, sandbox (pre-existing design)
+  - ADR-0052    # Skill topology scheduler + capability bidding
+  - ADR-0070    # Cursor Flow + Skill Capacity runtime two-axis
+  - ADR-0080    # ResilienceContract dual-surface
+context: |
+  The senior-architect review memo flagged an unresolved semantic
+  ambiguity: the platform's ADR-0030 names a `Skill SPI` with
+  lifecycle init/execute/suspend/teardown; Spring AI's API uses
+  `ToolCallback` with a narrower lifecycle (no suspend, no init/
+  teardown beyond bean construction). Without resolution, every
+  downstream wave (B1 ModelGateway tool argument, B2 Skill SPI, C1
+  Spring AI adapter) faces the same question: is a Tool a Skill?
+  Are there two registries? Two capacity arbiters? Two sandboxes?
+
+  Three resolutions are credible:
+
+  - **Path (a) Tool IS Skill verbatim.** Spring AI's `ToolCallback`
+    IS the platform's `Skill`. One interface, one registry, one
+    capacity, one sandbox.
+
+  - **Path (b) Tool is a SkillKind enum value.** One unified `Skill`
+    SPI with platform lifecycle; `SkillKind` enum discriminates
+    {TOOL, BUILTIN, AGENT_AS_TOOL, MCP_SERVER, untrusted variants}.
+    `ToolCallback` adapts to `Skill` via an adapter whose `kind()`
+    returns `TOOL`. One registry, one capacity, one sandbox; the
+    kind drives policy decisions (e.g., TOOL-kind skills route
+    through Spring AI's tool dispatcher; untrusted-kind skills
+    route through the sandbox per Rule R-L).
+
+  - **Path (c) Tool and Skill are siblings.** Separate `Tool` SPI
+    and `Skill` SPI; separate `ToolRegistry` and `SkillRegistry`;
+    one capacity arbiter shared. Most freedom, most duplication.
+
+decision: |
+  Adopt **Path (b)**: `Tool` is a `SkillKind` enum value.
+
+  1. **One unified `Skill` SPI** lives in
+     `com.huawei.ascend.skill.spi.Skill` (Wave B2) with the
+     ADR-0030 lifecycle (`init` / `execute` / `suspend` /
+     `teardown`). The lifecycle suits both LLM-callable tools
+     (Spring AI `ToolCallback`-style, no suspend in steady
+     state) AND long-running workflow steps (ADR-0030's original
+     model, suspend supported).
+
+  2. **One `SkillKind` enum** discriminates the surface:
+     ```
+     enum SkillKind {
+       TOOL,             // LLM-callable function (Spring AI ToolCallback adapter is one)
+       BUILTIN,          // platform-owned utility (e.g. memory read, vector query)
+       AGENT_AS_TOOL,    // another Agent invoked as a Skill (Agent-to-Agent per ADR-0100)
+       MCP_SERVER,       // remote MCP tool (Spring AI's MCP server adapter is one)
+       UNTRUSTED_TOOL,   // TOOL kind requiring sandbox (Rule R-L)
+       UNTRUSTED_CODE    // code-interpreter etc. (sandbox mandatory; Rule R-L)
+     }
+     ```
+     New kinds may be added by ADR amendment; the existing closed
+     set covers every credible W0-W4 surface.
+
+  3. **One `SkillRegistry`** lives in
+     `com.huawei.ascend.skill.spi.SkillRegistry` and indexes by
+     `(tenantId, skillKey)`. Spring AI's `ToolCallback` instances
+     register as `Skill` via the Wave C1 adapter; customers
+     register custom skills via `@Bean` + `@ConfigurationProperties`
+     per Rule R-A.
+
+  4. **`SkillCapacityRegistry` and `ResilienceContract` are
+     unchanged** (per ADR-0070 + ADR-0080); they arbitrate
+     `(tenant, skillKey)` regardless of `SkillKind`. No second
+     capacity surface is introduced.
+
+  5. **Sandbox routing per `SkillKind`** — `UNTRUSTED_TOOL` and
+     `UNTRUSTED_CODE` kinds MUST route through the
+     `SandboxExecutor` SPI (ADR-0018, deferred to W3); other
+     kinds bypass sandbox. The kind discrimination removes the
+     ADR-0030 need for a separate `SkillTrustTier`.
+
+  6. **Spring AI `ToolCallback` adaptation** ships in Wave C1
+     (`SpringAiToolCallbackSkill`) — wraps a `ToolCallback`,
+     returns `SkillKind.TOOL` from `kind()`, returns the
+     `ToolCallback.getName()` from `skillKey()`, delegates
+     `execute(...)` to `ToolCallback.call(...)`.
+
+consequences: |
+  Positive:
+  - Customers learn ONE SPI (`Skill`) and one registry
+    (`SkillRegistry`) regardless of whether they are registering
+    a Spring AI tool, a builtin, an MCP server, or an
+    Agent-as-Tool. Cognitive surface is small.
+  - The existing W0-shipped `SkillCapacityRegistry` +
+    `ResilienceContract` apparatus generalises naturally — no new
+    arbitration surface is added; capacity rules already arbitrate
+    by `(tenant, skillKey)` and that remains correct under unified
+    Skill.
+  - Sandbox routing (Rule R-L) gains a clear discriminator
+    (`SkillKind.UNTRUSTED_*`) instead of needing a separate
+    `SkillTrustTier` taxonomy.
+  - Agent-to-Agent protocol (ADR-0100 a2a) lands naturally as
+    `SkillKind.AGENT_AS_TOOL` — Agent invocations from within
+    another Agent reuse the Skill execution path.
+
+  Negative / residual:
+  - The `Skill` lifecycle (`init` / `suspend` / `teardown`) is
+    over-rich for the Spring AI `ToolCallback`-style use case where
+    only `execute` is meaningful. Adapter implements `init` and
+    `teardown` as no-ops; `suspend` throws `UnsupportedOperationException`
+    for `TOOL` kind. Documented in the SPI's `package-info.java`.
+  - The `SkillKind` enum is a closed set on the platform side;
+    adding new kinds requires an ADR amendment. The closed set is
+    intentional — open enums in the SPI defeat type-safe sandbox
+    routing.
+
+  Forward / staging boundaries:
+  - This ADR LANDS in Wave A3 (rc43) as a decision; the Skill SPI
+    itself ships in Wave B2 (rc44+).
+  - The pre-existing ADR-0030 `Skill SPI` design is consolidated
+    here: any divergence between ADR-0030 prose and ADR-0122
+    decision text is resolved in favour of ADR-0122.
+
+alternatives_considered: |
+  - (A) **Tool IS Skill verbatim — `ToolCallback` IS the platform
+    `Skill`.** Rejected: Spring AI `ToolCallback` has no `suspend`
+    (cannot pause for long-running work) and no platform lifecycle
+    binding (init/teardown for stateful skills). The platform's
+    `Skill` is strictly more expressive; identifying them would
+    force every Skill to fit the narrower `ToolCallback` shape and
+    discard the ADR-0030 suspend semantic the Run state machine
+    already supports.
+
+  - (C) **Tool and Skill are siblings — separate SPIs and registries.**
+    Rejected: doubles the surface customers must learn; doubles
+    the capacity-arbitration plumbing; creates a confusing question
+    "is this thing I want to register a Tool or a Skill?" for every
+    new capability. The `SkillKind` enum delivers the same
+    discrimination with one surface.
+
+  - (D) **Open-typed `kind` field (free String).** Rejected:
+    defeats sandbox routing's type safety (Rule R-L checks
+    `kind()` value against a closed set); permits typo drift
+    across modules.

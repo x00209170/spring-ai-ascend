@@ -1,0 +1,229 @@
+# Principle → Rule coverage (machine form).
+#
+# Authority: ADR-0064 (Layer-0 governing principles) + ADR-0068 (Layered 4+1 + Graph).
+# Companion human-readable form: docs/governance/principle-coverage.md.
+# Consumed by gate/build_architecture_graph.sh to emit principle→rule edges.
+
+version: 1
+generated_at: 2026-05-14
+
+principles:
+  - id: P-A
+    name: "Business/Platform Decoupling + Developer Self-Service"
+    motivation: |
+      Business code and platform code are decoupled. Customization-by-source-patch
+      into platform internals is forbidden. All architecture and solution design
+      must be developer-friendly: configuration-driven extension, debug-friendly
+      telemetry, and self-service closure (a developer can build, run, and test
+      an agent end-to-end against the platform without platform-team intervention).
+    operationalised_by_rules:
+      - Rule-D-8
+      - Rule-R-A
+    operationalised_by_legacy_principles:
+      - P2
+
+  - id: P-B
+    name: "Four Competitive Pillars (Performance / Cost / Onboarding / Governance)"
+    motivation: |
+      Platform competitiveness rests on four continuously-improvable dimensions —
+      Performance (latency, throughput), Cost (per-call + infra), Developer
+      Onboarding (time-to-first-agent + surface complexity), Governance (tenant
+      isolation, audit, eval, safety). Each dimension must have a published
+      baseline that future releases can be measured against.
+    operationalised_by_rules:
+      - Rule-D-5
+      - Rule-R-C.2     # tenant-propagation-purity (formerly R-C.e, relocated rc17 ADR-0094)
+      - Rule-R-B
+      - Rule-G-3       # kernel-card-implementation coherence
+      - Rule-G-3.1     # kernel-implementation disjunction truth (split rc17 ADR-0094)
+    deferred_operationalisers:
+      - Rule-18   # eval — deferred W4
+
+  - id: P-C
+    name: "Code-as-Everything, Rapid Evolution, Independent Modules"
+    motivation: |
+      Every architectural constraint is code. Modules evolve independently — each
+      builds, tests, and upgrades on its own, with high cohesion and low
+      coupling. Production-environment upgrades are lightweight
+      (BoM + starter pattern + semver compatibility).
+    operationalised_by_rules:
+      - Rule-D-6
+      - Rule-G-2
+      - Rule-R-C       # code-as-contract (narrowed to just .a per rc17 ADR-0094)
+      - Rule-R-C.1     # independent module evolution (split rc17 ADR-0094, was R-C.b)
+      - Rule-R-C.2     # run contract spine (split rc17 ADR-0094, was R-C.c+.d+.e)
+      - Rule-G-1
+      - Rule-M-1   # rc4 review P0-2 — skeleton-module identity
+      - Rule-G-13  # single-source rendering coherence (new W0 / ADR-0119)
+
+  - id: P-D
+    name: "SPI-Aligned, DFX-Explicit, Spec-Driven, TCK-Tested"
+    motivation: |
+      Every domain module ships an SPI; every platform/domain module declares
+      its Design-for-X posture (releasability, resilience, availability,
+      vulnerability, observability); contracts precede implementation;
+      alternative implementations must pass a TCK to be conformant. Evidence
+      flows in both directions: failures cite specs only AFTER observable
+      evidence is captured (Rule D-3.b, added 2026-05-18 from the Beyond-SDD
+      review response).
+    operationalised_by_rules:
+      - Rule-D-4
+      - Rule-R-D
+      - Rule-D-3.b
+      - Rule-M-2
+      - Rule-G-2.1     # deleted-module scope prevention (split rc17 ADR-0094)
+      - Rule-G-9       # recurring-defect family truth (new rc17 ADR-0094)
+    deferred_operationalisers:
+      - Rule-22   # PayloadCodec — deferred
+
+  # ---------------------------------------------------------------------
+  # L0 ironclad-rule principles (W1.x absorption of LucioIT L0 §6/§7)
+  # Authority: ADR-0069 (L0 ironclad rules)
+  # ---------------------------------------------------------------------
+
+  - id: P-E
+    name: "Multi-Track Bus Physical Channel Isolation"
+    motivation: |
+      Cross-service internal communication is sliced into three physically
+      isolated channels — control (out-of-band PAUSE/KILL/CANCEL intents,
+      highest priority), data (in-band heavy-load payload bodies), and
+      rhythm (heartbeat/liveness pulses). No congestion on one channel can
+      paralyse another. (LucioIT W1 §6.4.)
+    operationalised_by_rules:
+      - Rule-R-E
+
+  - id: P-F
+    name: "Cursor Flow & Asynchronous Client Boundary"
+    motivation: |
+      The Client → Runtime boundary is non-blocking. Long-horizon task
+      submissions return a Task Cursor immediately; clients consume process
+      state via SSE and intermediate-result checkpoints via Webhook. No
+      long-poll, no synchronous blocking. (LucioIT W1 §6.1.)
+    operationalised_by_rules:
+      - Rule-R-F
+
+  - id: P-G
+    name: "Absolute Non-Blocking I/O"
+    motivation: |
+      External I/O calls (model gateway, vector DB, sandbox dispatch) MUST
+      use Reactive or Virtual Threads. The OS-level worker thread MUST be
+      released during the I/O wait so other Agents can proceed. (LucioIT W1 §6.3.)
+    operationalised_by_rules:
+      - Rule-R-G
+    deferred_operationalisers:
+      - Rule-R-G.c   # agent-service service.platform JdbcTemplate migration to R2DBC — W2 (was agent-platform pre-Phase-C / ADR-0078)
+
+  - id: P-H
+    name: "Chronos Hydration"
+    motivation: |
+      Long-horizon waits in business code MUST be declarative suspension
+      (SuspendSignal), not physical thread sleep. The sleeping process
+      self-destructs and re-hydrates on the bus wake-pulse. (LucioIT W1 §6.4.)
+    operationalised_by_rules:
+      - Rule-R-H
+
+  - id: P-I
+    name: "Five-Plane Distributed Topology"
+    motivation: |
+      Production deployment is divided into five physically isolated planes —
+      Edge Access (Client SDK), Compute & Control (Runtime + Engine), Bus &
+      State Hub (Bus + Middleware persistence), Sandbox Execution (untrusted
+      code), and Evolution (Python ML). Workloads with different
+      characteristics MUST NOT share infrastructure. (LucioIT W1 §7.1.)
+    operationalised_by_rules:
+      - Rule-R-I       # five-plane manifest (narrowed to .a per rc17 ADR-0094)
+      - Rule-R-I.1     # edge↔compute ingress routing (split rc17 ADR-0094, was R-I.b, design_only W3+)
+
+  - id: P-J
+    name: "Storage-Engine Tenant Isolation"
+    motivation: |
+      Tenant isolation lives at the storage engine, not the application code.
+      Every tenant-scoped table MUST enable Row-Level Security policies; even
+      a fully-compromised application tier cannot leak across tenants.
+      (LucioIT W1 §7.2.)
+    operationalised_by_rules:
+      - Rule-R-J
+    deferred_operationalisers:
+      - Rule-R-J.a.b   # V1/V2 grandfathered RLS retrofit — W2
+      - Rule-R-J.b.d   # resume + retry re-authorization — W2 async orchestrator
+
+  - id: P-K
+    name: "Skill-Dimensional Resource Arbitration"
+    motivation: |
+      A 2D defence net — Tenant Quota × Global Skill Capacity — protects the
+      cluster. When a skill capacity pool fills, the scheduler suspends only
+      the Agent processes blocked on that specific skill, freeing OS threads
+      for unrelated work. (LucioIT W1 §7.3.)
+    operationalised_by_rules:
+      - Rule-R-K
+    deferred_operationalisers:
+      - Rule-R-K.c   # Run/Step Suspension Transition — W2 scheduler admission (rc11 narrowed kernel; the original 41.b/R-K.b deferral CLOSED — runtime envelope active; rc16 P1-1 reconciliation per ADR-0093)
+
+  - id: P-L
+    name: "Sandbox Permission Subsumption"
+    motivation: |
+      Logical authorizations issued by the bus MUST 1:1 map to physical
+      sandbox restrictions (outbound IP whitelist, CPU cap, filesystem access).
+      A logical grant cannot exceed what the physical sandbox enforces;
+      otherwise the runtime authority is fictional. (LucioIT W1 §7.4.)
+    operationalised_by_rules:
+      - Rule-R-L
+    deferred_operationalisers:
+      - Rule-R-L.b   # SandboxExecutor runtime subsumption check — W2
+
+  # ---------------------------------------------------------------------
+  # W2.x Engine Contract Structural Wave — heterogeneous engine contract
+  # Authority: ADR-0071 (umbrella) + ADR-0072..0075 (substantive children)
+  # Driver review: 2026-05-15 L0 proposal (Runtime-Engine Contract for
+  # Heterogeneous Agent Execution).
+  # ---------------------------------------------------------------------
+
+  - id: P-M
+    name: "Heterogeneous Engine Contract & Server-Sovereign Boundary"
+    motivation: |
+      The platform supports heterogeneous execution engines through a
+      structured contract surface: a configuration envelope governs
+      registration / routing / observability, strict matching prevents
+      silent reinterpretation of engine-specific payloads, runtime-owned
+      middleware attaches via engine-declared lifecycle hooks, server-to-
+      client capability invocation is an explicit asynchronous protocol
+      bound to the suspend/resume loop, and the evolution mechanism manages
+      only server-controlled execution scope by default. (2026-05-15
+      L0 proposal §3-§7.)
+    operationalised_by_rules:
+      - Rule-R-M
+    cross_cutting_invariant:
+      rule: Rule-M-2.a   # Schema-First Domain Contracts
+      description: |
+        Every contract introduced under P-M MUST ship as yaml schema first,
+        Java type that validates against the schema second, and runtime
+        self-validation third. Rule M-2 sub-clause .a makes this gate-enforced beyond the
+        wave so future domain contracts inherit the discipline.
+
+# Legacy first-principle labels preserved for graph backward-compatibility.
+legacy_principles:
+  - id: P1
+    name: "Lower cost-of-use"
+    composes_with: P-B
+    operationalised_by_rules: []
+    deferred_operationalisers: [Rule-13, Rule-14]
+  - id: P2
+    name: "Lower onboarding barrier"
+    composes_with: P-A
+    operationalised_by_rules:
+      - Rule-D-8
+      - Rule-R-C.2     # run-spine (formerly R-C.d + R-C.e, relocated rc17 ADR-0094)
+      - Rule-R-A
+    operationalised_by_arch_sections:
+      - "ARCHITECTURE.md §4.7"
+      - "ARCHITECTURE.md §4.2"
+      - "ARCHITECTURE.md §4.6"
+  - id: P3
+    name: "Self-evolving intelligence"
+    composes_with: P-B
+    deferred_operationalisers: [Rule-14]
+  - id: E1
+    name: "OSS-first reuse"
+    composes_with: P-C
+    operationalised_by_arch_sections:
+      - "ARCHITECTURE.md §4.6"

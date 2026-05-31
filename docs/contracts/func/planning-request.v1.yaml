@@ -1,0 +1,46 @@
+# PlanningRequest / PlanningResult schema, version 1.
+#
+# Authority: ADR-0126 (Planner SPI; extends ADR-0032).
+# Wave: rc43 Wave B6.
+
+product_claim: "PC-001"
+
+schema: planning-request/v1
+status: design_only
+runtime_enforced: false
+authority: ADR-0126
+promotion_trigger: "First production Planner implementation (W4 planner)"
+home_module: agent-execution-engine
+home_package: com.huawei.ascend.engine.planner.spi
+
+planning_request:
+  required_fields:
+    - tenantId
+    - goal               # free-text user goal
+    - context            # map<string, any>
+    - availableSkillKeys # list<string>
+    - availableMemoryRefs # list<string>
+    - budget             # PlanningBudget
+    - strategy           # PlanningStrategy enum
+
+planning_budget:
+  required_fields:
+    - maxSteps           # > 0
+    - maxWallClock       # Duration
+    - maxCostUnits       # platform cost-attribution units; finite double >= 0
+  constructor_validated:
+    - maxSteps > 0
+    - maxWallClock non-null
+    - maxCostUnits finite and >= 0
+
+planning_strategy:
+  values: [SEQUENTIAL, DAG, REACT, TREE_OF_THOUGHT, CUSTOM]
+
+planning_result:
+  variants:
+    - PlanningSuccess:
+        fields: [plan, rationale]
+    - PlanningError:
+        fields: [reason, detail]
+    - PlanningInfeasible:
+        fields: [reason, unmetConstraints]
