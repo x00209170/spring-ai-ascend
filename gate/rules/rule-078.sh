@@ -90,12 +90,11 @@ fi
 if [[ $_r78_fail -eq 0 ]]; then pass_rule "dfx_spi_packages_match_module_metadata"; fi
 
 # ===========================================================================
-# 2026-05-18 beyond-SDD review response wave -- Rule 79
-# Authority: docs/governance/rules/rule-79.md
-# Operationalises the "Telemetry-First Debugging" remediation proposal from
-# docs/logs/reviews/spring-ai-ascend-beyond-sdd-en.md by requiring an executable
-# debug-sequence runbook to exist on disk, cited by the rule card, with the
-# canonical title string present (so the file cannot drift to a different
-# topic while still passing the gate by name alone).
+# 2026-05-18 rc4 cross-constraint review response prevention wave -- Rule 83
+# Authority: docs/governance/rules/rule-83.md
+#            + docs/logs/reviews/2026-05-18-l0-rc4-cross-constraint-architecture-review.en.md
+#            + docs/logs/reviews/2026-05-18-l0-rc4-cross-constraint-architecture-review-response.en.md
+# Closes finding families:
+#   P1-3 design-only contracts unregistered / dangling auth  -> Rule 83
 # ===========================================================================
 

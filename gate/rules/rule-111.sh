@@ -60,10 +60,14 @@ else
   # Sub-check .b — freshness (covers fixes 1a, 1g, 1h)
   _r111_b_output=$(_check_recurring_families_freshness "$_r111_yaml" ".")
   if [[ -n "$_r111_b_output" ]]; then
+    # Knowledge/governance rebalancing G-track: sub-clause .b (content-diff
+    # freshness) demoted from blocking to advisory. Forcing recurring-defect-
+    # families.yaml to be co-bumped in every commit that touches a signal surface
+    # is brittle merge-train coupling, not a delivery invariant. Well-formedness
+    # (.a) and md/yaml parity (.c) stay blocking.
     while IFS= read -r _r111_line; do
       [[ -z "$_r111_line" ]] && continue
-      fail_rule "architecture_refresh_defect_family_re_eval_required" "$_r111_line"
-      _r111_fail=1
+      echo "ADVISORY: architecture_refresh_defect_family freshness (.b) -- $_r111_line -- Rule G-9.b demoted to advisory (rebalancing G-track)"
     done <<< "$_r111_b_output"
   fi
 

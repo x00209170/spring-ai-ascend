@@ -21,4 +21,12 @@ elif ! grep -qF '/v1/health' "$_r29c_path" 2>/dev/null; then
 fi
 if [[ $_r29c_fail -eq 0 ]]; then pass_rule "quickstart_smoke_job_present"; fi
 
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# SPI metadata integrity wave (2026-05-18)
+# Authority: docs/governance/rules/rule-{75..78}.md
+# Rules 75-78 with enforcer rows E108-E111. Prevents the SPI declaration vs
+# physical layout drift surfaced by the 2026-05-18 SPI integrity audit
+# (T2.B2 extraction left engine.spi empty + orchestration.spi double-claimed
+# across two Maven modules + dfx yaml omitting/mis-nesting spi_packages).
+# ===========================================================================
+

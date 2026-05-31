@@ -1,34 +1,53 @@
 #!/usr/bin/env bash
 # Auto-extracted from gate/check_architecture_sync.sh by gate/lib/extract_rules.sh
-# Rule 28 — constraint_enforcer_coverage. DO NOT HAND-EDIT — re-run extract_rules.sh to refresh.
+# Rule 28 — release_note_baseline_truth. DO NOT HAND-EDIT — re-run extract_rules.sh to refresh.
 # Authority: PR-E5.
 
-# Rule 28 — constraint_enforcer_coverage (meta-rule, enforcer E28)
-#
-# **L1 scope (Phase L truthful naming, per reviewer P2-1):** baseline presence
-# check only. Verifies that `docs/governance/enforcers.yaml` references
-# `CLAUDE.md` AND `ARCHITECTURE.md`. This is the smallest viable bootstrap
-# meta-check — it does NOT parse every "must"/"forbidden"/"required" sentence
-# in the corpus and cross-reference each one. Full natural-language parsing is
-# deferred (no executable enforcer is feasible without committing to a brittle
-# regex over evolving prose).
-#
-# Anchor-level truth is enforced by Rule 28j (`enforcer_artifact_paths_exist`,
-# Phase L hardening), which validates that every `artifact: path#anchor`
-# resolves to a real method (.java/.sh) or heading (.md) — closing reviewer
-# finding P0-2.
+# Rule 28 — release_note_baseline_truth
+# ADR-0049 (whitepaper-alignment remediation P0-1): every docs/logs/releases/*.md
+# baseline table MUST match the canonical architecture_sync_gate.allowed_claim
+# counts, UNLESS the release note declares itself a historical artifact via
+# the marker "Historical artifact frozen at SHA". Closes GATE-SCOPE-GAP for
+# release-note baseline drift (Gate Rule 27 only covers README.md).
 # ---------------------------------------------------------------------------
 _r28_fail=0
-if [[ -f "$_efile" ]] && [[ -f 'CLAUDE.md' ]]; then
-  if ! grep -q 'CLAUDE.md' "$_efile" 2>/dev/null; then
-    fail_rule "constraint_enforcer_coverage" "enforcers.yaml does not reference CLAUDE.md at all; the meta-rule requires every active CLAUDE rule to map to an enforcer. Per Rule 28 / enforcer E28."
-    _r28_fail=1
-  fi
-  if ! grep -q 'ARCHITECTURE.md' "$_efile" 2>/dev/null; then
-    fail_rule "constraint_enforcer_coverage" "enforcers.yaml does not reference ARCHITECTURE.md; §4 constraints must map to enforcers. Per Rule 28 / enforcer E28."
-    _r28_fail=1
+if [[ -f docs/governance/architecture-status.yaml ]]; then
+  _claim28=$(awk '/^[[:space:]]+architecture_sync_gate:/{flag=1} flag && /allowed_claim:/{print; exit}' docs/governance/architecture-status.yaml)
+  if [[ -n "$_claim28" ]]; then
+    while IFS= read -r _rf28; do
+      [[ -z "$_rf28" ]] && continue
+      if grep -qE 'Historical artifact frozen at SHA' "$_rf28"; then
+        continue
+      fi
+      _rfcontent28=$(cat "$_rf28")
+      _check_baseline28() {
+        _label="$1"; _yaml_re="$2"; _rf_re="$3"
+        _expected=$(printf '%s' "$_claim28" | grep -oE "$_yaml_re" | head -1 | grep -oE '^[0-9]+' | head -1)
+        [[ -z "$_expected" ]] && return 0
+        _rfmatches=$(printf '%s' "$_rfcontent28" | grep -oE "$_rf_re")
+        if [[ -z "$_rfmatches" ]]; then
+          fail_rule "release_note_baseline_truth" "$_rf28 missing baseline count for '$_label'. Per Gate Rule 28 active release notes must contain a table row matching '$_label | $_expected' or declare 'Historical artifact frozen at SHA <sha>'."
+          _r28_fail=1
+          return 0
+        fi
+        while IFS= read -r _rmline; do
+          # Release notes use markdown-table format: '| <label> | <number> ... |'.
+          # The number appears AFTER the label, so extract the trailing number.
+          _actual=$(printf '%s' "$_rmline" | grep -oE '[0-9]+' | tail -1)
+          if [[ "$_actual" != "$_expected" ]]; then
+            fail_rule "release_note_baseline_truth" "$_rf28 asserts '$_actual' for '$_label' but canonical baseline is '$_expected $_label'. Per Gate Rule 28 active release notes must match the canonical baseline or declare 'Historical artifact frozen at SHA <sha>'."
+            _r28_fail=1
+          fi
+        done <<< "$_rfmatches"
+      }
+      # Release-note table format: '| §4 constraints | 50 (#1–#50) |', etc.
+      _check_baseline28 '§4 constraints' '[0-9]+[[:space:]]+§4[[:space:]]+constraints' '§4[[:space:]]+constraints[[:space:]]*\|[[:space:]]*[0-9]+'
+      _check_baseline28 'ADRs' '[0-9]+[[:space:]]+ADRs' '(Active[[:space:]]+)?ADRs[[:space:]]*\|[[:space:]]*[0-9]+'
+      _check_baseline28 'gate rules' '[0-9]+[[:space:]]+active[[:space:]]+gate[[:space:]]+rules' '(Active[[:space:]]+)?gate[[:space:]]+rules[[:space:]]*\|[[:space:]]*[0-9]+'
+      _check_baseline28 'self-tests' '[0-9]+[[:space:]]+gate[[:space:]]+self-tests' '(Gate[[:space:]]+)?self-test[[:space:]]+cases[[:space:]]*\|[[:space:]]*[0-9]+'
+    done < <(find docs/logs/releases -maxdepth 1 -name '*.md' -type f 2>/dev/null | sort || true)
   fi
 fi
-if [[ $_r28_fail -eq 0 ]]; then pass_rule "constraint_enforcer_coverage"; fi
+if [[ $_r28_fail -eq 0 ]]; then pass_rule "release_note_baseline_truth"; fi
 
 # ---------------------------------------------------------------------------

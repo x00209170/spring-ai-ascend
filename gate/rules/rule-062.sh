@@ -52,4 +52,14 @@ for _r62_file in "${_r62_files[@]}"; do
 done
 if [[ $_r62_fail -eq 0 ]]; then pass_rule "contract_yaml_declares_status"; fi
 
+# ===========================================================================
+# Cross-corpus consistency audit prevention rules (2026-05-17)
+# Authority: docs/logs/reviews/2026-05-17-cross-corpus-consistency-audit-response.en.md
+# Closes structural design flaws G1, G2, G3 surfaced by the audit:
+#   G1 — module count was hardcoded in 4 places
+#   G2 — no metadata-vs-pom dependency cross-check
+#   G3 — no SPI-package exhaustiveness cross-check
+# Rules 64-66 with enforcer rows E94-E96 and 6 self-tests (2 per rule).
+# ===========================================================================
+
 # ---------------------------------------------------------------------------

@@ -48,8 +48,7 @@ else
 fi
 
 # ===========================================================================
-# Linux-first dev environment policy (PR-E7, 2026-05-18)
-# Authority: docs/governance/rules/rule-74.md + docs/governance/dev-environment.md
+# Wave 4 — small rule activations (2026-05-18)
 # ===========================================================================
 
 # ---------------------------------------------------------------------------

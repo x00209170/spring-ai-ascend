@@ -22,4 +22,9 @@ if (( 10#${_r43_top_md_n:-0} > 10#${_r43_top_yaml_n:-0} )); then
 fi
 if [[ $_r43_fail -eq 0 ]]; then pass_rule "new_adr_must_be_yaml"; fi
 
+# ===========================================================================
+# W1.x Phase 1 — L0 ironclad-rule enforcers (Gate Rules 45-52)
+# Authority: ADR-0069. Each rule fails on a detected violation today.
+# ===========================================================================
+
 # ---------------------------------------------------------------------------
