@@ -27,6 +27,25 @@ spring:
       # docs/CLAUDE-deferred.md, so the autoconfig is excluded here; the
       # dependency is retained so PlatformOssApiProbe still compiles.
       - io.github.resilience4j.springboot3.verifier.autoconfigure.SpringBoot3VerifierAutoConfiguration
+      # W0 sandbox: no SecurityFilterChain bean exists yet. Without these exclusions
+      # Spring Boot activates the random-password login gate (blocks Swagger UI) and
+      # tries to wire an OAuth2 resource server with no issuer-uri configured.
+      # NOTE: Boot 4 relocated security autoconfig to org.springframework.boot.security.*
+      - org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+      - org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration
+      - org.springframework.boot.security.autoconfigure.web.servlet.SecurityFilterAutoConfiguration
+      - org.springframework.boot.security.autoconfigure.actuate.web.servlet.ManagementWebSecurityAutoConfiguration
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration
+      # W0 sandbox: no Repository/JdbcTemplate code exists yet. Without these
+      # exclusions HikariCP and Flyway abort startup when no PostgreSQL is running.
+      # NOTE: Boot 4 relocated JDBC autoconfig to org.springframework.boot.jdbc.*
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+      - org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration
+      # pgvector starter requires a live PG+pgvector connection; deferred to W1 RAG work.
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
   cloud:
     vault:
       # Vault starter is pinned for W2 secrets work; W0 has no Vault token,
