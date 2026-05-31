@@ -1,7 +1,7 @@
 # Agent Service Engine 模块设计终稿
 
-> 版本：v1.2 终稿  
-> 日期：2026-05-30（v1.2 修订：2026-05-31）  
+> 版本：v1.4 终稿  
+> 日期：2026-05-30（v1.2 修订：2026-05-31；v1.3 修订：2026-05-31）  
 > 服务：`agent-service`  
 > 模块名：`engine`  
 > Java 包根路径：`agent-service/src/main/java/com/huawei/ascend/service/engine/`  
@@ -12,6 +12,24 @@
 > 由 engine 定义、供外部或插件实现的接口（扩展点与出站端口）归为 **SPI**。
 > 入站接口 `EngineDispatchSpi` 重命名为 `EngineDispatchApi`，迁入新增的 `api/` 目录。
 > 详见 §2.1 分类准则与 §4.0 分类总表。
+
+> v1.3 修订说明：依据 `openJiuwen/agent-core-java` 分支 `0.1.12` 真实源码逐行核对，
+> 纠正与框架实际不符的描述并补全空白：
+> （1）§14.1 依赖 groupId 由 `io.gitcode.openjiuwen` 改为 `com.openjiuwen`，版本锁定 `0.1.12`；
+> （2）§14.3 删除"reactor 用于 openJiuwen stream 适配"的理由——框架流式返回 `Iterator<Object>` 而非 `Flux`；
+> （3）§15.2 补全 `EngineProperties` 的 LLM 配置字段；
+> （4）新增 §10.4 适配器执行契约：`Runner.runAgent` 同步返回 `Map{output, result_type}`，
+> `result_type ∈ {answer, error, interrupt}` 天然映射 Completed/Failed/Interrupted 三事件。
+> 详细论证与源码出处见同目录补丁文档 `2026-05-31-l1--agent-service-engine-openjiuwen-adapter-verification-design.md`。
+
+> v1.4 修订说明：依据 clone 到 `third_party/agentscope/` 的 `agentscope-runtime-java` /
+> `agentscope-java` 真实源码,对齐分层定位:
+> （1）§1 明确 engine 对标 agentscope-runtime-java（runtime 层,非框架层）,补三层所有权模型;
+> （2）§10 代码组织修正:"造具体 agent（prompt/工具/模型）"下沉到开发者 agent 应用层,
+> engine 只留通用适配基类;
+> （3）新增 §10.5 Agent 应用模块形态决策（B-deferred:逻辑边界按库划清,物理拆分推迟）;
+> （4）§14/§15 标注 agent 应用作为 `samples/` 下独立模块,不挂根 reactor。
+> 详细论证见同目录指导文档 `2026-05-31-l2--agent-service-engine-agentscope-alignment-guidance.md`。
 
 ## 1. 模块定位
 
@@ -50,6 +68,35 @@ task-centric-control
 6. 将用户可见输出发送给 `access-layer`；
 7. 将开始、完成、失败、中断、取消等状态回写给 `task-centric-control`；
 8. 支持 Agent 调 Agent 的 inline 调用和 child task 调用。
+
+### 1.1 对标定位与三层所有权模型
+
+engine 模块对标 **agentscope-runtime-java（runtime 层）**，不是 agent 开发框架本身。
+对应关系：openjiuwen `agent-core-java`（框架）↔ agentscope `agentscope-java`；
+agent-service 的 `engine` 模块 ↔ agentscope `engine-core`。agent-service 整体对外起
+接口服务，engine 只是其中一个模块，承担 **agent 执行器** 角色。
+
+借鉴 agentscope-runtime 真实代码呈现的三层所有权边界（engine 保留本设计既有的
+"命令队列 + 事件回写"模型，**不采用** agentscope 的 `AgentApp.run(port)` HTTP 部署）：
+
+```text
+① 框架层（第三方，engine 只消费）
+   com.openjiuwen:agent-core-java:0.1.12  → ReActAgent / Runner / Toolkit
+        ↑ 被 ② 调用
+② engine 层（本项目核心，通用、不含任何具体 agent）
+   agent-service/.../engine/  → SPI 契约 + 队列/dispatch/事件回写
+                               + OpenJiuwen 通用适配基类（连框架，不定义"是哪个 agent"）
+        ↑ 被 ③ 继承 / 注册
+③ agent 应用层（开发者编写的"具体 agent"，独立模块）
+   samples/<agent-app>/  → 继承 ② 的适配基类，build 具体 ReActAgent
+                          （prompt + 工具 + 模型在此定义）
+   依赖：② engine SPI + ① openjiuwen 框架
+```
+
+engine 与 agentscope 的**执行内核同形**（agentscope `streamQuery→Flux<Event>`；
+本设计 `execute→Stream<EngineExecutionEvent>`），差异仅在触发与结果出口：engine 由
+`EngineCommandEvent` 经内部队列触发，结果回写 `TaskControlClient`/`AccessLayerClient`。
+详见同目录指导文档 `2026-05-31-l2--agent-service-engine-agentscope-alignment-guidance.md`。
 
 ## 2. 命名与目录约束
 
@@ -984,6 +1031,13 @@ AgentExecutionContext 是 EngineCommandEvent 到 AgentHandler 的执行上下文
 
 ## 10. OpenJiuwen Adapter 设计
 
+> 代码组织修正（v1.4，对齐 §1.1 三层模型）：本章三件套按所有权拆分。
+> `OpenJiuwenAgentHandler`（适配基类，走 `Runner.runAgent` 并映射事件）与
+> `OpenJiuwenMessageConverter`（入参转换）属 ②engine 层，通用、不定义具体 agent；
+> 而 `OpenJiuwenAgentFactory` 中"build 具体 ReActAgent（prompt/工具/模型）"的逻辑属
+> ③agent 应用层，由开发者在 `samples/` 下的 agent 模块实现（见 §10.5）。
+> engine 侧 Factory 退化为接缝接口/抽象，具体实现下沉到开发者模块。
+
 ### 10.1 OpenJiuwenAgentHandler
 
 路径：
@@ -1098,7 +1152,50 @@ public final class OpenJiuwenMessageConverter {
 ```text
 将 EngineInput 转换为 openJiuwen Agent 可接受的输入。
 第一版只处理文本消息和 variables。
+第一版形态（0.1.12）：Map.of("query", lastUserText, "conversation_id", scope.getTaskId())。
 ```
+
+### 10.4 适配器执行契约（0.1.12 核实）
+
+唯一接缝在 `OpenJiuwenAgentFactory.create()`：用 `AgentCard.builder()` 造卡、
+`new ReActAgent(card)` 造 agent、`ReActAgentConfig.builder()....configureModelClient(
+provider, apiKey, apiBase, modelName, sslVerify)` 注入 LLM（配置来自 `EngineProperties`，见 §15.2），
+`agent.configure(config)` 生效。其余适配器代码只见 engine 自身类型。
+
+`OpenJiuwenAgentHandler.execute()` 调 `Runner.runAgent(agent, input, null, null)`，
+**同步**返回 `Map{"output", "result_type"}`，据 `result_type` 映射为第 6 章事件流：
+
+| 框架 `result_type` | 适配器产出事件 | 对应 §13 动作 |
+|---|---|---|
+| `answer` | Started → Completed(output) | markRunning → markSucceeded + completeOutput |
+| `error` | Started → Failed(output) | markRunning → markFailed + failOutput |
+| `interrupt` | Started → Interrupted | markRunning → markWaiting + requestUserInput |
+| 抛异常 | Failed(异常信息) | markFailed + failOutput |
+
+`interrupt` 分支细化属 Phase 2。详细论证与源码出处见同目录补丁文档
+`2026-05-31-l1--agent-service-engine-openjiuwen-adapter-verification-design.md`。
+
+### 10.5 Agent 应用模块形态（决策：B-deferred）
+
+依据 agentscope 真实代码：其 example 模块依赖 `agentscope-runtime-engine` /
+`-agentscope` / `-web` 三个**独立发布的库 jar**，而非依赖某个可运行服务——即
+engine 是**库**不是服务，开发者的 agent 应用才是可运行单元。
+
+**决策（已确认）**：方向取 B（engine 按"可被依赖的库"划清逻辑边界），但**物理拆分推迟**。
+
+近期形态（不破坏整体架构）：
+- engine 代码留在 agent-service 内，作为清晰的包边界（`engine/spi`、`engine/adapter/openjiuwen`）；
+- 开发者的具体 agent 子类作为 `samples/<agent-app>/` 下**独立 Maven 模块**存在，
+  parent 指向 `spring-ai-ascend-parent`，**不挂进根 `<modules>`**（reactor 外，按需显式加入），
+  样板见 `samples/finance-loan-review/`；
+- sample 模块暂依赖 `agent-service` 获取 engine SPI 与适配基类。
+
+后置裁定（待实际体验后再定，不在本设计强行结论）：
+- 是否将 engine 抽为独立可发布 artifact，或复用根 pom 已有的 `agent-execution-engine` 模块；
+- `agent-service` 作为 Boot 应用被 sample 依赖其类的可行性（Boot repackage 后需 classifier）。
+
+详细论证与样板 pom 见同目录指导文档
+`2026-05-31-l2--agent-service-engine-agentscope-alignment-guidance.md`。
 
 ## 11. Service Client 设计
 
@@ -1245,16 +1342,17 @@ child task 的状态由 task-centric-control 管理
 
 ```text
 OpenJiuwenAgentHandler 目标 Agent 框架
-提供 LlmAgent / WorkflowAgent / ReActAgent / AbilityManager / Session / Checkpointer / Memory 能力
+提供 ReActAgent（0.1.12 已核实）/ AbilityManager / Runner / Session / Memory 能力
+执行入口 Runner.runAgent，单 agent 实现 com.openjiuwen.core.singleagent.ReActAgent
 ```
 
-Maven 坐标按上游实际发布为准。若未发布到 Maven Central 或内部制品库，使用源码依赖方式。
+Maven 坐标依 `0.1.12` 真实发布为准（groupId `com.openjiuwen`）。若未发布到 Maven Central 或内部制品库，使用源码依赖方式。
 
 ```xml
 <dependency>
-  <groupId>io.gitcode.openjiuwen</groupId>
+  <groupId>com.openjiuwen</groupId>
   <artifactId>agent-core-java</artifactId>
-  <version>${openjiuwen.agent-core.version}</version>
+  <version>0.1.12</version>
 </dependency>
 ```
 
@@ -1287,9 +1385,13 @@ Bean 装配
 用途：
 
 ```text
-openJiuwen stream output 适配
 access-layer 流式输出桥接
 ```
+
+> 注：openJiuwen 0.1.12 不产出 Reactor 流。其单次执行 `Runner.runAgent` 为同步，
+> 流式 `ReActAgent.stream` 返回 `Iterator<Object>`。第一版适配器走同步路径，
+> 无需 Reactor；Iterator→Stream 转换不依赖本库。reactor-core 仅为 access-layer
+> 流式桥接保留。
 
 ```xml
 <dependency>
@@ -1330,7 +1432,24 @@ agent-service.jar
   └─ engine
 ```
 
+> 开发者的具体 agent 应用（③层，见 §1.1/§10.5）作为 `samples/<agent-app>/` 下独立模块，
+> **不在** `agent-service.jar` 内、不挂根 reactor；它在实现/体验阶段单独构建，依赖
+> agent-service 获取 engine SPI 与适配基类。
+
 ### 15.2 配置样例
+
+`EngineProperties` 字段（前缀 `agent-service.engine`）。openJiuwen LLM 配置 5 字段沿用框架
+`apiconfig.json` 约定键名；`api-key` 为密钥，经 `spring-cloud-starter-vault-config` 注入，
+**禁止明文写入 yaml**（下方占位仅示意层级）。
+
+| 字段 | 类型 | 框架来源键 | 说明 |
+|---|---|---|---|
+| `openjiuwen.model-provider` | String | `MODEL_PROVIDER` | 模型供应商标识 |
+| `openjiuwen.api-key` | String | `API_KEY` | 密钥：走 Vault |
+| `openjiuwen.api-base` | String | `API_BASE` | 模型服务 base url |
+| `openjiuwen.model-name` | String | `MODEL_NAME` | 模型名 |
+| `openjiuwen.ssl-verify` | boolean | `LLM_SSL_VERIFY` | 默认 true |
+| `openjiuwen.max-iterations` | int | —（engine 侧默认） | ReAct 最大轮次，默认 3 |
 
 ```yaml
 agent-service:
@@ -1341,6 +1460,12 @@ agent-service:
       auto-start: true
     openjiuwen:
       enabled: true
+      model-provider: ${MODEL_PROVIDER}
+      api-base: ${API_BASE}
+      model-name: ${MODEL_NAME}
+      ssl-verify: true
+      max-iterations: 3
+      # api-key 经 Vault 注入，不在此明文配置
 ```
 
 ### 15.3 本地开发部署
@@ -1484,6 +1609,15 @@ openJiuwen/agent-core-java 正式依赖
 复杂 RuntimeCommandEvent 字段
 独立幂等与并发章节
 非第一版必需的治理、指标、代码生成依赖
+```
+
+对齐 agentscope 时同样删除（不引入）：
+
+```text
+agentscope AgentApp.run(port) 的 HTTP/SSE 部署形态（保留队列+事件回写）
+agentscope sandbox / Deployer / 多协议端点（超出 engine 执行器职责）
+将 agent 应用 sample 模块挂进根 <modules>（reactor 外，按需显式加入）
+近期把 engine 抽为独立可发布 artifact（B-deferred：逻辑边界先行，物理拆分后置）
 ```
 
 ## 18. 最终结论
