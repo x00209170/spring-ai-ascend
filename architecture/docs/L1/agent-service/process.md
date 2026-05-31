@@ -325,7 +325,7 @@ winner's CAS.
   cross-walks to [`logical.md`](logical.md) §7 (RunEvent sealed
   hierarchy + scenario-coverage matrix) and
 <<<<<<<< HEAD:docs/architecture/l0/l1/agent-service/process.md
-  [`docs/contracts/run-event.v1.yaml`](../../../../contracts/run-event.v1.yaml)
+  [`docs/contracts/run-event.v1.yaml`](../../../../docs/contracts/run-event.v1.yaml)
 ========
   [`docs/contracts/run-event.v1.yaml`](../../../../docs/contracts/run-event.v1.yaml)
 >>>>>>>> origin/main:architecture/docs/L1/agent-service/process.md

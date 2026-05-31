@@ -82,7 +82,7 @@ primitive.
 The Layer 3 Internal Event Queue `(design_only — ADR-0141; no code
 home at rc55)` binds to the canonical three physical channels declared
 <<<<<<<< HEAD:docs/architecture/l0/l1/agent-service/physical.md
-in [`docs/governance/bus-channels.yaml`](../../../../governance/bus-channels.yaml).
+in [`docs/governance/bus-channels.yaml`](../../../../docs/governance/bus-channels.yaml).
 ========
 in [`docs/governance/bus-channels.yaml`](../../../../docs/governance/bus-channels.yaml).
 >>>>>>>> origin/main:architecture/docs/L1/agent-service/physical.md
@@ -116,7 +116,7 @@ chain via `HookPoint.before_tool` events.
 
 **Sandbox policy subsumption** (per
 <<<<<<<< HEAD:docs/architecture/l0/l1/agent-service/physical.md
-[`docs/governance/sandbox-policies.yaml`](../../../../governance/sandbox-policies.yaml)):
+[`docs/governance/sandbox-policies.yaml`](../../../../docs/governance/sandbox-policies.yaml)):
 ========
 [`docs/governance/sandbox-policies.yaml`](../../../../docs/governance/sandbox-policies.yaml)):
 >>>>>>>> origin/main:architecture/docs/L1/agent-service/physical.md
@@ -183,9 +183,9 @@ flowchart LR
 <<<<<<<< HEAD:docs/architecture/l0/l1/agent-service/physical.md
 - Module-root grounding: [`agent-service/ARCHITECTURE.md`](../../../../../agent-service/ARCHITECTURE.md)
   §4 OSS dependencies + §6 Posture-aware defaults.
-- Governance manifests: [`bus-channels.yaml`](../../../../governance/bus-channels.yaml),
-  [`sandbox-policies.yaml`](../../../../governance/sandbox-policies.yaml),
-  [`skill-capacity.yaml`](../../../../governance/skill-capacity.yaml).
+- Governance manifests: [`bus-channels.yaml`](../../../../docs/governance/bus-channels.yaml),
+  [`sandbox-policies.yaml`](../../../../docs/governance/sandbox-policies.yaml),
+  [`skill-capacity.yaml`](../../../../docs/governance/skill-capacity.yaml).
 ========
 - Module-root grounding: [`ARCHITECTURE.md`](ARCHITECTURE.md)
   §4 OSS dependencies + §6 Posture-aware defaults.

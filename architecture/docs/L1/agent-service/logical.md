@@ -360,7 +360,7 @@ replaces it as M6's downstream type.
 ## 7. RunEvent Sealed Hierarchy (per ADR-0145)
 
 <<<<<<<< HEAD:docs/architecture/l0/l1/agent-service/logical.md
-> **Status**: `design_only` per [`docs/contracts/run-event.v1.yaml`](../../../../contracts/run-event.v1.yaml). The Java sealed `RunEvent` interface + 10 record variants land in a follow-up impl-mode wave. Until then, Rule R-M.e (Every emitted `RunEvent` declares `EvolutionExport`) is design-armed but not actively gated. `EvolutionExport` enum already ships at `agent-service.../runtime/evolution/EvolutionExport.java`.
+> **Status**: `design_only` per [`docs/contracts/run-event.v1.yaml`](../../../../docs/contracts/run-event.v1.yaml). The Java sealed `RunEvent` interface + 10 record variants land in a follow-up impl-mode wave. Until then, Rule R-M.e (Every emitted `RunEvent` declares `EvolutionExport`) is design-armed but not actively gated. `EvolutionExport` enum already ships at `agent-service.../runtime/evolution/EvolutionExport.java`.
 ========
 > **Status**: `design_only` per [`docs/contracts/run-event.v1.yaml`](../../../../docs/contracts/run-event.v1.yaml). The Java sealed `RunEvent` interface + 10 record variants land in a follow-up impl-mode wave. Until then, Rule R-M.e (Every emitted `RunEvent` declares `EvolutionExport`) is design-armed but not actively gated. `EvolutionExport` enum already ships at `agent-service.../runtime/evolution/EvolutionExport.java`.
 >>>>>>>> origin/main:architecture/docs/L1/agent-service/logical.md
@@ -530,11 +530,11 @@ classDiagram
 <<<<<<<< HEAD:docs/architecture/l0/l1/agent-service/logical.md
 - Module-root grounding: [`agent-service/ARCHITECTURE.md`](../../../../../agent-service/ARCHITECTURE.md)
   §1-§9.
-- Contract anchors: [`docs/contracts/run-event.v1.yaml`](../../../../contracts/run-event.v1.yaml),
-  [`docs/contracts/engine-envelope.v1.yaml`](../../../../contracts/engine-envelope.v1.yaml),
-  [`docs/contracts/engine-hooks.v1.yaml`](../../../../contracts/engine-hooks.v1.yaml),
-  [`docs/contracts/s2c-callback.v1.yaml`](../../../../contracts/s2c-callback.v1.yaml),
-  [`docs/governance/bus-channels.yaml`](../../../../governance/bus-channels.yaml).
+- Contract anchors: [`docs/contracts/run-event.v1.yaml`](../../../../docs/contracts/run-event.v1.yaml),
+  [`docs/contracts/engine-envelope.v1.yaml`](../../../../docs/contracts/engine-envelope.v1.yaml),
+  [`docs/contracts/engine-hooks.v1.yaml`](../../../../docs/contracts/engine-hooks.v1.yaml),
+  [`docs/contracts/s2c-callback.v1.yaml`](../../../../docs/contracts/s2c-callback.v1.yaml),
+  [`docs/governance/bus-channels.yaml`](../../../../docs/governance/bus-channels.yaml).
 ========
 - Module-root grounding: [`ARCHITECTURE.md`](ARCHITECTURE.md)
   §1-§9.
