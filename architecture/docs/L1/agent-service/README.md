@@ -44,6 +44,9 @@ file that also holds Process + Physical + Development).
 | [`development.md`](development.md) | Development | rc55 W5 | `level: L1, view: development` |
 | [`spi-appendix.md`](spi-appendix.md) | Development (appendix) | rc55 W5 | `level: L1, view: development` |
 | [`features/`](features/) | Development (feature inventory) | post-merge audit Wave 3 — absorbs PR #79 AS-L1-F01..AS-L1-F47 across 6 module files | `level: L1, view: development` (per file) |
+| [`2026-05-30-l1--agent-service-taskflow-queue-control-design.md`](2026-05-30-l1--agent-service-taskflow-queue-control-design.md) | Development note | PR #102 W1 taskflow queue/control API slimming | `TaskControlClient` internal API + JDK in-memory queue |
+| [`2026-05-30-agent-service-l3-l4-task-queue-control-architecture-proposal.cn.md`](2026-05-30-agent-service-l3-l4-task-queue-control-architecture-proposal.cn.md) | L3/L4 proposal | PR #102 taskflow queue/control architecture | `level: L3/L4, scope: taskflow queue/control architecture` |
+| [`2026-05-30-agent-service-l3-l4-task-queue-control-implementation-spec.cn.md`](2026-05-30-agent-service-l3-l4-task-queue-control-implementation-spec.cn.md) | L3/L4 implementation spec | PR #102 W1 current code and interface spec | `level: L3/L4, scope: taskflow queue/control implementation` |
 
 Each file declares per-view frontmatter per Rule G-1.a; no file declares
 `covers_views:` plural — that field is reserved for this index file only.

@@ -55,22 +55,26 @@ class EngineRegistryBootValidationIT {
     /**
      * Surefire runs the test forked from the module dir (post-Phase-C:
      * agent-service/; pre-Phase-C: agent-platform/ per ADR-0078), but
-     * the default schema path docs/contracts/engine-envelope.v1.yaml lives at
-     * the repo root. Resolve the absolute path here so the test is invariant
+     * the default schema authority may live under docs/contracts/func after
+     * the contract-corpus split. Resolve the absolute path here so the test is invariant
      * to module-vs-root cwd.
      */
     private static String schemaPathAbsolute() {
         java.nio.file.Path cwd = java.nio.file.Paths.get("").toAbsolutePath();
-        java.nio.file.Path candidate = cwd.resolve("docs/contracts/engine-envelope.v1.yaml");
-        if (java.nio.file.Files.isRegularFile(candidate)) {
-            return candidate.toString();
-        }
-        // Module cwd - climb one level to the repo root.
-        java.nio.file.Path parent = cwd.getParent();
-        if (parent != null) {
-            java.nio.file.Path rooted = parent.resolve("docs/contracts/engine-envelope.v1.yaml");
-            if (java.nio.file.Files.isRegularFile(rooted)) {
-                return rooted.toString();
+        for (String relative : List.of(
+                "docs/contracts/engine-envelope.v1.yaml",
+                "docs/contracts/func/engine-envelope.v1.yaml")) {
+            java.nio.file.Path candidate = cwd.resolve(relative);
+            if (java.nio.file.Files.isRegularFile(candidate)) {
+                return candidate.toString();
+            }
+            // Module cwd - climb one level to the repo root.
+            java.nio.file.Path parent = cwd.getParent();
+            if (parent != null) {
+                java.nio.file.Path rooted = parent.resolve(relative);
+                if (java.nio.file.Files.isRegularFile(rooted)) {
+                    return rooted.toString();
+                }
             }
         }
         throw new IllegalStateException(
