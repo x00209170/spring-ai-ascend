@@ -216,6 +216,13 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
+
+    <!-- openJiuwen agent-core-java: the agent framework the engine adapter drives (design §14.1). -->
+    <dependency>
+      <groupId>com.openjiuwen</groupId>
+      <artifactId>agent-core-java</artifactId>
+      <version>0.1.12</version>
+    </dependency>
   </dependencies>
 
   <build>
