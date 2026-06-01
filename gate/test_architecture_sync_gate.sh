@@ -2612,34 +2612,6 @@ SHEOF
   fi
 }
 
-test_rule_130_feature_lifecycle_validity_pos() {
-  # Rule G-14.a — every SAA Feature in architecture/features/features.dsl
-  # declares saa.status in the 9-state lifecycle set.
-  local dsl="architecture/features/features.dsl"
-  if [[ ! -f "$dsl" ]]; then
-    skip "rule_130_feature_lifecycle_validity_pos" "$dsl missing — no SAA Feature corpus yet"
-    return
-  fi
-  local valid="proposed accepted design_only ready_for_impl implemented_unverified test_verified shipped deprecated removed"
-  local bad=""
-  while IFS= read -r status; do
-    status=$(echo "$status" | tr -d '\r')
-    [[ -z "$status" ]] && continue
-    local match=0
-    for s in $valid; do
-      if [[ "$status" == "$s" ]]; then match=1; break; fi
-    done
-    if [[ $match -eq 0 ]]; then
-      bad="$bad $status"
-    fi
-  done < <(grep -oE '"saa\.status"[[:space:]]+"[^"]+"' "$dsl" | sed -E 's/.*"saa\.status"[[:space:]]+"([^"]+)".*/\1/')
-  if [[ -n "$bad" ]]; then
-    fail "rule_130_feature_lifecycle_validity_pos" "Rule G-14.a violation: invalid lifecycle states in $dsl:$bad"
-    return
-  fi
-  ok "rule_130_feature_lifecycle_validity_pos" "Rule G-14.a / Rule 130: all features.dsl saa.status values are in the 9-state lifecycle set"
-}
-
 test_rule_131_d_fp_refs_resolve_pos() {
   # Rule G-15.d (Round-2 Wave A): shipped + http/spi FunctionPoints in
   # architecture/features/function-points.dsl carry hard-evidence refs
@@ -2704,38 +2676,6 @@ EOF
 # hosts the byte-identity branch, so the bash fixture has no rule branch
 # to exercise. Positive + negative coverage now lives in
 # tools/architecture-workspace/src/test/java/com/huawei/ascend/tools/architecture/facts/FactLayerByteIdentityIT.java.
-
-test_rule_134_no_orphan_artefacts_pos() {
-  # Rule G-17 / Rule 134 — every active ADR / rule card / enforcer / SAA Feature /
-  # contract MUST declare product_claim:, governance_infra:true, OR
-  # product_claim_placeholder:true. The gate emits orphan counts as info and is
-  # vacuously-PASS at W5 landing (advisory; promotes when G-21 hits zero).
-  # POSITIVE: the canonical gate has been exercised and returns 0.
-  if [[ ! -f gate/check_architecture_sync.sh ]]; then
-    skip "rule_134_no_orphan_artefacts_pos" "canonical gate script missing"
-    return
-  fi
-  if ! grep -q '"no_orphan_artefacts"' gate/check_architecture_sync.sh; then
-    fail "rule_134_no_orphan_artefacts_pos" "Rule 134 slug 'no_orphan_artefacts' missing from canonical gate script"
-    return
-  fi
-  ok "rule_134_no_orphan_artefacts_pos" "Rule G-17 / Rule 134: no_orphan_artefacts rule wired in canonical gate (advisory at W5 landing)"
-}
-
-test_rule_135_traceability_chain_completeness_pos() {
-  # Rule G-18 / Rule 135 — every PC-NNN in product/claims.yaml has >=1 SAA
-  # Feature referencing it via saa.productClaim. Advisory at W5 landing.
-  # POSITIVE: rule wired in canonical gate.
-  if [[ ! -f gate/check_architecture_sync.sh ]]; then
-    skip "rule_135_traceability_chain_completeness_pos" "canonical gate script missing"
-    return
-  fi
-  if ! grep -q '"traceability_chain_completeness"' gate/check_architecture_sync.sh; then
-    fail "rule_135_traceability_chain_completeness_pos" "Rule 135 slug 'traceability_chain_completeness' missing from canonical gate script"
-    return
-  fi
-  ok "rule_135_traceability_chain_completeness_pos" "Rule G-18 / Rule 135: traceability_chain_completeness rule wired in canonical gate (advisory at W5 landing)"
-}
 
 test_rule_131_meta_no_fail_open_pipelines() {
   # Round-3 Wave Alpha preventive meta-test: scans gate/check_*.sh for

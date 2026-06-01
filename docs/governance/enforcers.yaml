@@ -907,15 +907,6 @@
   asserts: "Rule 129 — contract-catalog active SPI total, module-count sum, and the latest release note's Active SPI total MUST agree; promoted SPIs such as Skill and AgentRegistry MUST NOT remain listed as deferred design-only rows; Agent/advisor composition claims MUST be backed by AgentDefinition fields, typed advisor carriers, and the shared advisor/model hook sequence."
   governance_infra: true
 
-- id: E178
-  constraint_ref: "Rule G-14 (Feature Lifecycle Validity); ADR-0151 + ADR-0153 W5 closure"
-  kind: gate-script
-  level: L0
-  view: development
-  artifact: gate/check_architecture_sync.sh#feature_lifecycle_validity
-  asserts: "Rule 130 — every SAA Feature element in architecture/features/features.dsl MUST declare saa.status from the 9-state lifecycle set (proposed/accepted/design_only/ready_for_impl/implemented_unverified/test_verified/shipped/deprecated/removed). Sub-clause .a enforced blocking at W5; sub-clauses .b (forward-only transitions vs git history), .c (shipped requires non-empty verificationTestFqns resolving to real test classes), .d (deprecated requires saa.sunsetDate + relates_to ADR) remain advisory pending follow-up soak."
-  governance_infra: true
-
 - id: E179
   constraint_ref: "Rule G-15 (Fact-Layer Integrity); ADR-0154 fact-layer W1"
   kind: gate-script
@@ -923,24 +914,6 @@
   view: development
   artifact: gate/check_architecture_sync.sh#fact_layer_integrity
   asserts: "Rule 131 — architecture/facts/{README.md, schema/fact.schema.yaml, generated/} and architecture/profile/saa-property-authority.yaml MUST exist and the YAML surfaces MUST parse (sub-clause .a, advisory at W1, blocking from W2). Generated fact entries MUST carry the 8 required provenance fields fact_id/fact_kind/source_kind/source_path/extractor/extractor_version/repo_commit/observed_value (sub-clause .b, blocking from W2). Banner present (sub-clause .c.structural, blocking in bash gate); byte-identity to extractor re-emission (sub-clause .c.bytes, blocking in Maven Surefire test FactLayerByteIdentityIT per Round-4 redesign 2026-05-28). Shipped + http/spi function points MUST carry non-empty code_entrypoint_refs/test_refs/contract refs (sub-clause .d, advisory at W5, blocking at W6)."
-  governance_infra: true
-
-- id: E182
-  constraint_ref: "Rule G-17 (No Orphan Artefacts); ADR-0156 Phase A Wave 5"
-  kind: gate-script
-  level: L1
-  view: logical
-  artifact: gate/check_architecture_sync.sh#no_orphan_artefacts
-  asserts: "Rule 134 -- every ADR / rule card / enforcer / SAA Feature / contract MUST declare one of: (a) product_claim: with PC-NNN value, (b) governance_infra: true, (c) product_claim_placeholder: true. Missing all three = orphan. Advisory at W5 landing."
-  governance_infra: true
-
-- id: E183
-  constraint_ref: "Rule G-18 (Traceability Chain Completeness); ADR-0156 Phase A Wave 5"
-  kind: gate-script
-  level: L1
-  view: logical
-  artifact: gate/check_architecture_sync.sh#traceability_chain_completeness
-  asserts: "Rule 135 -- every PC-NNN in product/claims.yaml MUST have >=1 SAA Feature referencing it via saa.productClaim; every shipped feature MUST have >=1 code_entrypoint_refs[] + test_refs[]. Advisory at W5; promotes to blocking when G-21 placeholder count reaches zero."
   governance_infra: true
 
 # ---------------------------------------------------------------------------

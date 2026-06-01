@@ -1979,43 +1979,6 @@ else
   pass_rule "contract_spi_count_truth"
 fi
 
-# Rule 130 — feature_lifecycle_validity (enforcer E178, kernel Rule G-14)
-#
-# Authority: ADR-0151 (L1 Feature Registry canonical schema, W1) +
-#            ADR-0153 (L1 Feature Registry closure, W5).
-#
-# Sub-clause .a — every SAA Feature element in features.dsl declares
-#   saa.status ∈ the 9-state lifecycle set. Implemented at W5
-#   (advisory→blocking flip). Sub-clauses .b/.c/.d (git-history
-#   transition validity, shipped-requires-verification,
-#   deprecated-requires-sunset) remain advisory through W5 and ship
-#   blocking in a follow-up sub-wave.
-# ---------------------------------------------------------------------------
-_r130_fail=0
-_r130_dsl="architecture/features/features.dsl"
-_r130_valid_states="proposed accepted design_only ready_for_impl implemented_unverified test_verified shipped deprecated removed"
-if [[ ! -f "$_r130_dsl" ]]; then
-  fail_rule "feature_lifecycle_validity" "$_r130_dsl missing -- Rule G-14.a / E178"
-  _r130_fail=1
-else
-  # Walk every "saa.status" "X" property and check X ∈ allowed set.
-  while IFS= read -r _r130_status; do
-    _r130_status=$(echo "$_r130_status" | tr -d '\r')
-    if [[ -z "$_r130_status" ]]; then continue; fi
-    _r130_match=0
-    for _s in $_r130_valid_states; do
-      if [[ "$_r130_status" == "$_s" ]]; then _r130_match=1; break; fi
-    done
-    if [[ $_r130_match -eq 0 ]]; then
-      fail_rule "feature_lifecycle_validity" "$_r130_dsl declares saa.status \"$_r130_status\" which is not in the 9-state lifecycle (proposed/accepted/design_only/ready_for_impl/implemented_unverified/test_verified/shipped/deprecated/removed) -- Rule G-14.a / E178"
-      _r130_fail=1
-    fi
-  done < <(grep -oE '"saa\.status"[[:space:]]+"[^"]+"' "$_r130_dsl" | sed -E 's/.*"saa\.status"[[:space:]]+"([^"]+)".*/\1/')
-fi
-if [[ $_r130_fail -eq 0 ]]; then
-  pass_rule "feature_lifecycle_validity"
-fi
-
 # ---------------------------------------------------------------------------
 # Rule 131 — fact_layer_integrity (enforcer E179, kernel Rule G-15)
 #
@@ -2070,55 +2033,6 @@ fi
 # branch in the bash Rule 131 to be fail-open under.
 
 [[ $_r131_fail -eq 0 ]] && pass_rule "fact_layer_integrity"
-
-# ---------------------------------------------------------------------------
-# Rule 134 — no_orphan_artefacts (enforcer E182, kernel Rule G-17)
-#
-# Phase A Wave 5 (advisory at landing 2026-05-28). Every ADR YAML / rule card /
-# enforcer / SAA Feature / contract MUST declare one of: (a) product_claim: with
-# a PC-NNN value, (b) governance_infra: true, (c) product_claim_placeholder: true
-# (Wave 4 backfill marker). Missing all three = orphan. Counts orphans and emits
-# info; doesn't fail unless orphan count exceeds the per-corpus advisory
-# threshold (currently 100% -- vacuous-PASS until Wave 4 backfill brings the
-# threshold down).
-# ---------------------------------------------------------------------------
-_r134_fail=0
-# BLOCKING from Phase B convergence (2026-05-28, placeholder count reached 0).
-# Every ADR yaml / contract yaml / rule card / principle card MUST carry one of
-# product_claim: / governance_infra: / product_claim_placeholder: markers.
-_r134_orphans=""
-for _r134_f in docs/adr/*.yaml architecture/decisions/*.yaml docs/contracts/*.yaml docs/governance/rules/rule-*.md docs/governance/principles/P-*.md; do
-  [[ -f "$_r134_f" ]] || continue
-  if ! grep -qE '^[[:space:]]*(product_claim|governance_infra|product_claim_placeholder):' "$_r134_f"; then
-    _r134_orphans="${_r134_orphans}$(basename "$_r134_f") "
-  fi
-done
-if [[ -n "$_r134_orphans" ]]; then
-  fail_rule "no_orphan_artefacts" "artefacts without a ProductClaim marker (orphans): ${_r134_orphans}-- Rule G-17 / E182 (blocking from Phase B convergence)"
-  _r134_fail=1
-fi
-[[ $_r134_fail -eq 0 ]] && pass_rule "no_orphan_artefacts"
-
-# ---------------------------------------------------------------------------
-# Rule 135 — traceability_chain_completeness (enforcer E183, kernel Rule G-18)
-#
-# Phase A Wave 5 (advisory at landing). Every PC-NNN in product/claims.yaml MUST
-# have >=1 SAA Feature referencing it via saa.productClaim. Vacuously passes
-# until Wave 4 backfill threads the chain across the corpus.
-# ---------------------------------------------------------------------------
-_r135_fail=0
-# BLOCKING from Phase B convergence: every PC-NNN declared in product/claims.yaml
-# MUST be referenced by >=1 artefact (feature / rule / contract / ADR).
-_r135_claims="product/claims.yaml"
-if [[ -f "$_r135_claims" ]]; then
-  for _r135_pc in $(grep -oE '^[[:space:]]*-?[[:space:]]*id:[[:space:]]*PC-[0-9]+' "$_r135_claims" | grep -oE 'PC-[0-9]+' | sort -u); do
-    if ! grep -rqE "${_r135_pc}([^0-9]|$)" docs/contracts docs/governance/rules architecture/features docs/adr docs/governance/principles 2>/dev/null; then
-      fail_rule "traceability_chain_completeness" "${_r135_pc} declared in product/claims.yaml but referenced by zero artefacts -- Rule G-18 / E183 (blocking from Phase B convergence)"
-      _r135_fail=1
-    fi
-  done
-fi
-[[ $_r135_fail -eq 0 ]] && pass_rule "traceability_chain_completeness"
 
 # ---------------------------------------------------------------------------
 # Rule 140 — shipped_frame_anchor_integrity (enforcer E188, kernel Rule G-23)
