@@ -1,7 +1,7 @@
 package com.huawei.ascend.service.taskflow.control;
 
 /**
- * L4-owned main Task state set.
+ * Task-Centric Control (TCC) owned main Task state set.
  *
  * <p>WAITING_FOR_TOOL and EXPIRED are intentionally not primary states here:
  * tool waits are represented by detail/reason data, and expiry is reported as a

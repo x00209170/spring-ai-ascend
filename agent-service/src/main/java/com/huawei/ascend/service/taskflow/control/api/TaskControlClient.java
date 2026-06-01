@@ -9,48 +9,48 @@ import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
 /**
- * Internal L4 task-control API.
+ * Internal Task-Centric Control (TCC) API.
  *
- * <p>This is not a Service Provider Interface. L1 calls runTask as the single
- * task intent entrypoint; runtime adapters call mark* methods to report state
- * intent. Runtime code must not publish directly to, or consume directly from,
- * the L3 queue.
+ * <p>This is not a Service Provider Interface. The access side calls runTask as
+ * the single task intent entrypoint; runtime adapters call mark* methods to
+ * report state intent. Runtime code must not publish directly to, or consume
+ * directly from, the Internal Event Queue (IEQ).
  */
 public interface TaskControlClient {
 
     /**
-     * Single L1-facing entrypoint. TaskAction reserves RUN, RESUME_INPUT, and
-     * CANCEL without adding separate handler methods.
+     * Single access-facing entrypoint. TaskAction reserves RUN, RESUME_INPUT,
+     * and CANCEL without adding separate handler methods.
      */
     CompletionStage<TaskResult> runTask(RunTaskCommand command);
 
     /**
      * Runtime-adapter state ingress. Implementations validate transitions and
-     * update the L4 task snapshot.
+     * update the Task-Centric Control task snapshot.
      */
     CompletionStage<TaskResult> markRunning(MarkTaskCommand command);
 
     /**
      * Runtime-adapter state ingress. Implementations validate transitions and
-     * update the L4 task snapshot.
+     * update the Task-Centric Control task snapshot.
      */
     CompletionStage<TaskResult> markWaiting(MarkTaskCommand command);
 
     /**
      * Runtime-adapter state ingress. Implementations validate transitions and
-     * update the L4 task snapshot.
+     * update the Task-Centric Control task snapshot.
      */
     CompletionStage<TaskResult> markSucceeded(MarkTaskCommand command);
 
     /**
      * Runtime-adapter state ingress. Implementations validate transitions and
-     * update the L4 task snapshot.
+     * update the Task-Centric Control task snapshot.
      */
     CompletionStage<TaskResult> markFailed(MarkTaskCommand command);
 
     /**
      * Runtime-adapter state ingress. Implementations validate transitions and
-     * update the L4 task snapshot.
+     * update the Task-Centric Control task snapshot.
      */
     CompletionStage<TaskResult> markCancelled(MarkTaskCommand command);
 

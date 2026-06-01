@@ -1,7 +1,7 @@
 package com.huawei.ascend.service.taskflow.control;
 
 /**
- * L4-visible failure classes.
+ * Task-Centric Control (TCC) visible failure classes.
  *
  * <p>Runtime-specific errors are normalized before they cross into task control;
  * the queue layer still treats the containing object as opaque payload.

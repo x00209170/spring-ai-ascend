@@ -5,10 +5,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * JavaBean-style L4 task snapshot.
+ * JavaBean-style Task-Centric Control (TCC) task snapshot.
  *
  * <p>The object can be stored in a queue, but queue code must remain
- * payload-agnostic. State decisions belong to L4 task control APIs, while
+ * payload-agnostic. State decisions belong to Task-Centric Control APIs, while
  * runtime adapters report state intent back through TaskControlClient mark*
  * calls.
  */

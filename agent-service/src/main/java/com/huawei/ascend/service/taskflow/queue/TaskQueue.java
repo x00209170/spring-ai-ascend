@@ -4,11 +4,11 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * L3 queue boundary.
+ * Internal Event Queue (IEQ) boundary.
  *
  * <p>The queue owns ordering and storage only. It is generic by design and must
- * not inspect Task state, runtime signals, or agent semantics; L4 control code
- * interprets the payload.
+ * not inspect Task state, runtime signals, or agent semantics; Task-Centric
+ * Control (TCC) code interprets the payload.
  */
 public interface TaskQueue<T> {
 
