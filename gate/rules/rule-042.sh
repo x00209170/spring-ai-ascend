@@ -34,4 +34,9 @@ else
 fi
 if [[ $_r42_fail -eq 0 ]]; then pass_rule "architecture_graph_idempotent"; fi
 
+# ===========================================================================
+# W1.x Phase 1 — L0 ironclad-rule enforcers (Gate Rules 45-52)
+# Authority: ADR-0069. Each rule fails on a detected violation today.
+# ===========================================================================
+
 # ---------------------------------------------------------------------------

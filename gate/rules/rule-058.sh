@@ -47,4 +47,30 @@ else
 fi
 if [[ $_r58_fail -eq 0 ]]; then pass_rule "s2c_callback_yaml_present_and_wellformed"; fi
 
+# ===========================================================================
+# Cross-corpus consistency audit prevention rules (2026-05-17)
+# Authority: docs/logs/reviews/2026-05-17-cross-corpus-consistency-audit-response.en.md
+# Closes structural design flaws G1, G2, G3 surfaced by the audit:
+#   G1 — module count was hardcoded in 4 places
+#   G2 — no metadata-vs-pom dependency cross-check
+#   G3 — no SPI-package exhaustiveness cross-check
+# Rules 64-66 with enforcer rows E94-E96 and 6 self-tests (2 per rule).
+# ===========================================================================
+
+# ===========================================================================
+# CLAUDE.md token-optimization wave -- PR1 (2026-05-17)
+# Authority: docs/governance/rules/rule-{67..71}.md
+# Goal: shrink always-loaded governance set from ~99K -> ~10.6K tokens.
+# Rules 67-71 with enforcer rows E97-E101 and 10 self-tests (2 per rule).
+# ===========================================================================
+
+# ===========================================================================
+# Gate-script efficiency wave PR-E1 (2026-05-17)
+# Authority: docs/governance/rules/rule-73.md
+# ===========================================================================
+
+# ===========================================================================
+# Wave 4 — small rule activations (2026-05-18)
+# ===========================================================================
+
 # ---------------------------------------------------------------------------

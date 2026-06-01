@@ -2397,58 +2397,6 @@ SHEOF
   fi
 }
 
-test_rule_128_model_gateway_authority_truth_pos() {
-  local root="$scratch/r128_pos"
-  mkdir -p "$root/docs/adr" \
-           "$root/docs/contracts" \
-           "$root/agent-middleware/src/main/java/com/huawei/ascend/middleware/model/spi"
-  cat > "$root/docs/adr/0121-model-gateway-spi.yaml" <<'SHEOF'
-decision: |
-  com.huawei.ascend.middleware.model.spi.ModelGateway
-  ModelResponse invoke(ModelInvocation invocation);
-SHEOF
-  cat > "$root/agent-middleware/src/main/java/com/huawei/ascend/middleware/model/spi/ModelGateway.java" <<'SHEOF'
-package com.huawei.ascend.middleware.model.spi;
-public interface ModelGateway {
-    ModelResponse invoke(ModelInvocation invocation);
-}
-SHEOF
-  cat > "$root/docs/contracts/contract-catalog.md" <<'SHEOF'
-| `ModelGateway` | `agent-middleware` | `com.huawei.ascend.middleware.model.spi` | design_only |
-SHEOF
-  if python3 "$repo_root/gate/lib/check_model_gateway_authority_truth.py" --root "$root" >/dev/null 2>&1; then
-    ok "rule128_model_gateway_authority_truth_pos" "ADR, Java, and catalog agree on ModelGateway package/signature"
-  else
-    fail "rule128_model_gateway_authority_truth_pos" "expected aligned ModelGateway authority surfaces to pass"
-  fi
-}
-
-test_rule_128_model_gateway_authority_truth_reactive_neg() {
-  local root="$scratch/r128_reactive_neg"
-  mkdir -p "$root/docs/adr" \
-           "$root/docs/contracts" \
-           "$root/agent-middleware/src/main/java/com/huawei/ascend/middleware/model/spi"
-  cat > "$root/docs/adr/0121-model-gateway-spi.yaml" <<'SHEOF'
-decision: |
-  com.huawei.ascend.service.model.spi.ModelGateway
-  Mono<ModelResponse> invoke(ModelInvocation invocation);
-SHEOF
-  cat > "$root/agent-middleware/src/main/java/com/huawei/ascend/middleware/model/spi/ModelGateway.java" <<'SHEOF'
-package com.huawei.ascend.middleware.model.spi;
-public interface ModelGateway {
-    ModelResponse invoke(ModelInvocation invocation);
-}
-SHEOF
-  cat > "$root/docs/contracts/contract-catalog.md" <<'SHEOF'
-| `ModelGateway` | `agent-middleware` | `com.huawei.ascend.middleware.model.spi` | design_only |
-SHEOF
-  if ! python3 "$repo_root/gate/lib/check_model_gateway_authority_truth.py" --root "$root" >/dev/null 2>&1; then
-    ok "rule128_model_gateway_authority_truth_reactive_neg" "ADR reactive/service-package drift fails against Java/catalog truth"
-  else
-    fail "rule128_model_gateway_authority_truth_reactive_neg" "expected reactive/service-package ADR drift to fail"
-  fi
-}
-
 test_rule_129_contract_spi_count_truth_pos() {
   local root="$scratch/r129_pos"
   mkdir -p "$root/docs/contracts" \

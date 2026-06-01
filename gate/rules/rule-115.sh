@@ -86,4 +86,5 @@ if [[ -n "$_r115_hits" ]]; then
 fi
 if [[ $_r115_fail -eq 0 ]]; then pass_rule "no_version_log_metadata_in_code"; fi
 
+
 # ---------------------------------------------------------------------------

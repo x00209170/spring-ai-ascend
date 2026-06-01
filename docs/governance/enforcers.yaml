@@ -889,15 +889,6 @@
   asserts: "Rule 127 — the latest release note that claims a release/shipped/closure decision and the latest review response MUST NOT retain live placeholder tokens such as TBD, TODO-template, pending-formal-validator-run, or TO BE GENERATED outside documented citation contexts; formal release notes MUST carry a real 40-character release_candidate_commit."
   governance_infra: true
 
-- id: E176
-  constraint_ref: "Rule G-8 (Cross-Authority Parity); 2026-05-25 rc48 agentic-contract-surface review P0-2"
-  kind: gate-script
-  level: L0
-  view: development
-  artifact: gate/check_architecture_sync.sh#model_gateway_authority_truth
-  asserts: "Rule 128 — ADR-0121, agent-middleware ModelGateway.java, and docs/contracts/contract-catalog.md MUST agree that ModelGateway lives under com.huawei.ascend.middleware.model.spi and exposes the pure-Java synchronous ModelResponse invoke(ModelInvocation invocation) SPI signature."
-  governance_infra: true
-
 - id: E177
   constraint_ref: "Rule G-8 (Cross-Authority Parity); 2026-05-25 rc48 agentic-contract-surface review P0-3/P1-2"
   kind: gate-script

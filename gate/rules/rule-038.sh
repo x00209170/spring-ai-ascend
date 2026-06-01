@@ -29,4 +29,11 @@ else
 fi
 if [[ $_r38_fail -eq 0 ]]; then pass_rule "architecture_graph_well_formed"; fi
 
+# ===========================================================================
+# Phase M remediation (CLAUDE.md Rules 33-34, ADR-0068)
+# Rules 41-44 close the self-violations the W1 wave inherited from Rule 28:
+# anchor validation, idempotency, ADR-shape, frozen-doc edit path.
+# Enforcer rows E60-E63 in docs/governance/enforcers.yaml.
+# ===========================================================================
+
 # ---------------------------------------------------------------------------
