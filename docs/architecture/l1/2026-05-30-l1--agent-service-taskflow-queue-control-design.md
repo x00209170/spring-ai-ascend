@@ -7,7 +7,7 @@ This wave keeps the taskflow surface intentionally small. It defines:
 - a local in-memory queue component backed by the JDK;
 - a static queue factory method for the current in-memory backend;
 - a JavaBean-style `Task` model;
-- one compact L4 `TaskControlClient` API for task run/resume/cancel and runtime mark* signals.
+- one compact L4 `TaskControlClient` API with a single L1-facing `runTask` entry and runtime mark* signals.
 
 It does not define any new taskflow SPI in this wave. SPI remains reserved for "this module defines the interface, another provider implements it" extension points. The current taskflow surface is internal API and local component code.
 
@@ -89,8 +89,6 @@ No `QUEUED`, `WAITING_FOR_TOOL`, or `EXPIRED` state is defined in this wave.
 ```java
 public interface TaskControlClient {
     CompletionStage<TaskResult> runTask(RunTaskCommand command);
-    CompletionStage<TaskResult> resumeInput(ResumeInputCommand command);
-    CompletionStage<TaskResult> cancelTask(CancelTaskCommand command);
     CompletionStage<TaskResult> markRunning(MarkTaskCommand command);
     CompletionStage<TaskResult> markWaiting(MarkTaskCommand command);
     CompletionStage<TaskResult> markSucceeded(MarkTaskCommand command);
@@ -99,11 +97,18 @@ public interface TaskControlClient {
 }
 ```
 
+`RunTaskCommand` carries a `TaskAction` enum:
+
+```text
+RUN, RESUME_INPUT, CANCEL
+```
+
+This keeps the L1 `TaskHandler` shape to one method. Future control intent can extend the enum and command fields without adding another L1-facing method.
+
 Command/result records live inside `TaskControlClient`:
 
 - `RunTaskCommand`
-- `ResumeInputCommand`
-- `CancelTaskCommand`
+- `TaskAction`
 - `MarkTaskCommand`
 - `TaskResult`
 
@@ -113,7 +118,7 @@ This keeps the public interface count small while preserving typed command/resul
 
 PR #100's `EngineDispatchSpi` remains the runtime/engine dispatch reference.
 
-This wave does not add a second runtime dispatch SPI. Future L5 runtime adapter code can translate `TaskControlClient` run/resume/cancel intent into the engine dispatch surface and report state changes back through `TaskControlClient.mark*`.
+This wave does not add a second runtime dispatch SPI. Future L5 runtime adapter code can translate `TaskControlClient.runTask` intent plus `TaskAction` into the engine dispatch surface and report state changes back through `TaskControlClient.mark*`.
 
 ## 7. White-Box Test Scope
 

@@ -12,10 +12,6 @@ public interface TaskControlClient {
 
     CompletionStage<TaskResult> runTask(RunTaskCommand command);
 
-    CompletionStage<TaskResult> resumeInput(ResumeInputCommand command);
-
-    CompletionStage<TaskResult> cancelTask(CancelTaskCommand command);
-
     CompletionStage<TaskResult> markRunning(MarkTaskCommand command);
 
     CompletionStage<TaskResult> markWaiting(MarkTaskCommand command);
@@ -26,51 +22,32 @@ public interface TaskControlClient {
 
     CompletionStage<TaskResult> markCancelled(MarkTaskCommand command);
 
+    enum TaskAction {
+        RUN,
+        RESUME_INPUT,
+        CANCEL
+    }
+
     record RunTaskCommand(
             String tenantId,
             String sessionId,
             String taskId,
             String agentId,
+            TaskAction action,
             Object input,
+            String reason,
             String idempotencyKey,
             Map<String, Object> metadata) {
 
         public RunTaskCommand {
             tenantId = requireNonBlank(tenantId, "tenantId");
             sessionId = requireNonBlank(sessionId, "sessionId");
-            Objects.requireNonNull(input, "input");
-            metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
-        }
-    }
-
-    record ResumeInputCommand(
-            String tenantId,
-            String sessionId,
-            String taskId,
-            Object input,
-            String idempotencyKey,
-            Map<String, Object> metadata) {
-
-        public ResumeInputCommand {
-            tenantId = requireNonBlank(tenantId, "tenantId");
-            sessionId = requireNonBlank(sessionId, "sessionId");
-            Objects.requireNonNull(input, "input");
-            metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
-        }
-    }
-
-    record CancelTaskCommand(
-            String tenantId,
-            String sessionId,
-            String taskId,
-            String reason,
-            String idempotencyKey,
-            Map<String, Object> metadata) {
-
-        public CancelTaskCommand {
-            tenantId = requireNonBlank(tenantId, "tenantId");
-            sessionId = requireNonBlank(sessionId, "sessionId");
-            taskId = requireNonBlank(taskId, "taskId");
+            action = Objects.requireNonNull(action, "action");
+            if (action == TaskAction.CANCEL) {
+                taskId = requireNonBlank(taskId, "taskId");
+            } else {
+                Objects.requireNonNull(input, "input");
+            }
             metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
         }
     }

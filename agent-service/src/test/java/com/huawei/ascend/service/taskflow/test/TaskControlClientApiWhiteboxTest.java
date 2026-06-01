@@ -23,7 +23,9 @@ class TaskControlClientApiWhiteboxTest {
                 "session",
                 null,
                 "agent",
+                TaskControlClient.TaskAction.RUN,
                 "hello",
+                null,
                 "idem",
                 metadata);
         metadata.put("traceId", "mutated");
@@ -31,6 +33,22 @@ class TaskControlClientApiWhiteboxTest {
         assertThat(command.metadata()).containsEntry("traceId", "trace-1");
         assertThatThrownBy(() -> command.metadata().put("new", "value"))
                 .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void cancelActionRequiresTaskId() {
+        assertThatThrownBy(() -> new TaskControlClient.RunTaskCommand(
+                "tenant",
+                "session",
+                null,
+                "agent",
+                TaskControlClient.TaskAction.CANCEL,
+                null,
+                "user cancelled",
+                "idem",
+                Map.of()))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("taskId");
     }
 
     @Test
