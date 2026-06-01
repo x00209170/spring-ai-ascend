@@ -15,6 +15,8 @@ import com.huawei.ascend.service.engine.model.InterruptType;
 import com.huawei.ascend.service.engine.spi.AccessLayerClient;
 import com.huawei.ascend.service.engine.spi.AgentHandler;
 import com.huawei.ascend.service.engine.spi.TaskControlClient;
+import java.time.Instant;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -35,11 +37,29 @@ public class EngineDispatcher {
     }
 
     public void dispatch(EngineCommandEvent command) {
+        String commandType = command.getCommandType();
+        if ("CANCEL".equals(commandType)) {
+            cancel(command);
+            return;
+        }
+        // EXECUTE and RESUME both run the handler; on RESUME the underlying agent
+        // framework restores prior state by conversation id (design §12.2).
+        runHandler(command);
+    }
+
+    private void runHandler(EngineCommandEvent command) {
         AgentHandler handler = registry.findByAgentId(command.getScope().agentId());
         AgentExecutionContext context = new AgentExecutionContext(command.getScope(), command.getInput());
         try (Stream<EngineExecutionEvent> events = handler.execute(context)) {
             events.forEach(this::route);
         }
+    }
+
+    private void cancel(EngineCommandEvent command) {
+        EngineExecutionScope scope = command.getScope();
+        EngineCancelledEvent event = new EngineCancelledEvent(
+                UUID.randomUUID().toString(), scope, Instant.now(), "Cancelled by request");
+        taskControlClient.markCancelled(scope, event);
     }
 
     private void route(EngineExecutionEvent event) {
