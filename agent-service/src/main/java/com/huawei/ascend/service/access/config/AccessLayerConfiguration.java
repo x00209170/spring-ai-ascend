@@ -20,6 +20,7 @@ import com.huawei.ascend.service.access.protocol.async.AsyncIngressPort;
 import com.huawei.ascend.service.access.protocol.async.AsyncOutputSink;
 import com.huawei.ascend.service.access.api.NotificationPort;
 import com.huawei.ascend.service.access.core.TaskHandler;
+import com.huawei.ascend.service.queue.QueueManager;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -81,8 +82,8 @@ public class AccessLayerConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    EgressQueueRegistry egressQueueRegistry() {
-        return new DefaultEgressQueueRegistry();
+    EgressQueueRegistry egressQueueRegistry(QueueManager queueManager) {
+        return new DefaultEgressQueueRegistry(queueManager);
     }
 
     @Bean(destroyMethod = "shutdown")

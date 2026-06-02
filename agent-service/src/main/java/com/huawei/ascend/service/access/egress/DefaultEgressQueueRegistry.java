@@ -2,8 +2,8 @@ package com.huawei.ascend.service.access.egress;
 
 import com.huawei.ascend.service.access.model.EgressBinding;
 import com.huawei.ascend.service.access.model.NotificationFrame;
-import com.huawei.ascend.service.queue.QueueFactory;
 import com.huawei.ascend.service.queue.InternalEventQueue;
+import com.huawei.ascend.service.queue.QueueManager;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -16,9 +16,13 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class DefaultEgressQueueRegistry implements EgressQueueRegistry {
 
-    private final ConcurrentHashMap<Key, InternalEventQueue<NotificationFrame>> queues = new ConcurrentHashMap<>();
+    private final QueueManager queueManager;
     private final ConcurrentHashMap<Key, EgressBinding> bindings = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<SessionKey, String> activeReplies = new ConcurrentHashMap<>();
+
+    public DefaultEgressQueueRegistry(QueueManager queueManager) {
+        this.queueManager = Objects.requireNonNull(queueManager, "queueManager");
+    }
 
     @Override
     public InternalEventQueue<NotificationFrame> getOrCreate(EgressBinding binding) {
@@ -26,13 +30,14 @@ public final class DefaultEgressQueueRegistry implements EgressQueueRegistry {
         Key key = Key.from(binding.tenantId(), binding.sessionId(), binding.replyId());
         bindings.putIfAbsent(key, binding);
         activeReplies.put(new SessionKey(binding.tenantId(), binding.sessionId()), binding.replyId());
-        return queues.computeIfAbsent(key,
-                ignored -> QueueFactory.inMemoryQueue(queueIdValue(binding)));
+        return queueManager.getOrCreate(queueIdValue(binding), NotificationFrame.class);
     }
 
     @Override
     public Optional<InternalEventQueue<NotificationFrame>> find(String tenantId, String sessionId, String replyId) {
-        return Optional.ofNullable(queues.get(Key.from(tenantId, sessionId, replyId)));
+        return findBinding(tenantId, sessionId, replyId)
+                .flatMap(binding -> queueManager.find(queueIdValue(binding)))
+                .map(DefaultEgressQueueRegistry::typed);
     }
 
     @Override
@@ -53,9 +58,16 @@ public final class DefaultEgressQueueRegistry implements EgressQueueRegistry {
     @Override
     public void remove(String tenantId, String sessionId, String replyId) {
         Key key = Key.from(tenantId, sessionId, replyId);
-        queues.remove(key);
-        bindings.remove(key);
+        EgressBinding binding = bindings.remove(key);
+        if (binding != null) {
+            queueManager.close(queueIdValue(binding));
+        }
         activeReplies.remove(new SessionKey(tenantId, sessionId), replyId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static InternalEventQueue<NotificationFrame> typed(InternalEventQueue<?> queue) {
+        return (InternalEventQueue<NotificationFrame>) queue;
     }
 
     private static String queueIdValue(EgressBinding binding) {
