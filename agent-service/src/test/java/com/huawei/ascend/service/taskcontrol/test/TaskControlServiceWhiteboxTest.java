@@ -93,6 +93,65 @@ class TaskControlServiceWhiteboxTest {
     }
 
     @Test
+    void waitingTaskCanBeResumedAndCompleted() {
+        TaskControlClient.TaskResult created = run("agent", "weather", null);
+        service.markRunning(mark(created.taskId(), 1L, null, null, null)).toCompletableFuture().join();
+        TaskControlClient.TaskResult waiting = service.markWaiting(mark(created.taskId(), 2L,
+                        WaitingReason.USER_INPUT, null, "need-city"))
+                .toCompletableFuture().join();
+
+        TaskControlClient.TaskResult resumed = resume(null, "agent", "beijing", null);
+        TaskControlClient.TaskResult running = service.markRunning(mark(created.taskId(), 3L, null, null, null))
+                .toCompletableFuture().join();
+        TaskControlClient.TaskResult completed = service.markSucceeded(mark(created.taskId(), 4L,
+                        null, null, "sunny"))
+                .toCompletableFuture().join();
+
+        assertThat(waiting.state()).isEqualTo(TaskState.WAITING);
+        assertThat(resumed.taskId()).isEqualTo(created.taskId());
+        assertThat(engine.resumes).hasSize(1);
+        assertThat(engine.resumes.get(0).input().inputType()).isEqualTo("RESUME_SIGNAL");
+        assertThat(running.state()).isEqualTo(TaskState.RUNNING);
+        assertThat(completed.state()).isEqualTo(TaskState.COMPLETED);
+        assertThat(completed.revision()).isEqualTo(5L);
+    }
+
+    @Test
+    void runtimeCanMarkRunningTaskFailed() {
+        TaskControlClient.TaskResult created = run("agent", "fail later", null);
+        service.markRunning(mark(created.taskId(), 1L, null, null, null)).toCompletableFuture().join();
+
+        TaskControlClient.TaskResult failed = service.markFailed(mark(created.taskId(), 2L,
+                        null, TaskFailureCode.RUNTIME_ERROR, "boom"))
+                .toCompletableFuture().join();
+        Task task = service.findTask("tenant", "session", created.taskId()).orElseThrow();
+
+        assertThat(failed.accepted()).isTrue();
+        assertThat(failed.state()).isEqualTo(TaskState.FAILED);
+        assertThat(task.getFailureCode()).isEqualTo(TaskFailureCode.RUNTIME_ERROR);
+        assertThat(task.getDetail()).isEqualTo("boom");
+    }
+
+    @Test
+    void cancelFlowCanReachCancelledWhenRuntimeAcknowledgesIt() {
+        TaskControlClient.TaskResult created = run("agent", "cancel me", null);
+        service.markRunning(mark(created.taskId(), 1L, null, null, null)).toCompletableFuture().join();
+
+        TaskControlClient.TaskResult cancelling = cancel(created.taskId(), "agent");
+        TaskControlClient.TaskResult cancelled = service.markCancelled(mark(created.taskId(), 3L,
+                        null, TaskFailureCode.CANCELLED_BY_RUNTIME, "runtime-stopped"))
+                .toCompletableFuture().join();
+        TaskControlClient.TaskResult rejected = cancel(created.taskId(), "agent");
+
+        assertThat(cancelling.state()).isEqualTo(TaskState.CANCELLING);
+        assertThat(engine.cancels).hasSize(1);
+        assertThat(cancelled.accepted()).isTrue();
+        assertThat(cancelled.state()).isEqualTo(TaskState.CANCELLED);
+        assertThat(rejected.accepted()).isFalse();
+        assertThat(rejected.state()).isEqualTo(TaskState.CANCELLED);
+    }
+
+    @Test
     void idempotencyKeyReturnsSameTaskResultWithoutSecondDispatch() {
         TaskControlClient.TaskResult first = run("agent", "hello", "same-key");
         TaskControlClient.TaskResult second = run("agent", "hello", "same-key");

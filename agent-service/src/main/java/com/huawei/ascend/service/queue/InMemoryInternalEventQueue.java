@@ -36,20 +36,23 @@ public final class InMemoryInternalEventQueue<T> implements InternalEventQueue<T
     @Override
     public void offer(T value) {
         Objects.requireNonNull(value, "value");
+        long startedNanos = System.nanoTime();
         if (closed.get()) {
+            LOGGER.warn("queue offer rejected queueId={} payloadType={} reason=closed",
+                    queueId, value.getClass().getSimpleName());
             throw new IllegalStateException("queue is closed: " + queueId);
         }
         size.incrementAndGet();
         Sinks.EmitResult result = sink.tryEmitNext(value);
         if (result == Sinks.EmitResult.OK) {
-            LOGGER.info("queue offer queueId={} payloadType={} size={}",
-                    queueId, value.getClass().getSimpleName(), size.get());
+            LOGGER.debug("trace stage=queue-offer queueId={} payloadType={} size={} durationMs={}",
+                    queueId, value.getClass().getSimpleName(), size.get(), elapsedMs(startedNanos));
             return;
         }
         if (result == Sinks.EmitResult.FAIL_NON_SERIALIZED) {
             sink.emitNext(value, Sinks.EmitFailureHandler.busyLooping(Duration.ofMillis(100)));
-            LOGGER.info("queue offer queueId={} payloadType={} size={} retry=nonSerialized",
-                    queueId, value.getClass().getSimpleName(), size.get());
+            LOGGER.debug("trace stage=queue-offer queueId={} payloadType={} size={} retry=nonSerialized durationMs={}",
+                    queueId, value.getClass().getSimpleName(), size.get(), elapsedMs(startedNanos));
             return;
         }
         size.decrementAndGet();
@@ -70,7 +73,7 @@ public final class InMemoryInternalEventQueue<T> implements InternalEventQueue<T
                 .doOnSubscribe(subscription -> LOGGER.info("queue subscribed queueId={}", queueId))
                 .doOnNext(value -> {
                     int remaining = size.decrementAndGet();
-                    LOGGER.info("queue consume queueId={} payloadType={} remaining={}",
+                    LOGGER.debug("queue consume queueId={} payloadType={} remaining={}",
                             queueId, value.getClass().getSimpleName(), remaining);
                 });
     }
@@ -85,6 +88,7 @@ public final class InMemoryInternalEventQueue<T> implements InternalEventQueue<T
         if (closed.compareAndSet(false, true)) {
             size.set(0);
             sink.tryEmitComplete();
+            LOGGER.info("queue closed queueId={}", queueId);
         }
     }
 
@@ -94,5 +98,9 @@ public final class InMemoryInternalEventQueue<T> implements InternalEventQueue<T
             throw new IllegalArgumentException(name + " must not be blank");
         }
         return value;
+    }
+
+    private static long elapsedMs(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
     }
 }

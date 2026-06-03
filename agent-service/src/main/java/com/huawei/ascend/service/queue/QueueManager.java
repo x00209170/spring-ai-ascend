@@ -23,8 +23,11 @@ public class QueueManager {
                 return new QueueEntry<>(payloadType, new InMemoryInternalEventQueue<>(id));
             }
             if (!existing.payloadType().equals(payloadType)) {
+                LOGGER.warn("queue type mismatch queueId={} expectedPayloadType={} actualPayloadType={}",
+                        id, payloadType.getSimpleName(), existing.payloadType().getSimpleName());
                 throw new IllegalStateException("payload type mismatch for queue: " + id);
             }
+            LOGGER.info("queue reuse queueId={} payloadType={}", id, payloadType.getSimpleName());
             return existing;
         });
         return typed(entry, payloadType);
@@ -47,6 +50,10 @@ public class QueueManager {
         QueueEntry<?> entry = queuesById.remove(queueId);
         if (entry != null) {
             entry.queue().close();
+            LOGGER.info("queue unregister queueId={} payloadType={}",
+                    queueId, entry.payloadType().getSimpleName());
+        } else {
+            LOGGER.info("queue unregister skipped queueId={} reason=notFound", queueId);
         }
     }
 

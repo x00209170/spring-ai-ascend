@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,16 +124,41 @@ public class TaskControlService implements TaskControlClient {
         if (key.isEmpty()) {
             return prepareAndDispatch(request, taskId, resumeOnly);
         }
-        return idempotencyResults.computeIfAbsent(key.get(),
-                ignored -> prepareAndDispatch(request, taskId, resumeOnly));
+        AtomicBoolean stored = new AtomicBoolean(false);
+        TaskResult result = idempotencyResults.computeIfAbsent(key.get(), ignored -> {
+            stored.set(true);
+            return prepareAndDispatch(request, taskId, resumeOnly);
+        });
+        LOGGER.info("task idempotency {} tenantId={} sessionId={} taskId={} agentId={} action={} accepted={} state={}",
+                stored.get() ? "stored" : "hit",
+                request.tenantId(),
+                request.sessionId(),
+                result.taskId(),
+                request.agentId(),
+                action,
+                result.accepted(),
+                result.state());
+        return result;
     }
 
     private TaskResult prepareAndDispatch(AgentRequest request, String taskId, boolean resumeOnly) {
+        long startedNanos = System.nanoTime();
         PreparedTaskResult prepared = prepare(request, taskId, resumeOnly);
-        return dispatchPrepared(prepared.task().taskId(), request, prepared.resume());
+        TaskResult result = dispatchPrepared(prepared.task().taskId(), request, prepared.resume());
+        LOGGER.info("trace stage=task-submit tenantId={} sessionId={} taskId={} agentId={} resume={} accepted={} state={} durationMs={}",
+                request.tenantId(),
+                request.sessionId(),
+                result.taskId(),
+                request.agentId(),
+                prepared.resume(),
+                result.accepted(),
+                result.state(),
+                elapsedMs(startedNanos));
+        return result;
     }
 
     private PreparedTaskResult prepare(AgentRequest request, String taskId, boolean resumeOnly) {
+        long startedNanos = System.nanoTime();
         Task task;
         boolean resume;
         synchronized (sessionLock(request.tenantId(), request.sessionId())) {
@@ -140,9 +166,21 @@ public class TaskControlService implements TaskControlClient {
                     ? selectTarget(request, taskId, true)
                     : Optional.empty();
             if (selected.isEmpty() && resumeOnly) {
+                LOGGER.info("task resume target missing tenantId={} sessionId={} requestedTaskId={} agentId={} action=newTask",
+                        request.tenantId(), request.sessionId(), taskId, request.agentId());
                 task = createTask(request);
                 resume = false;
             } else {
+                if (selected.isPresent()) {
+                    Task selectedTask = selected.get();
+                    LOGGER.info("task target selected tenantId={} sessionId={} taskId={} agentId={} state={} resumeOnly={}",
+                            selectedTask.getTenantId(),
+                            selectedTask.getSessionId(),
+                            selectedTask.getTaskId(),
+                            selectedTask.getAgentId(),
+                            selectedTask.getState(),
+                            resumeOnly);
+                }
                 task = selected.orElseGet(() -> createTask(request));
                 resume = resumeOnly && task.getState() == TaskState.WAITING;
             }
@@ -155,6 +193,14 @@ public class TaskControlService implements TaskControlClient {
                     resume,
                     task.getState(),
                     request.input().size());
+            LOGGER.info("trace stage=task-prepare tenantId={} sessionId={} taskId={} agentId={} resume={} state={} durationMs={}",
+                    task.getTenantId(),
+                    task.getSessionId(),
+                    task.getTaskId(),
+                    task.getAgentId(),
+                    resume,
+                    task.getState(),
+                    elapsedMs(startedNanos));
             return new PreparedTaskResult(result(task, true, message), resume);
         }
     }
@@ -174,10 +220,14 @@ public class TaskControlService implements TaskControlClient {
             task = findTask(command.tenantId(), command.sessionId(), command.taskId())
                     .orElseThrow(() -> new IllegalArgumentException("task not found: " + command.taskId()));
             if (task.terminal()) {
+                LOGGER.warn("task cancel rejected tenantId={} sessionId={} taskId={} agentId={} state={} reason=terminal",
+                        task.getTenantId(), task.getSessionId(), task.getTaskId(), task.getAgentId(), task.getState());
                 return result(task, false, "terminal task cannot be cancelled");
             }
             if (task.getState() != TaskState.CANCELLING) {
                 task.transitionTo(TaskState.CANCELLING, null, null, command.reason(), clock.instant());
+                LOGGER.info("task cancel requested tenantId={} sessionId={} taskId={} agentId={} reason={}",
+                        task.getTenantId(), task.getSessionId(), task.getTaskId(), task.getAgentId(), command.reason());
             }
         }
         EnqueueEngineStatus status = engineDispatchApi().enqueueCancel(
@@ -189,6 +239,7 @@ public class TaskControlService implements TaskControlClient {
     }
 
     private TaskResult dispatch(Task task, AgentRequest request, boolean resume) {
+        long startedNanos = System.nanoTime();
         EnqueueEngineStatus status;
         try {
             EngineExecutionScope scope = scopeFor(task, userId(request.userId()));
@@ -224,6 +275,14 @@ public class TaskControlService implements TaskControlClient {
         }
         LOGGER.info("task dispatch enqueued tenantId={} sessionId={} taskId={} agentId={} status={}",
                 task.getTenantId(), task.getSessionId(), task.getTaskId(), task.getAgentId(), status);
+        LOGGER.info("trace stage=task-dispatch tenantId={} sessionId={} taskId={} agentId={} resume={} status={} durationMs={}",
+                task.getTenantId(),
+                task.getSessionId(),
+                task.getTaskId(),
+                task.getAgentId(),
+                resume,
+                status,
+                elapsedMs(startedNanos));
         return currentResult(task, true, resume ? "resume enqueued" : "execution enqueued");
     }
 
@@ -231,6 +290,8 @@ public class TaskControlService implements TaskControlClient {
         synchronized (sessionLock(task.getTenantId(), task.getSessionId())) {
             if (!task.terminal()) {
                 task.transitionTo(TaskState.FAILED, null, code, detail, clock.instant());
+                LOGGER.warn("task dispatch failure marked tenantId={} sessionId={} taskId={} agentId={} failureCode={} detail={}",
+                        task.getTenantId(), task.getSessionId(), task.getTaskId(), task.getAgentId(), code, detail);
             }
             return result(task, false, "engine dispatch failed");
         }
@@ -242,9 +303,23 @@ public class TaskControlService implements TaskControlClient {
             Task task = findTask(command.tenantId(), command.sessionId(), command.taskId())
                     .orElseThrow(() -> new IllegalArgumentException("task not found: " + command.taskId()));
             if (task.getRevision() != command.expectedRevision()) {
+                LOGGER.warn("task mark rejected tenantId={} sessionId={} taskId={} currentState={} nextState={} reason=staleRevision expectedRevision={} actualRevision={}",
+                        command.tenantId(),
+                        command.sessionId(),
+                        command.taskId(),
+                        task.getState(),
+                        nextState,
+                        command.expectedRevision(),
+                        task.getRevision());
                 return result(task, false, "stale task revision");
             }
             if (!allowed(task.getState(), nextState)) {
+                LOGGER.warn("task mark rejected tenantId={} sessionId={} taskId={} currentState={} nextState={} reason=invalidTransition",
+                        command.tenantId(),
+                        command.sessionId(),
+                        command.taskId(),
+                        task.getState(),
+                        nextState);
                 return result(task, false, "transition rejected");
             }
             if (task.getState() != nextState || waitingReason != task.getWaitingReason()
@@ -279,6 +354,12 @@ public class TaskControlService implements TaskControlClient {
         Task task = Task.created(request.tenantId(), request.sessionId(), request.agentId(), clock.instant());
         task.setDetail(request.input());
         taskQueues.add(task);
+        LOGGER.info("task created tenantId={} sessionId={} taskId={} agentId={} inputMessages={}",
+                task.getTenantId(),
+                task.getSessionId(),
+                task.getTaskId(),
+                task.getAgentId(),
+                request.input().size());
         return task;
     }
 
@@ -396,5 +477,9 @@ public class TaskControlService implements TaskControlClient {
         private PreparedTaskResult {
             task = Objects.requireNonNull(task, "task");
         }
+    }
+
+    private static long elapsedMs(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
     }
 }
