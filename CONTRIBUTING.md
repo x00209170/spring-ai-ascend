@@ -72,8 +72,7 @@ runner executes the same rules. A green run prints `GATE: PASS`.
 
 | Artefact | Generated from | Regenerate with |
 |---|---|---|
-| `gate/rules/*.sh` | `gate/check_architecture_sync.sh` (the monolith) | `bash gate/lib/extract_rules.sh` |
-| `architecture/generated/*.dsl` | `*/module-metadata.yaml`, `docs/governance/{enforcers,principle-coverage}.yaml`, `CLAUDE.md`, `docs/adr/*.yaml`, `docs/governance/templates/surface-classification.yaml` | `java ... com.huawei.ascend.tools.architecture.fragment.AllFragmentsCli --repo .` |
+| `architecture/generated/*.dsl` | `*/module-metadata.yaml`, `docs/governance/{enforcers,principle-coverage}.yaml`, `CLAUDE.md`, `docs/adr/*.yaml` | `java ... com.huawei.ascend.tools.architecture.fragment.AllFragmentsCli --repo .` |
 | `docs/governance/architecture-workspace-graph.yaml` | `architecture/workspace.dsl` workspace closure | `bash gate/check_architecture_workspace.sh` |
 | `docs/governance/architecture-graph.yaml` | principle/enforcer/status/ADR inputs (legacy; retires at W7 per ADR-0147) | `python3 gate/build_architecture_graph.py` |
 

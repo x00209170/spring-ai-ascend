@@ -546,7 +546,9 @@ def main() -> int:
     p.add_argument("--check", action="store_true", help="build and validate; emit non-zero on validation failure")
     p.add_argument("--no-write", action="store_true", help="do not write the output file (use with --check)")
     p.add_argument("--mermaid", action="store_true", help="also emit Mermaid renderer to docs/governance/architecture-graph.mmd")
+    p.add_argument("--output", default=None, help="write the graph YAML to this path instead of the canonical architecture-graph.yaml (Rule 42 builds to isolated temp files to avoid the parallel-gate shared-file race)")
     args = p.parse_args()
+    out_yaml = Path(args.output) if args.output else OUTPUT_YAML
 
     graph = build_graph(REPO)
     yaml_text = yaml.safe_dump(graph, sort_keys=False, allow_unicode=True, width=1000)
@@ -585,10 +587,10 @@ def main() -> int:
         # write_bytes truncates then writes; os.replace is the POSIX atomic
         # rename so readers either see the prior full file or the new full
         # file, never partial bytes.
-        _tmp_path = OUTPUT_YAML.with_suffix(OUTPUT_YAML.suffix + f".tmp.{os.getpid()}")
+        _tmp_path = out_yaml.with_suffix(out_yaml.suffix + f".tmp.{os.getpid()}")
         _tmp_path.write_bytes((header + yaml_text).encode("utf-8"))
-        os.replace(_tmp_path, OUTPUT_YAML)
-        print(f"Wrote {OUTPUT_YAML.relative_to(REPO)}: {graph['node_count']} nodes, {graph['edge_count']} edges")
+        os.replace(_tmp_path, out_yaml)
+        print(f"Wrote {out_yaml}: {graph['node_count']} nodes, {graph['edge_count']} edges")
     else:
         print(f"Built graph (not written): {graph['node_count']} nodes, {graph['edge_count']} edges")
 
