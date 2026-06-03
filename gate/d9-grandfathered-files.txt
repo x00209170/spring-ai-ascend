@@ -33,7 +33,6 @@ agent-service/src/test/java/com/huawei/ascend/service/runtime/architecture/Tenan
 agent-service/src/test/java/com/huawei/ascend/service/runtime/runs/RunRecordTenantLibraryTest.java
 agent-service/src/test/java/com/huawei/ascend/service/runtime/s2c/S2cCallbackRespectsRule38Test.java
 gate/check_architecture_sync.sh
-gate/migrate_adrs_to_yaml.py
 scripts/rc13_arch_sweep.py
 scripts/rc13_dissolve_runtime_core.py
 spring-ai-ascend-graphmemory-starter/src/main/java/com/huawei/ascend/service/runtime/graphmemory/GraphMemoryProperties.java

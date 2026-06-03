@@ -64,7 +64,7 @@ The workspace projection at `docs/governance/architecture-workspace-graph.yaml` 
 
 The platform targets two distinct audiences in W0–W2 + W3+ sequence; the active design must satisfy BOTH audiences without compromising either. Misreading §1 as targeting a single audience produces false-negative reviews of governance choices.
 
-**Audience A — framework-internal contributors (W0/W1/W2 primary).** Engineers building the platform's SPI surface, gate rules, and contract catalog. They consume `ARCHITECTURE.md`, the 65 §4 constraints, the ~155 enforcer rows, the ~90 ADRs, and `docs/governance/architecture-status.yaml` directly. The high governance / low surface-area baseline (per the rationale below) is calibrated for this audience.
+**Audience A — framework-internal contributors (W0/W1/W2 primary).** Engineers building the platform's SPI surface, gate rules, and contract catalog. They consume `ARCHITECTURE.md`, the 65 §4 constraints, the ~88 enforcer rows, the ~64 ADRs, and `docs/governance/architecture-status.yaml` directly. The high governance / low surface-area baseline (per the rationale below) is calibrated for this audience.
 
 **Audience B — external Spring developers (W0/W1/W2 secondary; W2/W3 primary).** Engineers integrating the platform into their own Spring Boot 4 + Java 21 applications. They consume `agent-client` SDK + `ChatClient` / `VectorStore` / MCP adapter shapes + `docs/quickstart.md`. Their developer-ergonomics surface lands at W2 (Hook SPI + LLM gateway un-freeze) and W3 (`agent-client` SDK GA per ADR-0063). At W0/W1 their surface is intentionally narrow.
 
