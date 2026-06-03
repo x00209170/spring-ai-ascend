@@ -23,6 +23,5 @@ Wave 3 emitters:
 | `principles.dsl` | `PrinciplesFragmentEmitter` | `docs/governance/principle-coverage.yaml` | One `element ... "SAA Principle"` per principle; `operationalised_by` relationships to rules. |
 | `rules.dsl` | `RulesFragmentEmitter` | `CLAUDE.md` headers + `docs/governance/rules/rule-*.md` | One `element ... "SAA Rule"` per rule. |
 | `adr-graph.dsl` | `AdrGraphFragmentEmitter` | `docs/adr/*.yaml` | One `element ... "SAA ADR"` per ADR; `supersedes` / `extends` / `relates_to` relationships. |
-| `surface-classification.dsl` | `SurfaceClassificationFragmentEmitter` | `docs/governance/templates/surface-classification.yaml` | One `element ... "SAA GeneratedProjection"` per templated/hybrid surface; `projects_to` relationships. |
 
 W1 ships this README only. The files arrive in Wave 3.

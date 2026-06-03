@@ -136,14 +136,12 @@ workspace "Spring AI Ascend" "Architecture authority workspace (W8 — Structuri
         //   principles -> references rule_* (operationalised_by edges)
         //   enforcers  -> defines enforcer_* (independent)
         //   adr-graph  -> defines adr_* (self-referencing edges within file)
-        //   surface-classification -> defines surface_* (independent)
         !include generated/modules.dsl
         !include generated/spi-catalog.dsl
         !include generated/rules.dsl
         !include generated/principles.dsl
         !include generated/enforcers.dsl
         !include generated/adr-graph.dsl
-        !include generated/surface-classification.dsl
 
         // Authored zone — structural axis (ADR-0157). Included LAST so frame edges
         // to genModule_* / fp* / feat* resolve against already-declared elements.
