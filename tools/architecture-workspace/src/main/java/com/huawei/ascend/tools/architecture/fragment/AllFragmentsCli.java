@@ -34,10 +34,7 @@ public final class AllFragmentsCli {
         System.out.println("--- AdrGraphFragmentEmitter");
         AdrGraphFragmentEmitter.main(merge(mkArgs, "--output", "architecture/generated/adr-graph.dsl"));
 
-        System.out.println("--- SurfaceClassificationFragmentEmitter");
-        SurfaceClassificationFragmentEmitter.main(merge(mkArgs, "--output", "architecture/generated/surface-classification.dsl"));
-
-        System.out.println("All 7 fragments emitted.");
+        System.out.println("All 6 fragments emitted.");
     }
 
     private static String[] repoArg(Path repo) {

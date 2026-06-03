@@ -40,7 +40,6 @@ EXPECTED_FRAGMENTS = [
     "principles.dsl",
     "rules.dsl",
     "adr-graph.dsl",
-    "surface-classification.dsl",
 ]
 
 
