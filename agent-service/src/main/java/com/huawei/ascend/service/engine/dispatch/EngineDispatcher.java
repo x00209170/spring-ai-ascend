@@ -53,6 +53,7 @@ public class EngineDispatcher {
     }
 
     private void runHandler(EngineCommandEvent command) {
+        long startedNanos = System.nanoTime();
         AgentHandler handler = registry.findByAgentId(command.getScope().agentId());
         AgentExecutionContext context = new AgentExecutionContext(command.getScope(), command.getInput());
         LOGGER.info("engine handler start tenantId={} sessionId={} taskId={} agentId={} handler={} inputType={} inputMessages={}",
@@ -77,6 +78,14 @@ public class EngineDispatcher {
                                     : result.output().getContent().length()))
                     .map(result -> toEvent(command.getScope(), result))
                     .forEach(this::route);
+            LOGGER.info("trace stage=engine-handler-finish tenantId={} sessionId={} taskId={} agentId={} commandType={} handler={} durationMs={}",
+                    command.getScope().tenantId(),
+                    command.getScope().sessionId(),
+                    command.getScope().taskId(),
+                    command.getScope().agentId(),
+                    command.getCommandType(),
+                    handler.getClass().getName(),
+                    elapsedMs(startedNanos));
         } catch (RuntimeException ex) {
             LOGGER.warn("engine handler failed tenantId={} sessionId={} taskId={} agentId={} errorClass={} message={}",
                     command.getScope().tenantId(),
@@ -96,6 +105,14 @@ public class EngineDispatcher {
                     ex.getClass().getSimpleName(),
                     ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage());
             route(failed);
+            LOGGER.info("trace stage=engine-handler-finish tenantId={} sessionId={} taskId={} agentId={} commandType={} handler={} durationMs={} failed=true",
+                    command.getScope().tenantId(),
+                    command.getScope().sessionId(),
+                    command.getScope().taskId(),
+                    command.getScope().agentId(),
+                    command.getCommandType(),
+                    handler.getClass().getName(),
+                    elapsedMs(startedNanos));
         }
     }
 
@@ -149,5 +166,9 @@ public class EngineDispatcher {
 
     private static String newId() {
         return UUID.randomUUID().toString();
+    }
+
+    private static long elapsedMs(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
     }
 }

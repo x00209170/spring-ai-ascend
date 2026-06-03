@@ -39,6 +39,7 @@ public final class A2aEgressAdapter implements EgressAdapter {
 
     @Override
     public void deliver(EgressBinding binding, NotificationFrame frame) {
+        long startedNanos = System.nanoTime();
         LOGGER.info("a2a egress deliver tenantId={} sessionId={} taskId={} type={} status={} terminal={} outputMessages={} errorPresent={}",
                 frame.tenantId(),
                 frame.sessionId(),
@@ -49,6 +50,14 @@ public final class A2aEgressAdapter implements EgressAdapter {
                 frame.output().size(),
                 frame.error() != null);
         outputSink.send(binding, toA2aOutput(binding, frame));
+        LOGGER.info("trace stage=a2a-egress-deliver tenantId={} sessionId={} taskId={} type={} status={} terminal={} durationMs={}",
+                frame.tenantId(),
+                frame.sessionId(),
+                frame.taskId(),
+                frame.type(),
+                frame.status(),
+                frame.terminal(),
+                elapsedMs(startedNanos));
         if (frame.terminal()) {
             sequences.remove(sequenceKey(binding));
         }
@@ -180,5 +189,8 @@ public final class A2aEgressAdapter implements EgressAdapter {
     private String nullToId(String value) {
         return value == null || value.isBlank() ? UUID.randomUUID().toString() : value;
     }
-}
 
+    private static long elapsedMs(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
+    }
+}

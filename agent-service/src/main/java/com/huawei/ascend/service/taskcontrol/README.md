@@ -139,3 +139,45 @@ Engine 侧接口按方向分为三类：
 ```
 
 最近一次白盒验证应以本地命令输出为准；若重命名 IEQ 或迁移 engine port 包，需要先跑上述 targeted tests。
+
+## 10. 日志与端到端观测
+
+本版在 Access、TaskControl、Internal Event Queue、Engine command、Engine dispatch 和 A2A egress 之间补齐了阶段性 trace 日志。日志字段以 `trace stage=... durationMs=...` 为主，Engine 命令入口额外输出 `queueWaitMs`，用于判断事件入队后是否发生等待。
+
+主要 trace 阶段如下：
+
+| 模块 | 阶段 | 说明 |
+|---|---|---|
+| Access | `access-run` / `access-resume` / `access-cancel` | 外部输入进入 TaskControl 前后的总耗时 |
+| TaskControl | `task-prepare` | 选择或创建 Task、处理幂等和本地状态准备 |
+| TaskControl | `task-dispatch` | 调用 `EngineDispatchApi` 的耗时 |
+| TaskControl | `task-submit` | 一次 TaskControl 提交的端到端耗时 |
+| Internal Event Queue | `queue-offer` | 单条事件写入队列的 DEBUG 级耗时 |
+| Engine command | `engine-command-received` | Engine 命令从入队到被接收的等待时间 |
+| Engine command | `engine-command-execute-start` / `engine-command-execute-finish` | Engine 命令开始执行和执行完成耗时 |
+| Engine dispatch | `engine-dispatch-publish` | dispatch 请求写入 engine 内部队列的耗时 |
+| Engine handler | `engine-handler-finish` | AgentHandler 实际执行耗时 |
+| A2A egress | `a2a-egress-deliver` | 结果推送到 A2A 出站队列的耗时 |
+
+最近一次 targeted 验证覆盖：
+
+1. `InternalEventQueueTest`：并发写入、关闭语义、压力 smoke 和队列时延 smoke。
+2. `TaskControlServiceWhiteboxTest`：正常完成、WAITING 后恢复、FAILED、CANCELLED、revision fencing 和幂等。
+3. `AgentServiceEndToEndIT`：A2A 正常完成、WAITING 后恢复、FAILED 结果、异常结果和 CANCEL。
+4. `samples/agent-service-a2a-llm-e2e`：通过本地 Ollama `gemma4:e4b` 跑通真实 LLM A2A 端到端样例。
+
+当前观测到的代表性耗时如下：
+
+| 场景 | 代表阶段 | 代表耗时 | 结论 |
+|---|---|---:|---|
+| Queue 压力 smoke | 4000 条事件、8 个生产者 | 总耗时 66-80 ms | 队列本身不是瓶颈 |
+| Queue 压力 smoke | 单事件平均等待 | 66-72 us | 处于微秒级 |
+| Queue 压力 smoke | 单事件最大等待 | 1.4-1.7 ms | 低毫秒级峰值 |
+| fake agent E2E | `queueWaitMs` | 0 ms | 本地队列无可见等待 |
+| fake agent E2E | `engine-handler-finish` | 0-7 ms | fake handler 主要用于流程验证 |
+| 本地 Ollama E2E | `queueWaitMs` | 0 ms | 慢点不在队列 |
+| 本地 Ollama E2E | `engine-dispatch-publish` | 2 ms | dispatch 写入很快 |
+| 本地 Ollama E2E | `engine-handler-finish` | 18204 ms | 主要耗时在 AgentHandler / LLM 推理 |
+| 本地 Ollama E2E | `a2a-egress-deliver` | 10 ms | 出站投递不是瓶颈 |
+
+因此，当前端到端慢主要来自本地 LLM 推理阶段，而不是 Internal Event Queue 或 TaskControl。后续若引入远程队列、远程 agent runtime 或注册中心，需要继续沿用这些 trace 阶段，避免把模型推理、网络等待和队列等待混在一起判断。

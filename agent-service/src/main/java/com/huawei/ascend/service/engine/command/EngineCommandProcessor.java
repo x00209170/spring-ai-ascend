@@ -2,6 +2,8 @@ package com.huawei.ascend.service.engine.command;
 
 import com.huawei.ascend.service.engine.dispatch.EngineDispatcher;
 import com.huawei.ascend.service.engine.event.EngineCommandEvent;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
@@ -33,20 +35,47 @@ public class EngineCommandProcessor {
     }
 
     private void onCommand(EngineCommandEvent command) {
+        long receivedNanos = System.nanoTime();
+        long queueWaitMs = elapsedSince(command.getCreatedAt());
         LOGGER.info("engine command received commandType={} tenantId={} sessionId={} taskId={} agentId={}",
                 command.getCommandType(),
                 command.getScope().tenantId(),
                 command.getScope().sessionId(),
                 command.getScope().taskId(),
                 command.getScope().agentId());
+        LOGGER.info("trace stage=engine-command-received commandType={} tenantId={} sessionId={} taskId={} agentId={} queueWaitMs={}",
+                command.getCommandType(),
+                command.getScope().tenantId(),
+                command.getScope().sessionId(),
+                command.getScope().taskId(),
+                command.getScope().agentId(),
+                queueWaitMs);
         executor.execute(() -> {
+            long startedNanos = System.nanoTime();
             LOGGER.info("engine command executing commandType={} tenantId={} sessionId={} taskId={} agentId={}",
                     command.getCommandType(),
                     command.getScope().tenantId(),
                     command.getScope().sessionId(),
                     command.getScope().taskId(),
                     command.getScope().agentId());
-            dispatcher.dispatch(command);
+            LOGGER.info("trace stage=engine-command-execute-start commandType={} tenantId={} sessionId={} taskId={} agentId={} executorWaitMs={}",
+                    command.getCommandType(),
+                    command.getScope().tenantId(),
+                    command.getScope().sessionId(),
+                    command.getScope().taskId(),
+                    command.getScope().agentId(),
+                    elapsedMs(receivedNanos));
+            try {
+                dispatcher.dispatch(command);
+            } finally {
+                LOGGER.info("trace stage=engine-command-execute-finish commandType={} tenantId={} sessionId={} taskId={} agentId={} durationMs={}",
+                        command.getCommandType(),
+                        command.getScope().tenantId(),
+                        command.getScope().sessionId(),
+                        command.getScope().taskId(),
+                        command.getScope().agentId(),
+                        elapsedMs(startedNanos));
+            }
         });
     }
 
@@ -54,5 +83,13 @@ public class EngineCommandProcessor {
         if (subscription != null) {
             subscription.dispose();
         }
+    }
+
+    private static long elapsedSince(Instant instant) {
+        return instant == null ? -1L : Duration.between(instant, Instant.now()).toMillis();
+    }
+
+    private static long elapsedMs(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
     }
 }

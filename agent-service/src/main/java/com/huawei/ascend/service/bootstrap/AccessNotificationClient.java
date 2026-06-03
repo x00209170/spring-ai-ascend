@@ -17,6 +17,8 @@ import com.huawei.ascend.service.schema.RunStatus;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The real outbound glue: implements the engine's {@link AccessLayerClient} port
@@ -36,6 +38,8 @@ import java.util.Objects;
  * (non-terminal) so the caller can supply more input.
  */
 public final class AccessNotificationClient implements AccessLayerClient {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AccessNotificationClient.class);
 
     private final NotificationPort notificationPort;
 
@@ -75,10 +79,19 @@ public final class AccessNotificationClient implements AccessLayerClient {
 
     private void publish(EngineExecutionScope scope, NotificationType type, RunStatus status, List<Message> output,
                          RunError error, Map<String, Object> metadata, boolean terminal) {
+        long startedNanos = System.nanoTime();
         Objects.requireNonNull(scope, "scope");
         String sessionId = scope.sessionId() == null ? scope.taskId() : scope.sessionId();
         notificationPort.notify(new NotificationFrame(
                 scope.tenantId(), sessionId, scope.taskId(), type, status, output, error, metadata, terminal));
+        LOGGER.info("trace stage=access-notification-publish tenantId={} sessionId={} taskId={} type={} status={} terminal={} durationMs={}",
+                scope.tenantId(),
+                sessionId,
+                scope.taskId(),
+                type,
+                status,
+                terminal,
+                elapsedMs(startedNanos));
     }
 
     private static String text(EngineOutput output) {
@@ -87,5 +100,9 @@ public final class AccessNotificationClient implements AccessLayerClient {
 
     private static List<Message> messages(String text) {
         return List.of(Message.assistant(text == null ? "" : text));
+    }
+
+    private static long elapsedMs(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
     }
 }

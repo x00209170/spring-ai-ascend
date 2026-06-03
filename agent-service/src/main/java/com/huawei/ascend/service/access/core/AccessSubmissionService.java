@@ -51,6 +51,7 @@ public final class AccessSubmissionService {
     public CompletionStage<AccessAcceptedResponse> run(AgentRequest request, ReplyContext reply) {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(reply, "reply");
+        long startedNanos = System.nanoTime();
         AgentRequest resolved = resolveSession(request);
         LOGGER.info("access resolved session tenantId={} userId={} agentId={} requestedSessionId={} resolvedSessionId={}",
                 request.tenantId(),
@@ -60,20 +61,42 @@ public final class AccessSubmissionService {
                 resolved.sessionId());
         bindEgress(resolved, reply);
         return taskControlClient.run(new RunCommand(resolved))
-                .thenApply(result -> toAccepted(resolved, result));
+                .thenApply(result -> {
+                    LOGGER.info("trace stage=access-run tenantId={} userId={} agentId={} sessionId={} taskId={} accepted={} durationMs={}",
+                            resolved.tenantId(),
+                            resolved.userId(),
+                            resolved.agentId(),
+                            resolved.sessionId(),
+                            result.taskId(),
+                            result.accepted(),
+                            elapsedMs(startedNanos));
+                    return toAccepted(resolved, result);
+                });
     }
 
     public CompletionStage<AccessAcceptedResponse> resume(AgentRequest request, ReplyContext reply) {
         Objects.requireNonNull(request, "request");
         Objects.requireNonNull(reply, "reply");
+        long startedNanos = System.nanoTime();
         AgentRequest resolved = resolveSession(request);
         bindEgress(resolved, reply);
         return taskControlClient.resume(new ResumeCommand(null, resolved))
-                .thenApply(result -> toAccepted(resolved, result));
+                .thenApply(result -> {
+                    LOGGER.info("trace stage=access-resume tenantId={} userId={} agentId={} sessionId={} taskId={} accepted={} durationMs={}",
+                            resolved.tenantId(),
+                            resolved.userId(),
+                            resolved.agentId(),
+                            resolved.sessionId(),
+                            result.taskId(),
+                            result.accepted(),
+                            elapsedMs(startedNanos));
+                    return toAccepted(resolved, result);
+                });
     }
 
     public CompletionStage<AccessAcceptedResponse> cancel(AccessCancelCommand command) {
         Objects.requireNonNull(command, "command");
+        long startedNanos = System.nanoTime();
         CancelCommand cancelCommand = new CancelCommand(
                 command.tenantId(),
                 command.userId(),
@@ -82,7 +105,17 @@ public final class AccessSubmissionService {
                 command.taskId(),
                 command.reason(),
                 command.metadata());
-        return taskControlClient.cancel(cancelCommand).thenApply(result -> toAccepted(command, result));
+        return taskControlClient.cancel(cancelCommand).thenApply(result -> {
+            LOGGER.info("trace stage=access-cancel tenantId={} userId={} agentId={} sessionId={} taskId={} accepted={} durationMs={}",
+                    command.tenantId(),
+                    command.userId(),
+                    command.agentId(),
+                    command.sessionId(),
+                    result.taskId(),
+                    result.accepted(),
+                    elapsedMs(startedNanos));
+            return toAccepted(command, result);
+        });
     }
 
     private void bindEgress(AgentRequest request, ReplyContext reply) {
@@ -140,5 +173,9 @@ public final class AccessSubmissionService {
                 result.taskId(),
                 result.accepted(),
                 result.message());
+    }
+
+    private static long elapsedMs(long startedNanos) {
+        return (System.nanoTime() - startedNanos) / 1_000_000L;
     }
 }

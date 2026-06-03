@@ -9,8 +9,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class TaskQueueRegistry {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TaskQueueRegistry.class);
 
     private final QueueManager queueManager;
     private final ConcurrentMap<SessionKey, SessionTasks> sessions = new ConcurrentHashMap<>();
@@ -24,6 +28,13 @@ final class TaskQueueRegistry {
         SessionTasks session = session(task.getTenantId(), task.getSessionId());
         session.tasksById().put(task.getTaskId(), task);
         session.queue().offer(task);
+        LOGGER.info("task queue add tenantId={} sessionId={} taskId={} agentId={} state={} sessionTaskCount={}",
+                task.getTenantId(),
+                task.getSessionId(),
+                task.getTaskId(),
+                task.getAgentId(),
+                task.getState(),
+                session.tasksById().size());
     }
 
     Optional<Task> findTask(String tenantId, String sessionId, String taskId) {
@@ -41,9 +52,14 @@ final class TaskQueueRegistry {
 
     private SessionTasks session(String tenantId, String sessionId) {
         SessionKey key = new SessionKey(tenantId, sessionId);
-        return sessions.computeIfAbsent(key, ignored -> new SessionTasks(
-                queueManager.getOrCreate(queueId(key), Task.class),
-                new ConcurrentHashMap<>()));
+        return sessions.computeIfAbsent(key, ignored -> {
+            String queueId = queueId(key);
+            LOGGER.info("task queue session create tenantId={} sessionId={} queueId={}",
+                    key.tenantId(), key.sessionId(), queueId);
+            return new SessionTasks(
+                    queueManager.getOrCreate(queueId, Task.class),
+                    new ConcurrentHashMap<>());
+        });
     }
 
     private static String queueId(SessionKey key) {
