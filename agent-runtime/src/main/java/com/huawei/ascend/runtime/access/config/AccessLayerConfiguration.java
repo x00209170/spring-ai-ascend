@@ -49,7 +49,7 @@ public class AccessLayerConfiguration {
                 .build();
         return AgentCard.builder()
                 .name("spring-ai-ascend-agent")
-                .description("A2A access layer for spring-ai-ascend agent service.")
+                .description("A2A access layer for spring-ai-ascend agent runtime.")
                 .url("/a2a")
                 .version("0.1.0")
                 .provider(new AgentProvider("spring-ai-ascend", "http://localhost:8080"))

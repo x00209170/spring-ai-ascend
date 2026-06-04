@@ -1,4 +1,4 @@
-package com.huawei.ascend.samples.a2a;
+package com.huawei.ascend.examples.a2a;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Test;
 class A2aClientPerspectiveTest {
 
     @Test
-    void sampleClientUsesA2aSdkInsteadOfHandWrittenHttpOrTaskPolling() throws IOException {
-        List<Path> javaFiles = javaFiles(Path.of("src/main/java/com/huawei/ascend/samples/a2a"));
-        javaFiles.addAll(javaFiles(Path.of("src/test/java/com/huawei/ascend/samples/a2a")));
+    void exampleClientUsesA2aSdkInsteadOfHandWrittenHttpOrTaskPolling() throws IOException {
+        List<Path> javaFiles = javaFiles(Path.of("src/main/java/com/huawei/ascend/examples/a2a"));
+        javaFiles.addAll(javaFiles(Path.of("src/test/java/com/huawei/ascend/examples/a2a")));
 
         String source = readAll(javaFiles);
 

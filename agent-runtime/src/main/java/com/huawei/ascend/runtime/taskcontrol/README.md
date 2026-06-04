@@ -1,4 +1,4 @@
-# Agent Service Task-Centric Control 实现说明
+# Agent Runtime Task-Centric Control 实现说明
 
 本文说明当前 Internal Event Queue（IEQ）与 Task-Centric Control（TCC）的本地实现、接口边界、用户流程和最小验证方式。
 
@@ -15,12 +15,12 @@
 ## 2. 代码结构
 
 ```text
-agent-service/src/main/java/com/huawei/ascend/service/queue/
+agent-runtime/src/main/java/com/huawei/ascend/runtime/queue/
   InternalEventQueue.java
   InMemoryInternalEventQueue.java
   QueueManager.java
 
-agent-service/src/main/java/com/huawei/ascend/service/taskcontrol/
+agent-runtime/src/main/java/com/huawei/ascend/runtime/taskcontrol/
   Task.java
   TaskState.java
   TaskFailureCode.java
@@ -33,11 +33,11 @@ agent-service/src/main/java/com/huawei/ascend/service/taskcontrol/
   config/
     TaskControlAutoConfiguration.java
 
-agent-service/src/test/java/com/huawei/ascend/service/taskcontrol/test/
+agent-runtime/src/test/java/com/huawei/ascend/runtime/taskcontrol/test/
   TaskControlServiceWhiteboxTest.java
   TaskflowEngineBridgeWhiteboxTest.java
 
-agent-service/src/test/java/com/huawei/ascend/service/queue/
+agent-runtime/src/test/java/com/huawei/ascend/runtime/queue/
   InternalEventQueueTest.java
   QueueManagerTest.java
 ```
@@ -126,7 +126,7 @@ Engine 侧接口按方向分为三类：
 推荐在 Linux/WSL 环境执行：
 
 ```bash
-./mvnw -pl agent-service -am \
+./mvnw -pl agent-runtime -am \
   -Dtest=InternalEventQueueTest,QueueManagerTest,TaskControlServiceWhiteboxTest,TaskflowEngineBridgeWhiteboxTest \
   -Dsurefire.failIfNoSpecifiedTests=false \
   -Pquality -B -ntp test
@@ -135,7 +135,7 @@ Engine 侧接口按方向分为三类：
 提交前再执行：
 
 ```bash
-./mvnw -pl agent-service -am -Pquality -B -ntp verify
+./mvnw -pl agent-runtime -am -Pquality -B -ntp verify
 ```
 
 最近一次白盒验证应以本地命令输出为准；若重命名 IEQ 或迁移 engine port 包，需要先跑上述 targeted tests。
@@ -164,7 +164,7 @@ Engine 侧接口按方向分为三类：
 1. `InternalEventQueueTest`：并发写入、关闭语义、压力 smoke 和队列时延 smoke。
 2. `TaskControlServiceWhiteboxTest`：正常完成、WAITING 后恢复、FAILED、CANCELLED、revision fencing 和幂等。
 3. `AgentServiceEndToEndIT`：A2A 正常完成、WAITING 后恢复、FAILED 结果、异常结果和 CANCEL。
-4. `samples/agent-service-a2a-llm-e2e`：通过本地 Ollama `gemma4:e4b` 跑通真实 LLM A2A 端到端样例。
+4. `examples/agent-runtime-a2a-llm-e2e`：通过本地 Ollama `gemma4:e4b` 跑通真实 LLM agent-runtime A2A 端到端样例。
 
 当前观测到的代表性耗时如下：
 

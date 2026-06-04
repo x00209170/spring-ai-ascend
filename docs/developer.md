@@ -45,7 +45,7 @@ curl -X POST http://localhost:8080/v1/runs \
   -d '{"agentId": "my-first-agent", "input": "hello"}'
 ```
 
-For the full step-by-step walkthrough of building the v1.0 reference agent (`loan-review-assistant`), see `samples/finance-loan-review/README.md` (lands in v1.0).
+For the full step-by-step walkthrough of building the v1.0 reference agent (`loan-review-assistant`), see `examples/finance-loan-review/README.md` (lands in v1.0).
 
 ## The 12 stages of an agent's life on this platform
 

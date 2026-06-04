@@ -17,14 +17,14 @@ For each agent your team wants to promote to production, walk this checklist:
 ### 1. Tenant isolation — enforced at storage engine
 
 - **Requirement**: cross-tenant read / write impossible; tenant identity flows from HTTP edge to storage layer.
-- **Where to verify**: every Flyway migration creating a `tenant_id`-bearing table enables Postgres Row-Level Security in the same migration (Rule R-J.a); `agent-service/src/main/java/com/huawei/ascend/service/runtime/**` integration tests under `TenantIsolationIT.java` MUST be green.
+- **Where to verify**: every Flyway migration creating a `tenant_id`-bearing table enables Postgres Row-Level Security in the same migration (Rule R-J.a); runtime tenant identity propagation can be checked in agent-runtime A2A handler/default tests, and any derived production persistence must provide tenant-isolation IT evidence before sign-off.
 - **Evidence for audit submission**: the gate output proving R-J.a passes + the IT report.
 - **What to reject if missing**: any agent persisting state to a table without RLS migration paired in the same change.
 
 ### 2. Identity delegation — every action ties to a user
 
 - **Requirement**: when an agent calls a downstream business system, the call carries the **end-user's** identity (e.g., credit officer's OAuth token), NOT a service principal.
-- **Where to verify**: §4 #56 (JWT validation + tenant claim cross-check at every public endpoint); `agent-service/.../IamBridgeIT.java`; identity propagation through `SecurityContextHolder` to outbound `WebClient` calls.
+- **Where to verify**: §4 #56 (JWT validation + tenant claim cross-check at every public endpoint); derived production wiring must provide an identity-propagation trace through `SecurityContextHolder` to outbound `WebClient` calls.
 - **Evidence for audit submission**: end-to-end identity-propagation trace showing `userId=<credit-officer-id>` on every downstream call in a sample Run.
 - **What to reject if missing**: any agent where downstream calls use service-principal identity for user-initiated work.
 
@@ -67,7 +67,7 @@ The v1.0 release (2026-06-30) ships these compliance-officer-facing artefacts:
 - `docs/contracts/audit-trail.v1.yaml` — schema
 - `docs/governance/sandbox-policies.yaml#financial_default` — financial baseline
 - `docs/model-risk/_template.md` — SR 11-7-aligned model risk doc template
-- `samples/finance-loan-review/COMPLIANCE-REVIEW.md` — worked example for the v1.0 reference agent showing all 7 checklist items
+- `examples/finance-loan-review/COMPLIANCE-REVIEW.md` — worked example for the v1.0 reference agent showing all 7 checklist items
 - `docs/compliance/regulatory-mapping.md` — maps the platform's enforced behaviour to JR/T 0223-2021 sections + 等保 2.0/3.0 controls + SOC 2 CC controls
 
 ## When you need to dig deeper

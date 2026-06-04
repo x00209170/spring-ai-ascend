@@ -1,4 +1,4 @@
-package com.huawei.ascend.samples.a2a;
+package com.huawei.ascend.examples.a2a;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

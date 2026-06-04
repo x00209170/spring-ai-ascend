@@ -85,18 +85,18 @@ agentscope 仅用于借鉴"框架 / runtime / agent 应用"的三层切分与代
 ## 5. Agent 应用模块形态（决策：独立 Maven 模块）
 
 **决策（已确认，选项 B）**：开发者的"具体 agent 子类"作为**独立 Maven 模块**存在，
-放在仓库已有的 `samples/` 顶层目录下，照 `samples/finance-loan-review/` 现成样板。
+放在仓库已有的 `examples/` 顶层目录下，照 `examples/finance-loan-review/` 现成样板。
 
 依据真实结构核实：
 - 根 `pom.xml` 为 `packaging=pom` 多模块聚合，现有 8 个模块；
-- `samples/` 是顶层目录，已有先例 `samples/finance-loan-review/`（独立模块，已被 git 跟踪）；
+- `examples/` 是顶层目录，已有先例 `examples/finance-loan-review/`（独立模块，已被 git 跟踪）；
 - 该 sample 的 pom 注释明言："intentionally NOT listed in the root reactor by default…
   Add it to the root reactor explicitly when you want the full build to compile and test it."
 
 即 sample 模块**不挂进根 `<modules>`**，按需显式加入构建。这与"engine 是核心工作区、
 在外部加 example 模块合理、不破坏 agent-service 边界"的约束一致。
 
-### 5.1 新模块 pom 骨架（仿 `samples/finance-loan-review` 样板）
+### 5.1 新模块 pom 骨架（仿 `examples/finance-loan-review` 样板）
 
 ```xml
 <project ...>

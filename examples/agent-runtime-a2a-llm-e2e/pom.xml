@@ -11,13 +11,13 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>agent-service-a2a-llm-e2e-sample</artifactId>
+  <artifactId>agent-runtime-a2a-llm-e2e-example</artifactId>
   <packaging>jar</packaging>
-  <name>spring-ai-ascend agent-service A2A LLM E2E sample</name>
+  <name>spring-ai-ascend agent-runtime A2A LLM E2E example</name>
   <description>
-    End-to-end sample that starts an agent-service runtime hosting a real
-    openJiuwen ReActAgent, calls it only through the A2A JSON-RPC HTTP
-    endpoint, and verifies a real OpenAI-compatible LLM response.
+    End-to-end example that starts agent-runtime, hosts an openJiuwen ReActAgent,
+    calls it only through the A2A JSON-RPC HTTP endpoint, and verifies a real
+    OpenAI-compatible local LLM response.
   </description>
 
   <properties>
@@ -27,7 +27,7 @@
   <dependencies>
     <dependency>
       <groupId>com.huawei.ascend</groupId>
-      <artifactId>agent-service</artifactId>
+      <artifactId>agent-runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
