@@ -1188,7 +1188,7 @@ git commit -m "feat(engine): EngineProperties and auto-configuration wiring"
 **Files:**
 - Create: `samples/openjiuwen-echo-agent/pom.xml`, `.../src/main/java/com/huawei/ascend/samples/openjiuwen/EchoOpenJiuwenAgentFactory.java`, `.../src/main/resources/apiconfig.json.template`, `.../.gitignore`, `.../README.md`
 
-- [ ] **Step 1: pom.xml（仿 samples/finance-loan-review，不挂根 reactor）**
+- [ ] **Step 1: pom.xml（仿 examples/finance-loan-review，不挂根 reactor）**
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>

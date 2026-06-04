@@ -1,4 +1,4 @@
-package com.huawei.ascend.samples.a2a;
+package com.huawei.ascend.examples.a2a;
 
 import java.net.URI;
 import java.time.Duration;

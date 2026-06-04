@@ -2,7 +2,7 @@ package com.huawei.ascend.runtime.access.protocol.a2a;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "agent-service.access.a2a")
+@ConfigurationProperties(prefix = "agent-runtime.access.a2a")
 public class A2aAccessProperties {
 
     private String defaultTenantId;

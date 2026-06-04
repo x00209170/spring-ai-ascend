@@ -1,4 +1,4 @@
-package com.huawei.ascend.samples.a2a;
+package com.huawei.ascend.examples.a2a;
 
 import com.huawei.ascend.runtime.dispatch.adapter.openjiuwen.OpenJiuwenAgentHandler;
 import com.huawei.ascend.runtime.dispatch.handler.AgentExecutionContext;
@@ -26,7 +26,7 @@ public class OpenJiuwenReactAgentConfiguration {
     AgentHandler openJiuwenReactAgentHandler(
             @Value("${sample.openjiuwen.model-provider:${SAA_SAMPLE_OPENJIUWEN_MODEL_PROVIDER:openai}}")
             String modelProvider,
-            @Value("${sample.openjiuwen.api-key:${SAA_SAMPLE_LLM_API_KEY:}}") String apiKey,
+            @Value("${sample.openjiuwen.api-key:${SAA_SAMPLE_LLM_API_KEY:sk-x00550472}}") String apiKey,
             @Value("${sample.openjiuwen.api-base:${SAA_SAMPLE_OPENJIUWEN_API_BASE:http://localhost:4000/v1}}")
             String apiBase,
             @Value("${sample.openjiuwen.model-name:${SAA_SAMPLE_LLM_MODEL:gpt-5.4-mini}}") String modelName,
@@ -39,7 +39,8 @@ public class OpenJiuwenReactAgentConfiguration {
         private static final Logger LOGGER = LoggerFactory.getLogger(SampleOpenJiuwenReactAgentHandler.class);
         private static final String SYSTEM_PROMPT = """
                 You are a concise assistant exposed only through the A2A protocol.
-                Reply to the user's message directly and briefly.
+                If the user's message is exactly ping, reply exactly pong and nothing else.
+                For all other messages, reply to the user's message directly and briefly.
                 """;
 
         private final String modelProvider;
@@ -65,7 +66,7 @@ public class OpenJiuwenReactAgentConfiguration {
         @Override
         public Stream<?> execute(AgentExecutionContext context) {
             try {
-                LOGGER.info("sample openjiuwen execute start tenantId={} sessionId={} taskId={} agentId={} provider={} apiBase={} model={}",
+                LOGGER.info("example openjiuwen execute start tenantId={} sessionId={} taskId={} agentId={} provider={} apiBase={} model={}",
                         context.getScope().tenantId(),
                         context.getScope().sessionId(),
                         context.getScope().taskId(),
@@ -76,14 +77,14 @@ public class OpenJiuwenReactAgentConfiguration {
                 ReActAgent agent = buildAgent();
                 Object input = toOpenJiuwenInput(context);
                 Object result = Runner.runAgent(agent, input, null, null);
-                LOGGER.info("sample openjiuwen execute finished tenantId={} sessionId={} taskId={} resultType={}",
+                LOGGER.info("example openjiuwen execute finished tenantId={} sessionId={} taskId={} resultType={}",
                         context.getScope().tenantId(),
                         context.getScope().sessionId(),
                         context.getScope().taskId(),
                         result == null ? "null" : result.getClass().getName());
                 return Stream.of(result);
             } catch (Exception e) {
-                LOGGER.warn("sample openjiuwen execute failed tenantId={} sessionId={} taskId={} errorClass={} message={}",
+                LOGGER.warn("example openjiuwen execute failed tenantId={} sessionId={} taskId={} errorClass={} message={}",
                         context.getScope().tenantId(),
                         context.getScope().sessionId(),
                         context.getScope().taskId(),
@@ -99,7 +100,7 @@ public class OpenJiuwenReactAgentConfiguration {
             AgentCard card = AgentCard.builder()
                     .id(AGENT_ID)
                     .name(AGENT_ID)
-                    .description("Sample openJiuwen ReAct agent served by agent-service A2A.")
+                    .description("Example openJiuwen ReAct agent served by agent-runtime A2A.")
                     .build();
             ReActAgent agent = new ReActAgent(card);
             ReActAgentConfig config = ReActAgentConfig.builder()
@@ -108,8 +109,8 @@ public class OpenJiuwenReactAgentConfiguration {
                     .build()
                     .configureModelClient(modelProvider, apiKey, apiBase, modelName, sslVerify);
             ModelRequestConfig modelConfig = config.getModelConfigObj();
-            modelConfig.setTemperature(0.1);
-            modelConfig.setMaxTokens(256);
+            modelConfig.setTemperature(0.0);
+            modelConfig.setMaxTokens(64);
             agent.configure(config);
             return agent;
         }

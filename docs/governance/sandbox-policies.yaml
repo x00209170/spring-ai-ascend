@@ -37,7 +37,7 @@ default_policy:
 # Financial-vertical baseline (v1.0 PC-003 + Persona-F mandate).
 #
 # Applies to v1.0 reference agents: loan-review-assistant, AML-screener,
-# fraud-checker (see samples/finance-loan-review/). Conservative posture:
+# fraud-checker (see examples/finance-loan-review/). Conservative posture:
 # outbound internet denied by default, filesystem writes confined to a
 # scratch directory, CPU/memory/wall-clock bounded, PII MUST be redacted
 # before reaching the model gateway.
