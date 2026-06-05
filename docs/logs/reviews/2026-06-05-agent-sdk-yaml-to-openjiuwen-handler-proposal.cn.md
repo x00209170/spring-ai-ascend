@@ -85,7 +85,7 @@ agent-runtime -/-> agent-sdk
 
 ### 3.1 模块定位
 
-`agent-sdk` 是面向客户代码的轻量 SDK，职责是：
+`agent-sdk` 是面向客户代码的轻量 SDK，具体职责是：
 
 ```text
 YAML 描述 / 已有框架 Agent 实例
