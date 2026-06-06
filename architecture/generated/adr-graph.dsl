@@ -638,14 +638,14 @@ adr_ADR_0158 = element "ADR-0158" "ADR" "Engine Boundary (EnginePort) — transp
     }
 }
 
-adr_ADR_0159 = element "ADR-0159" "ADR" "agent-runtime consolidation — the runtime SDK (today mislabelled agent-service) and the execution engine merge into one run-owning agent-runtime module; agent-service is re-founded as the enterpris..." "SAA ADR" {
+adr_ADR_0160 = element "ADR-0160" "ADR" "Neutral execution core supersedes the dual-mode / EnginePort engine-contract mechanism — agent-runtime rebuilt on RunCoordinator / AgentDriver / OutputConverter" "SAA ADR" {
     properties {
-        "saa.id" "ADR-0159"
+        "saa.id" "ADR-0160"
         "saa.kind" "adr"
         "saa.level" "L1"
         "saa.view" "development"
         "saa.status" "shipped"
-        "saa.adrId" "ADR-0159"
+        "saa.adrId" "ADR-0160"
         "saa.adrStatus" "accepted"
     }
 }
@@ -1110,37 +1110,12 @@ adr_ADR_0158 -> adr_ADR_0156 "adr-yaml: relates_to" "SAA Relationship" {
         "saa.rel" "relates_to"
     }
 }
-adr_ADR_0159 -> adr_ADR_0158 "adr-yaml: supersedes" "SAA Relationship" {
-    properties {
-        "saa.rel" "supersedes"
-    }
-}
-adr_ADR_0159 -> adr_ADR_0101 "adr-yaml: extends" "SAA Relationship" {
-    properties {
-        "saa.rel" "extends"
-    }
-}
-adr_ADR_0159 -> adr_ADR_0156 "adr-yaml: extends" "SAA Relationship" {
-    properties {
-        "saa.rel" "extends"
-    }
-}
-adr_ADR_0159 -> adr_ADR_0138 "adr-yaml: relates_to" "SAA Relationship" {
+adr_ADR_0160 -> adr_ADR_0071 "adr-yaml: relates_to" "SAA Relationship" {
     properties {
         "saa.rel" "relates_to"
     }
 }
-adr_ADR_0159 -> adr_ADR_0140 "adr-yaml: relates_to" "SAA Relationship" {
-    properties {
-        "saa.rel" "relates_to"
-    }
-}
-adr_ADR_0159 -> adr_ADR_0155 "adr-yaml: relates_to" "SAA Relationship" {
-    properties {
-        "saa.rel" "relates_to"
-    }
-}
-adr_ADR_0159 -> adr_ADR_0158 "adr-yaml: relates_to" "SAA Relationship" {
+adr_ADR_0160 -> adr_ADR_0158 "adr-yaml: relates_to" "SAA Relationship" {
     properties {
         "saa.rel" "relates_to"
     }
