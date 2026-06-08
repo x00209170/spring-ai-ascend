@@ -6,6 +6,7 @@ import com.huawei.ascend.runtime.access.output.RuntimeOutputHandle;
 import com.huawei.ascend.runtime.common.AgentResponseEvent;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -19,13 +20,18 @@ public final class A2aOutputRegistry {
     private final ConcurrentMap<A2aOutputHandle, CopyOnWriteArrayList<A2aOutput>> outputs = new ConcurrentHashMap<>();
 
     public void append(A2aOutputHandle handle, A2aOutput output) {
+        append(handle, output, toResponseEvent(handle, output, nextSequence(handle)));
+    }
+
+    public void append(A2aOutputHandle handle, A2aOutput output, AgentResponseEvent event) {
+        Objects.requireNonNull(event, "event");
         CopyOnWriteArrayList<A2aOutput> buffer = outputs.computeIfAbsent(handle, ignored -> new CopyOnWriteArrayList<>());
         synchronized (buffer) {
             if (buffer.stream().anyMatch(A2aOutput::terminal)) {
                 return;
             }
             buffer.add(output);
-            channels.getOrCreate(toRuntimeHandle(handle)).write(RuntimeOutput.from(toResponseEvent(handle, output, buffer.size())));
+            channels.getOrCreate(toRuntimeHandle(handle)).write(RuntimeOutput.from(event));
         }
     }
 
@@ -47,6 +53,10 @@ public final class A2aOutputRegistry {
 
     private RuntimeOutputHandle toRuntimeHandle(A2aOutputHandle handle) {
         return new RuntimeOutputHandle(handle.tenantId(), handle.sessionId(), handle.taskId());
+    }
+
+    private int nextSequence(A2aOutputHandle handle) {
+        return outputs.getOrDefault(handle, new CopyOnWriteArrayList<>()).size() + 1;
     }
 
     private AgentResponseEvent toResponseEvent(A2aOutputHandle handle, A2aOutput output, int sequence) {
