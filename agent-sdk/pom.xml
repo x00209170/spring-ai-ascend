@@ -14,14 +14,21 @@
   <name>agent-sdk</name>
   <description>Lightweight customer SDK that converts agent YAML or framework instances into runtime AgentHandler instances.</description>
 
+  <properties>
+    <agent-runtime.version>0.1.0-SNAPSHOT</agent-runtime.version>
+    <openjiuwen.agent-core.version>0.1.7</openjiuwen.agent-core.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.huawei.ascend</groupId>
       <artifactId>agent-runtime</artifactId>
+      <version>${agent-runtime.version}</version>
     </dependency>
     <dependency>
       <groupId>com.openjiuwen</groupId>
       <artifactId>agent-core-java</artifactId>
+      <version>${openjiuwen.agent-core.version}</version>
     </dependency>
     <dependency>
       <groupId>org.yaml</groupId>

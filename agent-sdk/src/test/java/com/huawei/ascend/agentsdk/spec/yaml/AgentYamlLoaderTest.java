@@ -7,16 +7,14 @@ import com.huawei.ascend.agentsdk.spec.AgentSpec;
 import com.huawei.ascend.agentsdk.support.ValidationException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 class AgentYamlLoaderTest {
 
-    @TempDir
-    Path tempDir;
-
     @Test
     void loadsYamlWithToolsAndSkillsResolvedRelativeToYamlFile() throws Exception {
+        Path tempDir = testDirectory("loads");
         Path skill = Files.createDirectories(tempDir.resolve("skills").resolve("orders"));
         Files.writeString(skill.resolve("SKILL.md"), "# Order Skill\n");
         Path yaml = tempDir.resolve("agent.yaml");
@@ -62,6 +60,7 @@ class AgentYamlLoaderTest {
 
     @Test
     void rejectsMissingEnvironmentVariable() throws Exception {
+        Path tempDir = testDirectory("rejects-missing-env");
         Path yaml = tempDir.resolve("agent.yaml");
         Files.writeString(yaml, """
                 schema: ascend-agent/v1
@@ -80,6 +79,11 @@ class AgentYamlLoaderTest {
         assertThatThrownBy(() -> new AgentYamlLoader().load(yaml))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ASCEND_AGENT_SDK_TEST_MISSING");
+    }
+
+    private static Path testDirectory(String name) throws Exception {
+        return Files.createDirectories(Path.of("target", "agent-yaml-loader-test", name,
+                UUID.randomUUID().toString()));
     }
 }
 
