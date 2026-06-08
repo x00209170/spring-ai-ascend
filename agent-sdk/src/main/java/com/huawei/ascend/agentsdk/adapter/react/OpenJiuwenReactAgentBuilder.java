@@ -87,7 +87,7 @@ public final class OpenJiuwenReactAgentBuilder {
     private void registerTools(BaseAgent agent, String agentId, List<Tool> tools) {
         for (Tool tool : tools) {
             agent.getAbilityManager().add(tool.getCard());
-            Runner.resourceMgr().addTool(tool, agentId, true);
+            Runner.resourceMgr().addTool(tool, agentId);
         }
     }
 

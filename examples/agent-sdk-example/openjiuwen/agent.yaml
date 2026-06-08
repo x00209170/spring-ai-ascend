@@ -16,7 +16,7 @@ model:
   provider: OpenAI
   name: deepseek-chat
   baseUrl: https://api.deepseek.com
-  apiKey: sk-477d5329c3c84ef8931328f80ca11f0d
+  apiKey:
   sslVerify: true
 
 prompt:

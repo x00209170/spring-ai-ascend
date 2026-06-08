@@ -11,7 +11,6 @@ import com.huawei.ascend.agentsdk.spec.yaml.AgentYamlLoader;
 import com.huawei.ascend.agentsdk.support.UnsupportedFrameworkException;
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
 import com.openjiuwen.core.singleagent.ReActAgent;
-import com.openjiuwen.harness.deep_agent.DeepAgent;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +46,7 @@ public final class AgentHandlerFactoryBuilder {
         return toReactAgent(new AgentYamlLoader().load(yamlPath));
     }
 
-    public DeepAgent toDeepAgent(Path yamlPath) {
+    public Object toDeepAgent(Path yamlPath) {
         return toDeepAgent(new AgentYamlLoader().load(yamlPath));
     }
 
@@ -55,8 +54,8 @@ public final class AgentHandlerFactoryBuilder {
         if (agent instanceof ReActAgent reactAgent) {
             return OpenJiuwenReactAgentBuilder.toHandler(name, reactAgent);
         }
-        if (agent instanceof DeepAgent deepAgent) {
-            return OpenJiuwenDeepAgentBuilder.toHandler(name, deepAgent);
+        if (OpenJiuwenDeepAgentBuilder.supports(agent)) {
+            return OpenJiuwenDeepAgentBuilder.toHandler(name, agent);
         }
         throw new UnsupportedFrameworkException("Unsupported OpenJiuwen agent instance: "
                 + (agent == null ? "null" : agent.getClass().getName()));
@@ -73,7 +72,7 @@ public final class AgentHandlerFactoryBuilder {
         return new OpenJiuwenReactAgentBuilder(toolResolvers()).buildAgent(spec);
     }
 
-    private DeepAgent toDeepAgent(AgentSpec spec) {
+    private Object toDeepAgent(AgentSpec spec) {
         if (!"openjiuwen".equalsIgnoreCase(spec.frameworkType()) || !"deepagent".equalsIgnoreCase(spec.agentType())) {
             throw unsupportedSpec(spec);
         }

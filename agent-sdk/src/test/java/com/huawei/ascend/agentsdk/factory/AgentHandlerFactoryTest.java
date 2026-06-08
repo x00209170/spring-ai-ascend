@@ -2,7 +2,7 @@ package com.huawei.ascend.agentsdk.factory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.huawei.ascend.runtime.engine.openjiuwen.OpenJiuwenAgentRuntimeHandler;
+import com.huawei.ascend.runtime.engine.adapters.openjiuwen.OpenJiuwenAgentRuntimeHandler;
 import com.huawei.ascend.runtime.engine.handler.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.model.EngineExecutionScope;
 import com.huawei.ascend.runtime.engine.model.EngineInput;
@@ -11,7 +11,6 @@ import com.huawei.ascend.runtime.schema.Message;
 import com.openjiuwen.core.foundation.tool.Tool;
 import com.openjiuwen.core.runner.Runner;
 import com.openjiuwen.core.singleagent.ReActAgent;
-import com.openjiuwen.harness.deep_agent.DeepAgent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -41,10 +40,10 @@ class AgentHandlerFactoryTest {
     void exposesYamlToDeepAgentThenDeepAgentToHandlerSteps() throws Exception {
         Path yaml = exampleYaml("deepagent");
 
-        DeepAgent agent = AgentHandlerFactory.toDeepAgent(yaml);
+        Object agent = AgentHandlerFactory.toDeepAgent(yaml);
         AgentRuntimeHandler handler = AgentHandlerFactory.toHandler("sdk-example-agent", agent);
 
-        assertThat(agent).isInstanceOf(DeepAgent.class);
+        assertThat(agent).isNotNull();
         assertThat(handler).isInstanceOf(OpenJiuwenAgentRuntimeHandler.class);
         assertThat(handler.agentId()).isEqualTo("sdk-example-agent");
     }

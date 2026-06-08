@@ -2,7 +2,6 @@ package com.huawei.ascend.agentsdk.factory;
 
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
 import com.openjiuwen.core.singleagent.ReActAgent;
-import com.openjiuwen.harness.deep_agent.DeepAgent;
 import java.nio.file.Path;
 
 public final class AgentHandlerFactory {
@@ -17,7 +16,7 @@ public final class AgentHandlerFactory {
         return builder().toReactAgent(yamlPath);
     }
 
-    public static DeepAgent toDeepAgent(Path yamlPath) {
+    public static Object toDeepAgent(Path yamlPath) {
         return builder().toDeepAgent(yamlPath);
     }
 
