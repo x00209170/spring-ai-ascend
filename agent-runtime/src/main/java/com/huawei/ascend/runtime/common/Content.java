@@ -1,4 +1,4 @@
-package com.huawei.ascend.runtime.schema;
+package com.huawei.ascend.runtime.common;
 
 import java.util.Map;
 import java.util.Objects;

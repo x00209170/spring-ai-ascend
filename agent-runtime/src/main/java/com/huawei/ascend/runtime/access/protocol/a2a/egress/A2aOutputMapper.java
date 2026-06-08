@@ -54,8 +54,8 @@ public final class A2aOutputMapper {
         String requestId = metadataValue(notification, "requestId", notification.taskId());
         String userId = metadataValue(notification, "userId", "");
         String agentId = metadataValue(notification, "agentId", "a2a");
-        if (notification.error() != null || notification.status() == com.huawei.ascend.runtime.schema.RunStatus.FAILED
-                || notification.status() == com.huawei.ascend.runtime.schema.RunStatus.REJECTED) {
+        if (notification.error() != null || notification.status() == com.huawei.ascend.runtime.common.RunStatus.FAILED
+                || notification.status() == com.huawei.ascend.runtime.common.RunStatus.REJECTED) {
             RunError error = notification.error() == null
                     ? new RunError(notification.status().wire(), outputText(notification))
                     : notification.error();
@@ -161,7 +161,7 @@ public final class A2aOutputMapper {
             return "%s: %s".formatted(error.code(), error.message());
         }
         StringBuilder text = new StringBuilder();
-        for (com.huawei.ascend.runtime.schema.Message message : notification.output()) {
+        for (com.huawei.ascend.runtime.common.Message message : notification.output()) {
             text.append(message.text());
         }
         return text.toString();

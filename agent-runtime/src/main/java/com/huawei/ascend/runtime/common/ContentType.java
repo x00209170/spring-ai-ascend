@@ -1,4 +1,4 @@
-package com.huawei.ascend.runtime.schema;
+package com.huawei.ascend.runtime.common;
 
 /**
  * Canonical content-type discriminators for {@link Content}.
