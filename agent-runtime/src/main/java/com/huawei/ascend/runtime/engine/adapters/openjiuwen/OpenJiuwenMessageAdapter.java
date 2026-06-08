@@ -1,4 +1,4 @@
-package com.huawei.ascend.runtime.engine.openjiuwen;
+package com.huawei.ascend.runtime.engine.adapters.openjiuwen;
 
 import com.huawei.ascend.runtime.engine.handler.AgentExecutionContext;
 import com.huawei.ascend.runtime.schema.Message;

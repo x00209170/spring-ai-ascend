@@ -1,4 +1,4 @@
-package com.huawei.ascend.runtime.engine.openjiuwen;
+package com.huawei.ascend.runtime.engine.adapters.openjiuwen;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

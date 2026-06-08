@@ -25,6 +25,17 @@ class A2aOutputRegistryTest {
     }
 
     @Test
+    void listPreservesTerminalOutputForReplayCompatibility() {
+        A2aOutputRegistry registry = new A2aOutputRegistry();
+        A2aOutputHandle handle = new A2aOutputHandle("tenant-1", "session-1", "task-1");
+        registry.append(handle, output("task-1", false));
+        registry.append(handle, output("task-1", true));
+
+        assertThat(registry.list(handle)).hasSize(2);
+        assertThat(registry.list(handle).get(1).terminal()).isTrue();
+    }
+
+    @Test
     void newSubscribersReplayOpenStreamOutputs() {
         A2aOutputRegistry registry = new A2aOutputRegistry();
         A2aOutputHandle handle = new A2aOutputHandle("tenant-1", "session-1", "task-1");
