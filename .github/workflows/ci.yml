@@ -10,9 +10,10 @@ jobs:
   build:
     name: Maven build + integration tests
     runs-on: ubuntu-latest
-    # Hard ceiling so a deadlocked test fork can never burn a 6h runner. Normal
-    # runs finish in ~3min; this only ever trips on a hung JVM.
-    timeout-minutes: 30
+    # Safety net for the documented Spring Boot 4 concurrent context-boot deadlock risk:
+    # bound the whole job so a stuck fork fails in minutes instead of burning the default
+    # ~6h runner allotment. Pairs with the per-fork forkedProcessTimeoutInSeconds in pom.xml.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
         with:

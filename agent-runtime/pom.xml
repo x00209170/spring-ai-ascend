@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  agent-runtime: the run-owning runtime SDK developed against to drive Agent
-  instances built on heterogeneous agent frameworks. Owns the neutral execution core
-  (RunCoordinator + the AgentDriver / OutputConverter SPI + the RunEvent model +
-  AgentDriverRegistry + framework adapters), engine dispatch, Run lifecycle, session,
-  task-control, internal event queue, access (A2A), and the bootable runtime
-  application. Self-contained and independently bootable.
+  agent-runtime: the run-owning runtime SDK that drives Agent instances built on
+  heterogeneous agent frameworks through a single framework-neutral SPI
+  (engine.spi.AgentRuntimeHandler + StreamAdapter). Owns engine dispatch
+  (EngineDispatcher + AgentRuntimeHandlerRegistry), Run lifecycle, session,
+  task-centric control, internal event queue, access (A2A), and the pure-Java
+  embeddable entry app.RuntimeApp. Ships as a library.
 
-  Authority: ADR-0160 (neutral execution core supersedes the dual-mode / EnginePort contract).
+  Historical note: ADR-0159 has been archived. Neutral EnginePort / orchestration
+  SPI is consumed from agent-bus (bus.spi.engine); s2c SPI from agent-bus (bus.spi.s2c).
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -29,6 +30,11 @@
     <dependency>
       <groupId>com.huawei.ascend</groupId>
       <artifactId>agent-bus</artifactId>
+    </dependency>
+    <!-- snakeyaml for envelope-schema parsing. -->
+    <dependency>
+      <groupId>org.yaml</groupId>
+      <artifactId>snakeyaml</artifactId>
     </dependency>
 
     <!-- Web + actuator (northbound + bootable app). -->
@@ -238,23 +244,25 @@
       <resource>
         <directory>src/main/resources</directory>
       </resource>
+      <!-- Bundle the S2C callback contract onto the classpath for the access layer.
+           (engine-envelope / engine-hooks are retired by the pure rebuild and are
+           no longer read or shipped on the runtime classpath.) -->
+      <resource>
+        <directory>${project.basedir}/../docs/contracts</directory>
+        <targetPath>docs/contracts</targetPath>
+        <includes>
+          <include>s2c-callback.v1.yaml</include>
+        </includes>
+      </resource>
     </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
       </plugin>
-      <!-- Repackage the bootable runtime app as a `boot`-classifier executable jar.
-           The main jar stays a plain library so agent-service (and other consumers)
-           can depend on agent-runtime without pulling the fat jar. -->
-      <plugin>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-maven-plugin</artifactId>
-        <configuration>
-          <classifier>boot</classifier>
-          <mainClass>com.huawei.ascend.runtime.bootstrap.AgentRuntimeApplication</mainClass>
-        </configuration>
-      </plugin>
+      <!-- agent-runtime ships as a plain library: consumers embed the pure-Java entry
+           `app.RuntimeApp.create(handler).run(LocalA2aRuntimeHost.port(p))`. No executable
+           boot jar / Spring Boot repackage (the retired bootstrap main class is gone). -->
     </plugins>
   </build>
 </project>

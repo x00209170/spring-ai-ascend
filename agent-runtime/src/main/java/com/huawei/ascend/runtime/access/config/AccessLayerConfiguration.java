@@ -11,12 +11,7 @@ import com.huawei.ascend.runtime.access.protocol.a2a.egress.A2aOutputRegistry;
 import com.huawei.ascend.runtime.access.protocol.a2a.egress.DefaultNotificationPort;
 import com.huawei.ascend.runtime.access.protocol.a2a.ingress.A2aJsonRpcController;
 import com.huawei.ascend.runtime.access.protocol.a2a.jsonrpc.A2aJsonRpcHandler;
-import com.huawei.ascend.runtime.access.protocol.async.AsyncQueueIngressAdapter;
-import com.huawei.ascend.runtime.access.protocol.async.AsyncQueueIngressPort;
-import com.huawei.ascend.runtime.access.protocol.async.AsyncQueueReplySink;
-import com.huawei.ascend.runtime.access.protocol.async.DefaultAsyncQueueReplySink;
-import com.huawei.ascend.runtime.engine.spi.AgentDriver;
-import com.huawei.ascend.runtime.queue.QueueManager;
+import com.huawei.ascend.runtime.engine.spi.AbstractAgentRuntimeHandler;
 import java.util.List;
 import java.util.Optional;
 import org.a2aproject.sdk.spec.AgentCapabilities;
@@ -24,7 +19,6 @@ import org.a2aproject.sdk.spec.AgentCard;
 import org.a2aproject.sdk.spec.AgentInterface;
 import org.a2aproject.sdk.spec.AgentProvider;
 import org.a2aproject.sdk.spec.TransportProtocol;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -42,20 +36,18 @@ public class AccessLayerConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AgentCard.class)
-    AgentCard a2aAgentCard(org.springframework.beans.factory.ObjectProvider<AgentDriver> drivers) {
-        // Deterministic first driver — getIfAvailable() throws when more than one AgentDriver bean
-        // exists, which the multi-driver registry explicitly supports; orderedStream() honours @Order.
-        AgentDriver driver = drivers.orderedStream().findFirst().orElse(null);
+    AgentCard a2aAgentCard(Optional<AbstractAgentRuntimeHandler> runtimeAgent) {
+        if (runtimeAgent.isPresent()) {
+            return runtimeAgent.get().agentCard();
+        }
         AgentCapabilities capabilities = AgentCapabilities.builder()
                 .streaming(true)
                 .pushNotifications(true)
                 .extendedAgentCard(false)
                 .build();
         return AgentCard.builder()
-                .name(driver != null ? driver.name() : "spring-ai-ascend-agent")
-                .description(driver != null
-                        ? driver.description()
-                        : "A2A access layer for spring-ai-ascend agent runtime.")
+                .name("spring-ai-ascend-agent")
+                .description("A2A access layer for spring-ai-ascend agent runtime.")
                 .url("/a2a")
                 .version("0.1.0")
                 .provider(new AgentProvider("spring-ai-ascend", "http://localhost:8080"))
@@ -108,20 +100,5 @@ public class AccessLayerConfiguration {
             A2aJsonRpcHandler handler,
             A2aOutputRegistry outputRegistry) {
         return new A2aJsonRpcController(handler, outputRegistry);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(AsyncQueueIngressPort.class)
-    AsyncQueueIngressPort asyncQueueIngressPort(
-            A2aJsonRpcHandler handler,
-            Optional<AsyncQueueReplySink> replySink) {
-        return new AsyncQueueIngressAdapter(handler, replySink);
-    }
-
-    @Bean
-    @ConditionalOnBean(QueueManager.class)
-    @ConditionalOnMissingBean(AsyncQueueReplySink.class)
-    AsyncQueueReplySink asyncQueueReplySink(QueueManager queueManager) {
-        return new DefaultAsyncQueueReplySink(queueManager);
     }
 }

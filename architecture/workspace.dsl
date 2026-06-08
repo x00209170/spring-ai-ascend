@@ -11,7 +11,7 @@
 //          merged into the L1 corpus, `!docs` + `!adrs` directives wired.
 //
 // What this workspace carries (per ADR-0150):
-//   System / Container / Component     -> L1 architecture structure (8 Maven modules)
+//   System / Container / Component     -> L1 architecture structure (4 reactor modules + planned skeletons)
 //   Custom Element + Tags + Properties -> Feature / Capability / FunctionPoint instances
 //   Relationship + saa.rel             -> dependency / implements / verifies / constrains edges
 //   Documentation (!docs)              -> human-reviewable Markdown imported from architecture/docs/

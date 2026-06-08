@@ -16,7 +16,7 @@ genModule_agent_bus = element "agent-bus" "Module" "Bus & State Hub plane — ow
     }
 }
 
-genModule_agent_runtime = element "agent-runtime" "Module" "Run-owning runtime SDK developed against to drive Agent instances built on heterogeneous agent frameworks. Owns the neutral execution core (RunCoordinator + the AgentDriver / OutputConverter SPI + ..." "SAA Module" {
+genModule_agent_runtime = element "agent-runtime" "Module" "Run-owning runtime SDK that drives Agent instances built on heterogeneous agent frameworks through a single framework-neutral SPI (engine.spi.AgentRuntimeHandler + MessageAdapter + StreamAdapter; o..." "SAA Module" {
     properties {
         "saa.id" "GEN-MOD-AGENT_RUNTIME"
         "saa.kind" "module_metadata"
@@ -44,7 +44,7 @@ genModule_agent_service = element "agent-service" "Module" "Enterprise serviceiz
     }
 }
 
-genModule_spring_ai_ascend_dependencies = element "spring-ai-ascend-dependencies" "Module" "Bill of Materials — pins the reactor modules (agent-service, agent-runtime, agent-middleware, agent-bus) and OSS transitive dependency versions." "SAA Module" {
+genModule_spring_ai_ascend_dependencies = element "spring-ai-ascend-dependencies" "Module" "Bill of Materials — pins the reactor modules (agent-service, agent-runtime, agent-bus) and OSS transitive dependency versions." "SAA Module" {
     properties {
         "saa.id" "GEN-MOD-SPRING_AI_ASCEND_DEPENDENCIES"
         "saa.kind" "module_metadata"

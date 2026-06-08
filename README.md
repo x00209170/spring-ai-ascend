@@ -65,17 +65,15 @@ boot-and-first-run walkthrough is in [docs/quickstart.md](docs/quickstart.md).
 
 ## Architecture at a glance
 
-The runtime is split across **5 Maven modules**, each pinned to exactly one of
-five deployment planes so workloads with different runtime characteristics
-(latency-sensitive HTTP, throughput-heavy ML, untrusted sandbox code) never
-share infrastructure:
+The runtime ships as **4 Maven modules**, each pinned to a deployment plane so
+workloads with different runtime characteristics (latency-sensitive HTTP,
+throughput-heavy ML, untrusted sandbox code) never share infrastructure:
 
 | Module | Plane | What it does |
 |--------|-------|--------------|
-| `agent-runtime` | Compute & Control | Run-owning runtime SDK — neutral execution core (`AgentDriver` SPI, `RunCoordinator`, `OutputConverter`), framework adapters (openjiuwen, Dify), `RunEvent` stream, engine dispatch, session/task-control, internal event queue, access (A2A), and the bootable runtime app (ADR-0160) |
-| `agent-runtime-spring-boot-starter-a2a` | Compute & Control | Spring Boot auto-configuration starter for microservice-mode A2A deployment — wires `AgentDriver` beans to A2A serving without an in-process runtime host |
+| `agent-runtime` | Compute & Control | Run-owning runtime SDK — framework-neutral engine (`engine.spi.AgentRuntimeHandler` + `StreamAdapter`, openJiuwen adapter), `Run` lifecycle, engine dispatch, session, task-centric control, internal event queue, access (A2A), and the bootable runtime app (`app.RuntimeApp` / `LocalA2aRuntimeHost`) |
 | `agent-service` | Compute & Control | Enterprise serviceization façade (skeleton) — registration/discovery driving runtime-built Agent instances via agent-runtime (ADR-0159) |
-| `agent-bus` | Bus & State Hub | Cross-plane control surfaces (client→server ingress, server→client callback) |
+| `agent-bus` | Bus & State Hub | Cross-plane control surfaces (client→server ingress, server→client callback) + the neutral `bus.spi.engine` boundary |
 | `spring-ai-ascend-dependencies` | (build-time) | Bill of Materials |
 
 Each module declares its identity in `module-metadata.yaml`, its L1 design in

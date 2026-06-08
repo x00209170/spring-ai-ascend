@@ -220,7 +220,7 @@ featGraphMemory = element "Graph Memory" "Feature" "Tenant-scoped graph memory s
     }
 }
 
-featEngineDispatchAndHooks = element "Engine Dispatch and Hooks" "Feature" "Neutral framework-driver dispatch on the rebuilt execution core (ADR-0160)" "SAA Feature" {
+featEngineDispatchAndHooks = element "Engine Dispatch and Hooks" "Feature" "Typed engine envelope dispatch + middleware hook events" "SAA Feature" {
     properties {
         "saa.id" "FEAT-ENGINE-DISPATCH-AND-HOOKS"
         "saa.productClaim" "PC-004"
@@ -231,17 +231,17 @@ featEngineDispatchAndHooks = element "Engine Dispatch and Hooks" "Feature" "Neut
         "saa.owner" "agent-service"
         "saa.sourceAdr" "ADR-0088"
         "saa.capabilityDomain" "engine-contract"
-        "saa.synopsis" "Owns the engine boundary on the rebuilt neutral execution core (ADR-0160): the access path drives EngineDispatcher, which resolves a per-agent AgentDriver from AgentDriverRegistry and runs it through RunCoordinator; the driver's OutputConverter turns the framework-native stream into the neutral RunEvent stream that flows back to the A2A egress. Each framework's tools / memory / middleware stay inside its adapter (engine.adapters.<framework>) so the runtime is never customised for one framework. Supersedes the retired EngineRegistry dual-mode dispatch + RuntimeMiddleware/HookPoint hook surface."
+        "saa.synopsis" "Owns the engine dispatch boundary: EngineDispatcher routes each accepted EngineCommandEvent to the AgentRuntimeHandler registered for its agentId (AgentRuntimeHandlerRegistry); the engine reports every outcome to a single TaskControlClient port and control is the sole authority that gates caller-facing egress. The framework-neutral engine.spi (AgentRuntimeHandler + StreamAdapter) is the extension surface for new agent frameworks (openJiuwen adapter first); an unknown agentId converges to a terminal AGENT_ID_INVALID."
         "saa.aiBoundary.canModifyCode" "true"
         "saa.aiBoundary.canModifyContracts" "false"
         "saa.aiBoundary.allowedStatusTransitions" "shipped->deprecated"
         "saa.aiBoundary.requiresHumanReviewAt" "deprecated|removed"
         "saa.aiBoundary.sandboxPolicyRef" "docs/governance/sandbox-policies.yaml#default_policy"
-        "saa.devPaths" "agent-runtime/src/main/java/com/huawei/ascend/runtime/engine|agent-runtime/src/main/java/com/huawei/ascend/runtime/dispatch"
-        "saa.goals" "Neutral framework-driver dispatch via RunCoordinator|One I/O-boundary SPI (AgentDriver + OutputConverter) per framework adapter"
-        "saa.nonGoals" "Re-implementing framework-native tools / memory / middleware as runtime-neutral SPIs"
-        "saa.verificationTestFqns" "com.huawei.ascend.runtime.engine.adapters.openjiuwen.OpenJiuwenAgentDriverEngineE2eTest|com.huawei.ascend.runtime.engine.registry.AgentDriverRegistryTest"
-        "saa.verificationCommands" "./mvnw -pl agent-service -am verify|./mvnw -pl agent-runtime -am verify"
+        "saa.devPaths" "agent-runtime/src/main/java/com/huawei/ascend/runtime/engine"
+        "saa.goals" "Framework-neutral dispatch to AgentRuntimeHandler|Single control-plane write authority gating egress"
+        "saa.nonGoals" "Re-introducing the retired EngineRegistry / ExecutorAdapter / envelope-matching island"
+        "saa.verificationTestFqns" "com.huawei.ascend.runtime.engine.EngineDispatcherTest|com.huawei.ascend.runtime.engine.EngineClosedLoopIntegrationTest"
+        "saa.verificationCommands" "./mvnw -pl agent-runtime -am verify"
     }
 }
 
@@ -329,11 +329,6 @@ featEngineDispatchAndHooks -> fpEngineDispatch "engine feature contains dispatch
         "saa.rel" "requires"
     }
 }
-featEngineDispatchAndHooks -> fpHookDispatch "engine feature contains hook dispatch" "SAA Relationship" {
-    properties {
-        "saa.rel" "requires"
-    }
-}
 
 // =============================================================================
 // W4 — agent-service deep-dive feature catalog (rc55 per-layer features).
@@ -367,7 +362,7 @@ efAccessAdmission = element "Access and Admission Frame" "EngineeringFrame" "Pro
     }
 }
 
-efEngineDispatch = element "Engine Dispatch Frame" "EngineeringFrame" "Engine adapter + executor dispatch (service-side)" "SAA EngineeringFrame" {
+efEngineDispatch = element "Engine Dispatch Frame" "EngineeringFrame" "Engine-adapter dispatch (agent-service Layer-4, design_only) — routes an accepted run to the framework-neutral AgentRuntimeHandler via the agent-runtime EngineDispatcher" "SAA EngineeringFrame" {
     properties {
         "saa.id" "EF-ENGINE-DISPATCH"
         "saa.kind" "engineering_frame"
@@ -378,7 +373,7 @@ efEngineDispatch = element "Engine Dispatch Frame" "EngineeringFrame" "Engine ad
         "saa.owner" "agent-service"
         "saa.sourceAdr" "ADR-0138|ADR-0155"
         "saa.capabilityDomain" "agent-service-engine-dispatch"
-        "saa.synopsis" "Layer 4 of the agent-service per-layer architecture (ADR-0138). Owns engine-adapter dispatch (EngineRegistry.resolve(envelope) → typed ExecutorAdapter) and the executor invocation pathway that drives the Run state machine. The deep-dive inventory lives at architecture/docs/L1/agent-service/features/engine-dispatch-execution.md. Cross-cutting policies expressed as RuntimeMiddleware hooks (see FEAT-ENGINE-DISPATCH-AND-HOOKS for the cross-module Engine Contract feature). + ADR-0155 v1.2 absorption adds F48-F65 design-only items."
+        "saa.synopsis" "Layer 4 of the agent-service per-layer architecture (ADR-0138), design_only. Engine-adapter dispatch routes an accepted run to the framework-neutral AgentRuntimeHandler (agent-runtime engine.spi) via EngineDispatcher + AgentRuntimeHandlerRegistry. The deep-dive inventory lives at architecture/docs/L1/agent-service/features/engine-dispatch-execution.md (see FEAT-ENGINE-DISPATCH-AND-HOOKS for the cross-module Engine Contract feature). + ADR-0155 v1.2 absorption adds F48-F65 design-only items."
         "saa.aiBoundary.canModifyCode" "true"
         "saa.aiBoundary.canModifyContracts" "false"
         "saa.aiBoundary.allowedStatusTransitions" "shipped->deprecated"
