@@ -1,0 +1,14 @@
+module: agent-sdk
+kind: domain
+version: 0.1.0-SNAPSHOT
+semver_compatibility: experimental
+description: "Lightweight customer SDK that converts agent YAML descriptions or existing framework instances into agent-runtime AgentHandler implementations."
+architecture_doc: agent-sdk/README.md
+dfx_doc: docs/dfx/agent-sdk.yaml
+spi_packages:
+  - com.huawei.ascend.agentsdk.adapter
+allowed_dependencies:
+  - agent-runtime
+forbidden_dependencies:
+  - agent-service
+deployment_plane: edge
