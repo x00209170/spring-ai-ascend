@@ -104,10 +104,12 @@ class RuntimeRegistryHttpE2eTest {
         String tenant = "tenant-http-gateway";
         AtomicReference<String> forwardedBody = new AtomicReference<>();
         AtomicReference<String> forwardedRuntime = new AtomicReference<>();
+        AtomicReference<String> forwardedGrantId = new AtomicReference<>();
         HttpServer runtime = HttpServer.create(new InetSocketAddress(0), 0);
         runtime.createContext("/a2a", exchange -> {
             forwardedBody.set(new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
             forwardedRuntime.set(exchange.getRequestHeaders().getFirst("X-Agent-Examples-Runtime-Instance"));
+            forwardedGrantId.set(exchange.getRequestHeaders().getFirst("X-Agent-Examples-Route-Grant-Id"));
             byte[] response = "{\"jsonrpc\":\"2.0\",\"id\":\"req-1\",\"result\":{\"ok\":true}}"
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -129,10 +131,17 @@ class RuntimeRegistryHttpE2eTest {
             assertThat(response.body().path("result").path("ok").asBoolean()).isTrue();
             assertThat(forwardedBody.get()).contains("\"method\":\"message/send\"");
             assertThat(forwardedRuntime.get()).isEqualTo("runtime-gateway-1");
+            assertThat(forwardedGrantId.get()).isNotBlank();
             assertThat(response.firstHeader("X-Agent-Examples-Runtime-Instance")).isEqualTo("runtime-gateway-1");
+            assertThat(response.firstHeader("X-Agent-Examples-Route-Grant-Id")).isEqualTo(forwardedGrantId.get());
             assertThat(response.firstHeader("X-Agent-Examples-Route-Resolve-Ms")).isNotBlank();
             assertThat(response.firstHeader("X-Agent-Examples-First-Byte-Ms")).isNotBlank();
             assertThat(response.firstHeader("X-Agent-Examples-Forward-Ms")).isNotBlank();
+            HttpJsonResponse telemetry = get("/v1/a2a-interactions?tenantId=" + tenant
+                    + "&correlationId=corr-gateway&limit=10");
+            assertThat(telemetry.status()).isEqualTo(HttpStatus.OK.value());
+            assertThat(telemetry.body()).hasSize(1);
+            assertThat(telemetry.body().get(0).path("grantId").asText()).isEqualTo(forwardedGrantId.get());
         } finally {
             runtime.stop(0);
         }
@@ -200,7 +209,8 @@ class RuntimeRegistryHttpE2eTest {
                         "sha256:sample",
                         null,
                         Map.of("sample", true)));
-        HttpJsonResponse queryResponse = get("/v1/a2a-interactions?tenantId=" + tenant + "&correlationId=corr-grant");
+        HttpJsonResponse queryResponse = get("/v1/a2a-interactions?tenantId=" + tenant + "&correlationId=corr-grant&limit=10");
+        HttpJsonResponse healthResponse = get("/v1/gateway-health");
 
         assertThat(recordResponse.status()).isEqualTo(HttpStatus.OK.value());
         assertThat(recordResponse.body().path("grantId").asText())
@@ -208,6 +218,9 @@ class RuntimeRegistryHttpE2eTest {
         assertThat(queryResponse.status()).isEqualTo(HttpStatus.OK.value());
         assertThat(queryResponse.body()).hasSize(1);
         assertThat(queryResponse.body().get(0).path("eventType").asText()).isEqualTo("A2A_CALL_FINISHED");
+        assertThat(healthResponse.status()).isEqualTo(HttpStatus.OK.value());
+        assertThat(healthResponse.body().path("registeredRuntimeCount").asInt()).isGreaterThan(0);
+        assertThat(healthResponse.body().path("telemetryEventCount").asLong()).isGreaterThan(0);
     }
 
     private void register(String tenant, String runtimeId, String agentId, String endpoint) {

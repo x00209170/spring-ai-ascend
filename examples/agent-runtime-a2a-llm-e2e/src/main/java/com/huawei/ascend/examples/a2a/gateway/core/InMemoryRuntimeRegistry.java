@@ -5,6 +5,7 @@ import com.huawei.ascend.examples.a2a.gateway.api.RuntimeRegistrationApi;
 import com.huawei.ascend.examples.a2a.gateway.model.AgentCardSummary;
 import com.huawei.ascend.examples.a2a.gateway.model.AgentRouteNotFoundException;
 import com.huawei.ascend.examples.a2a.gateway.model.GatewayErrorCode;
+import com.huawei.ascend.examples.a2a.gateway.model.GatewayHealthSnapshot;
 import com.huawei.ascend.examples.a2a.gateway.model.RoutingContext;
 import com.huawei.ascend.examples.a2a.gateway.model.RuntimeAgentRegistration;
 import com.huawei.ascend.examples.a2a.gateway.model.RuntimeDeregisterResult;
@@ -77,6 +78,22 @@ public final class InMemoryRuntimeRegistry implements RuntimeRegistrationApi, Ag
         refreshExpiredLeases();
         RuntimeRecord removed = records.remove(runtimeInstanceId);
         return new RuntimeDeregisterResult(runtimeInstanceId, RuntimeState.DEREGISTERED, removed != null);
+    }
+
+    public GatewayHealthSnapshot healthSnapshot(long telemetryEventCount) {
+        refreshExpiredLeases();
+        int ready = 0;
+        int unreachable = 0;
+        for (RuntimeRecord record : records.values()) {
+            RuntimeState state = effectiveState(record);
+            if (state == RuntimeState.READY) {
+                ready++;
+            }
+            if (state == RuntimeState.UNREACHABLE) {
+                unreachable++;
+            }
+        }
+        return new GatewayHealthSnapshot(records.size(), ready, unreachable, telemetryEventCount);
     }
 
     @Override

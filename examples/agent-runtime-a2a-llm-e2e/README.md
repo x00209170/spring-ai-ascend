@@ -57,11 +57,17 @@ The sample exposes these minimum HTTP endpoints:
 - `POST /v1/route-grants/resolve`
 - `POST /v1/route-grants/validate`
 - `POST /v1/a2a-interactions`
-- `GET /v1/a2a-interactions?tenantId=...&correlationId=...`
+- `GET /v1/a2a-interactions?tenantId=...&correlationId=...&limit=100`
+- `GET /v1/gateway-health`
 
 This keeps runtime caches small: runtimes cache scoped grants with TTL and
 policy version, not a full `tenantId x sourceAgentId x targetAgentId x replica`
 authorization table.
+
+The northbound gateway forwarding endpoint also issues a short-lived
+`RouteGrant`, forwards its id/signature as request headers, streams the runtime
+response back to the caller, and records one telemetry event when the response
+body finishes.
 
 ### Gateway DFX Reference Shape
 
@@ -75,10 +81,12 @@ shows the minimum DFX shape expected from a customer-facing platform facade:
 - multiple runtime replicas are resolved through the same route view, and only
   `READY` replicas can receive new traffic
 - the A2A forwarding endpoint returns trace headers for route resolution,
-  response start, total forwarding time, and selected runtime instance
+  response start, and selected runtime instance; total forwarding time is
+  recorded in telemetry after the stream finishes
 - route grants are short-lived, tenant-scoped, method-scoped, and signed
 - A2A interaction telemetry carries correlation, route latency, first-byte
   latency, total latency, status, and selected runtime identity
+- `/v1/gateway-health` exposes a minimal registry and telemetry event count
 
 Production deployments must still add persistent or reconstructable registry
 state, runtime identity authentication, tenant-agent authorization, rate
@@ -105,6 +113,11 @@ Templates (the `.env` you fill is gitignored; the `*.example` templates are trac
 > The real-LLM e2e (`OpenJiuwenReactAgentA2aE2eTest`) only runs when
 > `SAA_SAMPLE_LLM_API_KEY` is non-blank. Without it, JUnit `assumeTrue()` **skips**
 > that branch after the agent-card assertions (the rest of the suite still runs).
+
+The route-grant signer uses `SAA_SAMPLE_GATEWAY_ROUTE_GRANT_SECRET` or
+`sample.gateway.route-grant-secret`. The checked-in default is for local sample
+execution only; set a non-default secret before demonstrating cross-runtime
+authorization flows to other teams.
 
 ## Local LLM Defaults and Curl
 
