@@ -1,5 +1,4 @@
 package com.huawei.ascend.runtime.common;
-import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import java.util.Objects;
 

@@ -9,7 +9,6 @@ import java.util.concurrent.Flow;
 import org.a2aproject.sdk.jsonrpc.common.wrappers.SendStreamingMessageResponse;
 import org.a2aproject.sdk.server.ServerCallContext;
 import org.a2aproject.sdk.server.requesthandlers.RequestHandler;
-import org.a2aproject.sdk.spec.AgentCard;
 import org.a2aproject.sdk.spec.InternalError;
 import org.a2aproject.sdk.spec.MessageSendParams;
 import org.a2aproject.sdk.spec.StreamingEventKind;
@@ -17,10 +16,9 @@ import org.a2aproject.sdk.spec.TaskIdParams;
 import org.reactivestreams.FlowAdapters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,33 +26,20 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
 @RestController
+@ConditionalOnBean(RequestHandler.class)
 public class A2aController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(A2aController.class);
 
     private final RequestHandler requestHandler;
-    private final AgentCard agentCard;
     private final ObjectMapper objectMapper;
 
-    public A2aController(RequestHandler requestHandler, AgentCard agentCard, ObjectMapper objectMapper) {
+    public A2aController(RequestHandler requestHandler, ObjectMapper objectMapper) {
         this.requestHandler = requestHandler;
-        this.agentCard = agentCard;
         this.objectMapper = objectMapper;
     }
 
-    // ── Agent Card ──
-
-    @GetMapping(value = "/.well-known/agent-card.json", produces = MediaType.APPLICATION_JSON_VALUE)
-    public AgentCard agentCard() {
-        return agentCard;
-    }
-
-    @GetMapping(value = "/.well-known/agent.json", produces = MediaType.APPLICATION_JSON_VALUE)
-    public AgentCard agentCardLegacy() {
-        return agentCard;
-    }
-
-    // ── A2A JSON-RPC ──
+    // ── A2A JSON-RPC (agent card served by AgentCardController) ──
 
     @PostMapping(value = {"/a2a", "/a2a/"})
     public Object handle(@RequestBody String body) {

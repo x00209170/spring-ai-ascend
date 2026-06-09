@@ -99,6 +99,7 @@ public class RuntimeAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(AgentRuntimeHandler.class)
     public AgentExecutor a2aAgentExecutor(ObjectProvider<AgentRuntimeHandler> handlers) {
         AgentRuntimeHandler handler = handlers.orderedStream().findFirst()
                 .orElseThrow(() -> new IllegalStateException(
@@ -108,6 +109,7 @@ public class RuntimeAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(AgentExecutor.class)
     public RequestHandler a2aRequestHandler(
             AgentExecutor agentExecutor, InMemoryTaskStore store,
             QueueManager queueManager, PushNotificationConfigStore pushStore,
