@@ -1,6 +1,5 @@
 package com.huawei.ascend.runtime.engine;
 
-import com.huawei.ascend.runtime.common.Guards;
 import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import java.util.Map;
 import java.util.Optional;
@@ -30,7 +29,8 @@ public class AgentExecutionContext {
             RuntimeIdentity scope, EngineInput input, String agentStateKey, Map<String, Object> agentState) {
         this.scope = scope;
         this.input = input;
-        this.agentStateKey = Guards.requireNonBlank(agentStateKey, "agentStateKey");
+        org.springframework.util.Assert.hasText(agentStateKey, "agentStateKey must not be blank");
+        this.agentStateKey = agentStateKey;
         setAgentState(agentState);
     }
 
@@ -55,7 +55,8 @@ public class AgentExecutionContext {
     }
 
     public void setAgentStateKey(String agentStateKey) {
-        this.agentStateKey = Guards.requireNonBlank(agentStateKey, "agentStateKey");
+        org.springframework.util.Assert.hasText(agentStateKey, "agentStateKey must not be blank");
+        this.agentStateKey = agentStateKey;
     }
 
     public Optional<Map<String, Object>> getAgentState() {

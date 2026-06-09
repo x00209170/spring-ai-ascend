@@ -1,11 +1,11 @@
 package com.huawei.ascend.runtime.engine.service;
 
-import com.huawei.ascend.runtime.common.Guards;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.springframework.util.Assert;
 
 /**
  * W1 in-process Agent state store.
@@ -20,12 +20,13 @@ public class InMemoryAgentStateStore implements AgentStateStore {
 
     @Override
     public Optional<Map<String, Object>> load(String key) {
-        return Optional.ofNullable(states.get(Guards.requireNonBlank(key, "key")));
+        Assert.hasText(key, "key must not be blank");
+        return Optional.ofNullable(states.get(key));
     }
 
     @Override
     public Map<String, Object> save(String key, Map<String, Object> state) {
-        Guards.requireNonBlank(key, "key");
+        org.springframework.util.Assert.hasText(key, "key must not be blank");
         Map<String, Object> copy = Map.copyOf(Objects.requireNonNull(state, "state"));
         states.put(key, copy);
         return copy;
@@ -33,6 +34,7 @@ public class InMemoryAgentStateStore implements AgentStateStore {
 
     @Override
     public void delete(String key) {
-        states.remove(Guards.requireNonBlank(key, "key"));
+        Assert.hasText(key, "key must not be blank");
+        states.remove(key);
     }
 }

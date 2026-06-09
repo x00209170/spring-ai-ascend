@@ -1,6 +1,5 @@
 package com.huawei.ascend.runtime.engine.openjiuwen;
 
-import com.huawei.ascend.runtime.common.Guards;
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
 import com.huawei.ascend.runtime.engine.spi.StreamAdapter;
@@ -34,7 +33,8 @@ public abstract class OpenJiuwenAgentRuntimeHandler implements AgentRuntimeHandl
 
     OpenJiuwenAgentRuntimeHandler(String agentId, OpenJiuwenMessageAdapter messageConverter,
             OpenJiuwenStreamAdapter resultMapper) {
-        this.agentId = Guards.requireNonBlank(agentId, "agentId");
+        org.springframework.util.Assert.hasText(agentId, "agentId must not be blank");
+        this.agentId = agentId;
         this.messageConverter = Objects.requireNonNull(messageConverter, "messageConverter");
         this.resultMapper = Objects.requireNonNull(resultMapper, "resultMapper");
     }
