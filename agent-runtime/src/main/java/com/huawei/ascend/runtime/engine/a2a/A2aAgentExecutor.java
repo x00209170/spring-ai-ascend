@@ -2,7 +2,6 @@ package com.huawei.ascend.runtime.engine.a2a;
 
 import org.a2aproject.sdk.spec.Message;
 import com.huawei.ascend.runtime.common.RuntimeIdentity;
-import com.huawei.ascend.runtime.common.Timing;
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.EngineInput;
 import com.huawei.ascend.runtime.engine.spi.AgentExecutionResult;
@@ -59,7 +58,7 @@ public final class A2aAgentExecutor implements AgentExecutor {
                 route(result, emitter, taskId);
             });
             LOG.info("[A2A] execute finish taskId={} durationMs={}",
-                    taskId, Timing.elapsedMs(startedNanos));
+                    taskId, (System.nanoTime() - startedNanos) / 1_000_000L);
 
         } catch (Exception e) {
             LOG.error("[A2A] execute failed taskId={} errorClass={} message={}",
