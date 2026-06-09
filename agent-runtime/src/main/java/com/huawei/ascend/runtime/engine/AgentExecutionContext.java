@@ -1,70 +1,60 @@
 package com.huawei.ascend.runtime.engine;
 
 import com.huawei.ascend.runtime.common.RuntimeIdentity;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.a2aproject.sdk.spec.Message;
+import org.springframework.util.Assert;
 
-/**
- * The context handed to an {@code AgentRuntimeHandler} for a single execution:
- * the scope, input, and optional framework-neutral Agent state owned by the
- * runtime.
- */
 public class AgentExecutionContext {
+
     public static final String AGENT_STATE_KEY_VARIABLE = "agentStateKey";
     public static final String STATE_KEY_VARIABLE = "stateKey";
 
     private RuntimeIdentity scope;
-    private EngineInput input;
+    private String inputType;
+    private List<Message> messages;
+    private Map<String, Object> variables;
     private String agentStateKey;
     private Map<String, Object> agentState;
 
-    public AgentExecutionContext() {
+    public AgentExecutionContext() {}
+
+    public AgentExecutionContext(RuntimeIdentity scope, String inputType,
+                                  List<Message> messages, Map<String, Object> variables) {
+        this(scope, inputType, messages, variables,
+                resolveAgentStateKey(scope, variables), null);
     }
 
-    public AgentExecutionContext(RuntimeIdentity scope, EngineInput input) {
-        this(scope, input, resolveAgentStateKey(scope, input), null);
-    }
-
-    public AgentExecutionContext(
-            RuntimeIdentity scope, EngineInput input, String agentStateKey, Map<String, Object> agentState) {
+    public AgentExecutionContext(RuntimeIdentity scope, String inputType,
+                                  List<Message> messages, Map<String, Object> variables,
+                                  String agentStateKey, Map<String, Object> agentState) {
         this.scope = scope;
-        this.input = input;
-        org.springframework.util.Assert.hasText(agentStateKey, "agentStateKey must not be blank");
+        this.inputType = inputType != null ? inputType : "USER_MESSAGE";
+        this.messages = messages != null ? List.copyOf(messages) : List.of();
+        this.variables = variables != null ? Map.copyOf(variables) : Map.of();
+        Assert.hasText(agentStateKey, "agentStateKey must not be blank");
         this.agentStateKey = agentStateKey;
         setAgentState(agentState);
     }
 
-    public RuntimeIdentity getScope() {
-        return scope;
+    public RuntimeIdentity getScope() { return scope; }
+    public void setScope(RuntimeIdentity scope) { this.scope = scope; }
+    public String getInputType() { return inputType; }
+    public List<Message> getMessages() { return messages; }
+    public Map<String, Object> getVariables() { return variables; }
+    public String getAgentStateKey() { return agentStateKey; }
+
+    public void setAgentStateKey(String key) {
+        Assert.hasText(key, "agentStateKey must not be blank");
+        this.agentStateKey = key;
     }
 
-    public void setScope(RuntimeIdentity scope) {
-        this.scope = scope;
-    }
+    public Optional<Map<String, Object>> getAgentState() { return Optional.ofNullable(agentState); }
 
-    public EngineInput getInput() {
-        return input;
-    }
-
-    public void setInput(EngineInput input) {
-        this.input = input;
-    }
-
-    public String getAgentStateKey() {
-        return agentStateKey;
-    }
-
-    public void setAgentStateKey(String agentStateKey) {
-        org.springframework.util.Assert.hasText(agentStateKey, "agentStateKey must not be blank");
-        this.agentStateKey = agentStateKey;
-    }
-
-    public Optional<Map<String, Object>> getAgentState() {
-        return Optional.ofNullable(agentState);
-    }
-
-    public void setAgentState(Map<String, Object> agentState) {
-        this.agentState = agentState == null ? null : Map.copyOf(agentState);
+    public void setAgentState(Map<String, Object> state) {
+        this.agentState = state == null ? null : Map.copyOf(state);
     }
 
     public Map<String, Object> replaceAgentState(Map<String, Object> values) {
@@ -73,17 +63,12 @@ public class AgentExecutionContext {
         return next;
     }
 
-    private static String resolveAgentStateKey(RuntimeIdentity scope, EngineInput input) {
-        Object explicit = input == null ? null : input.variables().get(AGENT_STATE_KEY_VARIABLE);
-        if (!(explicit instanceof String text) || text.isBlank()) {
-            explicit = input == null ? null : input.variables().get(STATE_KEY_VARIABLE);
-        }
-        if (explicit instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        if (scope == null) {
-            throw new IllegalArgumentException("agentStateKey must be provided when scope is null");
-        }
+    private static String resolveAgentStateKey(RuntimeIdentity scope, Map<String, Object> variables) {
+        Object explicit = variables != null ? variables.get(AGENT_STATE_KEY_VARIABLE) : null;
+        if (!(explicit instanceof String text) || text.isBlank())
+            explicit = variables != null ? variables.get(STATE_KEY_VARIABLE) : null;
+        if (explicit instanceof String text && !text.isBlank()) return text;
+        if (scope == null) throw new IllegalArgumentException("agentStateKey must be provided");
         return scope.taskId();
     }
 }

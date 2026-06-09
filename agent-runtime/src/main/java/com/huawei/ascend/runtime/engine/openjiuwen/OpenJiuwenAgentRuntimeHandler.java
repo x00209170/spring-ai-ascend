@@ -72,8 +72,8 @@ public abstract class OpenJiuwenAgentRuntimeHandler implements AgentRuntimeHandl
                 context.getScope().sessionId(),
                 context.getScope().taskId(),
                 context.getScope().agentId(),
-                context.getInput().inputType(),
-                context.getInput().messages().size());
+                context.getInputType(),
+                context.getMessages().size());
         return messageConverter.toOpenJiuwenInput(context);
     }
 

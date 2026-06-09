@@ -17,7 +17,7 @@ public class OpenJiuwenMessageAdapter {
     }
 
     private String lastUserText(AgentExecutionContext context) {
-        List<Message> messages = context.getInput() == null ? null : context.getInput().messages();
+        List<Message> messages = context.getMessages().isEmpty() ? null : context.getMessages();
         if (messages == null || messages.isEmpty()) return "";
         for (int i = messages.size() - 1; i >= 0; i--) {
             Message message = messages.get(i);

@@ -3,7 +3,6 @@ package com.huawei.ascend.runtime.engine.a2a;
 import org.a2aproject.sdk.spec.Message;
 import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
-import com.huawei.ascend.runtime.engine.EngineInput;
 import com.huawei.ascend.runtime.engine.spi.AgentExecutionResult;
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
 import java.util.List;
@@ -53,8 +52,8 @@ public final class A2aAgentExecutor implements AgentExecutor {
             results.forEach(result -> {
                 LOG.info("[A2A] result taskId={} type={} outputChars={}",
                         taskId, result.type(),
-                        result.output() != null && result.output().getContent() != null
-                                ? result.output().getContent().length() : 0);
+                        result.outputContent() != null
+                                ? result.outputContent().length() : 0);
                 route(result, emitter, taskId);
             });
             LOG.info("[A2A] execute finish taskId={} durationMs={}",
@@ -111,8 +110,7 @@ public final class A2aAgentExecutor implements AgentExecutor {
     }
 
     private static String outputText(AgentExecutionResult result) {
-        return result.output() != null && result.output().getContent() != null
-                ? result.output().getContent() : "";
+        return result.outputContent() != null ? result.outputContent() : "";
     }
 
     private AgentExecutionContext toExecutionContext(RequestContext ctx) {
@@ -125,7 +123,7 @@ public final class A2aAgentExecutor implements AgentExecutor {
                         ctx.getContextId() != null ? ctx.getContextId() : ctx.getTaskId(),
                         ctx.getTaskId(),
                         metadata(ctx, "agentId", handler.agentId())),
-                new EngineInput("USER_MESSAGE", messages, Map.of()));
+                "USER_MESSAGE", messages, Map.of());
     }
 
     private static String extractText(RequestContext ctx) {
