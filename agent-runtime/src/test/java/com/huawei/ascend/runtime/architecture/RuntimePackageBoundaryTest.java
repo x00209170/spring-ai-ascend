@@ -36,6 +36,7 @@ class RuntimePackageBoundaryTest {
                         "com.huawei.ascend.runtime.engine.spi..",
                         "com.huawei.ascend.runtime.engine.service..",
                         "com.huawei.ascend.runtime.engine.agentscope..",
+                        "com.huawei.ascend.runtime.engine.a2a..",
                         "com.huawei.ascend.runtime.engine.openjiuwen..")
                 .allowEmptyShould(false);
         rule.check(RUNTIME_CLASSES);

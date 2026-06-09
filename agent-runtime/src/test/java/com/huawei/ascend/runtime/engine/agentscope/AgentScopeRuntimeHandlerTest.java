@@ -1,10 +1,10 @@
 package com.huawei.ascend.runtime.engine.agentscope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.huawei.ascend.runtime.common.Message;
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
-import com.huawei.ascend.runtime.engine.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineInput;
 import com.huawei.ascend.runtime.engine.spi.AgentExecutionResult;
 import java.util.List;

@@ -1,10 +1,10 @@
 package com.huawei.ascend.runtime.engine.spi;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
-import com.huawei.ascend.runtime.engine.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineInput;
 import java.util.List;
 import java.util.Map;

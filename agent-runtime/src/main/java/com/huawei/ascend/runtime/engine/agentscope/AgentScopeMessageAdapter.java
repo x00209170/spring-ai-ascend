@@ -1,8 +1,8 @@
 package com.huawei.ascend.runtime.engine.agentscope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.EngineInput;
-import com.huawei.ascend.runtime.engine.RuntimeIdentity;
 import java.util.Map;
 import java.util.Objects;
 
