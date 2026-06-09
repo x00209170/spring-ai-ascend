@@ -70,9 +70,9 @@ public class RuntimeAutoConfiguration {
     @ConditionalOnMissingBean
     public MainEventBusProcessor a2aMainEventBusProcessor(
             InMemoryTaskStore store, QueueManager queueManager,
-            PushNotificationSender pushSender) {
+            PushNotificationSender pushSender, Executor runtimeExecutor) {
         var p = new MainEventBusProcessor(new MainEventBus(), store, pushSender, queueManager);
-        p.ensureStarted();
+        runtimeExecutor.execute(p);
         return p;
     }
 
