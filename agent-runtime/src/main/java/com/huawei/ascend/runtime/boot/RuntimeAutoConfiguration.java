@@ -47,18 +47,25 @@ public class RuntimeAutoConfiguration {
 
     @Bean @ConditionalOnMissingBean
     public PushNotificationSender a2aPushSender() {
-        return (event, task) -> log.debug("push notification task={} (no-op)", task.id());
+        return (event, task) -> log.debug("push notification task={} (no-op)",
+                task == null ? "<none>" : task.id());
     }
 
     @Bean @ConditionalOnMissingBean
-    public QueueManager a2aQueueManager(InMemoryTaskStore store) {
-        return new InMemoryQueueManager(store, new MainEventBus());
+    public MainEventBus a2aMainEventBus() {
+        return new MainEventBus();
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public QueueManager a2aQueueManager(InMemoryTaskStore store, MainEventBus eventBus) {
+        return new InMemoryQueueManager(store, eventBus);
     }
 
     @Bean @ConditionalOnMissingBean
     public MainEventBusProcessor a2aEventBus(InMemoryTaskStore store,
-                                              QueueManager qm, PushNotificationSender sender, Executor exec) {
-        var p = new MainEventBusProcessor(new MainEventBus(), store, sender, qm);
+                                              QueueManager qm, PushNotificationSender sender,
+                                              MainEventBus eventBus, Executor exec) {
+        var p = new MainEventBusProcessor(eventBus, store, sender, qm);
         exec.execute(p); // run on background thread
         return p;
     }

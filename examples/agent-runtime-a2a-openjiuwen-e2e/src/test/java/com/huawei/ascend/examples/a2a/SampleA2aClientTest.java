@@ -67,12 +67,10 @@ class SampleA2aClientTest {
 
     @Test
     void recognizesEveryRuntimeTerminalRunStatusIncludingCanceledSpelling() {
-        // Wire values are RunStatus.wire() (lower-cased enum names): completed/failed/canceled/rejected.
         assertThat(SampleA2aClient.isTerminal(messageWithRunStatus("completed"))).isTrue();
         assertThat(SampleA2aClient.isTerminal(messageWithRunStatus("failed"))).isTrue();
         assertThat(SampleA2aClient.isTerminal(messageWithRunStatus("canceled"))).isTrue();
         assertThat(SampleA2aClient.isTerminal(messageWithRunStatus("rejected"))).isTrue();
-        // A paused/waiting run is not stream-terminal.
         assertThat(SampleA2aClient.isTerminal(messageWithRunStatus("in_progress"))).isFalse();
         assertThat(SampleA2aClient.isTerminal(messageWithRunStatus("incomplete"))).isFalse();
     }
@@ -98,13 +96,10 @@ class SampleA2aClientTest {
     void cancellationIsNormalCompletionOnlyAfterTerminalEvent() {
         java.util.concurrent.CancellationException cancel =
                 new java.util.concurrent.CancellationException("sse unsubscribed");
-        // Post-terminal cancellation (the SDK's normal unsubscribe) is NOT a failure.
+
         assertThat(SampleA2aClient.isFailureError(cancel, true)).isFalse();
-        // Pre-terminal cancellation (partial stream / transport break) IS a failure.
         assertThat(SampleA2aClient.isFailureError(cancel, false)).isTrue();
-        // A cancellation nested inside another throwable, after terminal, is still tolerated.
         assertThat(SampleA2aClient.isFailureError(new RuntimeException("io", cancel), true)).isFalse();
-        // Any non-cancellation error is always a failure, even after a terminal event.
         assertThat(SampleA2aClient.isFailureError(new RuntimeException("transport reset"), true)).isTrue();
     }
 

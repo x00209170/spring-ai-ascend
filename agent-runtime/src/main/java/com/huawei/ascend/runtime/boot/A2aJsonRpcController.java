@@ -1,21 +1,23 @@
 package com.huawei.ascend.runtime.boot;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Flow;
+import org.a2aproject.sdk.grpc.utils.JSONRPCUtils;
+import org.a2aproject.sdk.jsonrpc.common.json.JsonProcessingException;
+import org.a2aproject.sdk.jsonrpc.common.json.JsonUtil;
+import org.a2aproject.sdk.jsonrpc.common.wrappers.A2ARequest;
+import org.a2aproject.sdk.jsonrpc.common.wrappers.CancelTaskRequest;
+import org.a2aproject.sdk.jsonrpc.common.wrappers.GetTaskRequest;
+import org.a2aproject.sdk.jsonrpc.common.wrappers.SendMessageRequest;
 import org.a2aproject.sdk.jsonrpc.common.wrappers.SendStreamingMessageResponse;
+import org.a2aproject.sdk.jsonrpc.common.wrappers.SendStreamingMessageRequest;
+import org.a2aproject.sdk.jsonrpc.common.wrappers.SubscribeToTaskRequest;
 import org.a2aproject.sdk.server.ServerCallContext;
 import org.a2aproject.sdk.server.requesthandlers.RequestHandler;
 import org.a2aproject.sdk.spec.A2AError;
-import org.a2aproject.sdk.spec.CancelTaskParams;
-import org.a2aproject.sdk.spec.InternalError;
-import org.a2aproject.sdk.spec.MessageSendParams;
 import org.a2aproject.sdk.spec.StreamingEventKind;
-import org.a2aproject.sdk.spec.TaskIdParams;
-import org.a2aproject.sdk.spec.TaskQueryParams;
 import org.reactivestreams.FlowAdapters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,60 +37,66 @@ public class A2aJsonRpcController {
 
     public A2aJsonRpcController(RequestHandler handler) { this.handler = handler; }
 
-    @PostMapping(value = {"/a2a", "/a2a/"})
+    @PostMapping(value = {"/a2a", "/a2a/"}, produces = MediaType.APPLICATION_JSON_VALUE)
     public Object handle(@RequestBody String body) {
         try {
-            JsonNode r = mapper.readTree(body);
-            String method = method(r);
-            Object id = id(r);
+            A2ARequest<?> request = JSONRPCUtils.parseRequestBody(body, null);
+            String method = request.getMethod();
+            Object id = request.getId();
             log.info("[A2A] {} id={}", method, id);
-            if ("message/stream".equals(method) || "SendStreamingMessage".equals(method)
-                    || "tasks/resubscribe".equals(method) || "SubscribeToTask".equals(method)) {
-                return handleStream(r, method, id);
+            if (request instanceof SendStreamingMessageRequest || request instanceof SubscribeToTaskRequest) {
+                return handleStream(request);
             }
-            return handleBlocking(r, method, id);
+            return handleBlocking(request);
         } catch (Exception e) {
             log.error("[A2A] error", e);
             return ResponseEntity.ok("{}");
         }
     }
 
-    Flux<ServerSentEvent<String>> handleStream(JsonNode r, String method, Object id) throws IOException {
+    @PostMapping(value = {"/a2a", "/a2a/"}, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> handleSse(@RequestBody String body) throws Exception {
+        return handleStream(JSONRPCUtils.parseRequestBody(body, null));
+    }
+
+    Flux<ServerSentEvent<String>> handleStream(A2ARequest<?> request) throws A2AError {
         var ctx = serverContext();
         Flow.Publisher<StreamingEventKind> publisher;
-        if ("tasks/resubscribe".equals(method) || "SubscribeToTask".equals(method)) {
-            JsonNode p = r.get("params");
-            publisher = handler.onSubscribeToTask(new TaskIdParams(p.get("id").asText()), ctx);
+        if (request instanceof SubscribeToTaskRequest subscribe) {
+            publisher = handler.onSubscribeToTask(subscribe.getParams(), ctx);
+        } else if (request instanceof SendStreamingMessageRequest send) {
+            publisher = handler.onMessageSendStream(send.getParams(), ctx);
         } else {
-            publisher = handler.onMessageSendStream(
-                    mapper.treeToValue(r.get("params"), MessageSendParams.class), ctx);
+            throw new IllegalArgumentException("Unknown streaming request: " + request.getMethod());
         }
         return Flux.from(FlowAdapters.toPublisher(publisher))
                 .map(evt -> ServerSentEvent.<String>builder().event("jsonrpc")
-                        .data(new SendStreamingMessageResponse(id, evt).toString()).build());
+                        .data(streamingResponseJson(request.getId(), evt)).build());
     }
 
-    ResponseEntity<String> handleBlocking(JsonNode r, String method, Object id) throws IOException, A2AError {
+    ResponseEntity<String> handleBlocking(A2ARequest<?> request) throws A2AError {
         var ctx = serverContext();
-        JsonNode p = r.get("params");
-        Object result = switch (method) {
-            case "message/send", "SendMessage" ->
-                handler.onMessageSend(mapper.treeToValue(p, MessageSendParams.class), ctx);
-            case "tasks/get", "GetTask" ->
-                handler.onGetTask(new TaskQueryParams(p.get("id").asText()), ctx);
-            case "tasks/cancel", "CancelTask" ->
-                handler.onCancelTask(new CancelTaskParams(p.get("id").asText()), ctx);
-            default -> throw new IllegalArgumentException("Unknown: " + method);
+        Object result = switch (request) {
+            case SendMessageRequest send -> handler.onMessageSend(send.getParams(), ctx);
+            case GetTaskRequest get -> handler.onGetTask(get.getParams(), ctx);
+            case CancelTaskRequest cancel -> handler.onCancelTask(cancel.getParams(), ctx);
+            default -> throw new IllegalArgumentException("Unknown: " + request.getMethod());
         };
         try {
-            String json = mapper.writeValueAsString(Map.of("jsonrpc","2.0","id",id,"result",result));
+            String json = mapper.writeValueAsString(Map.of("jsonrpc","2.0","id",request.getId(),"result",result));
             return ResponseEntity.ok(json);
         } catch (Exception e) {
             return ResponseEntity.ok("{}");
         }
     }
 
-    private static String method(JsonNode r) { return r.has("method") ? r.get("method").asText() : null; }
-    private static Object id(JsonNode r) { return r.has("id") && !r.get("id").isNull() ? r.get("id").asText() : null; }
+    private static String streamingResponseJson(Object id, StreamingEventKind event) {
+        try {
+            return JsonUtil.toJson(new SendStreamingMessageResponse(id, event));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize A2A stream event", e);
+        }
+    }
+
     private static ServerCallContext serverContext() { return new ServerCallContext(null, Map.of(), Set.of()); }
 }

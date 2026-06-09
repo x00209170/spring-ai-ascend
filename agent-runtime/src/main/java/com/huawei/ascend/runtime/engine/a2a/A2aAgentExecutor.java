@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 import org.a2aproject.sdk.server.agentexecution.AgentExecutor;
 import org.a2aproject.sdk.server.agentexecution.RequestContext;
 import org.a2aproject.sdk.server.tasks.AgentEmitter;
+import org.a2aproject.sdk.spec.Part;
 import org.a2aproject.sdk.spec.TextPart;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,13 +85,13 @@ public final class A2aAgentExecutor implements AgentExecutor {
                 // state stays WORKING — more output may follow
             }
             case COMPLETED -> {
-                // Send final output THEN complete — COMPLETED result carries output text
                 String text = outputText(result);
                 if (!text.isBlank()) {
-                    LOG.info("[A2A] output final taskId={} textChars={}", taskId, text.length());
-                    emitter.sendMessage(text);
+                    LOG.info("[A2A] complete with final output taskId={} textChars={}", taskId, text.length());
+                    emitter.complete(emitter.newAgentMessage(List.<Part<?>>of(new TextPart(text)), null));
+                } else {
+                    emitter.complete();
                 }
-                emitter.complete();
                 LOG.info("[A2A] task state=COMPLETED taskId={}", taskId);
             }
             case FAILED -> {
@@ -120,11 +121,11 @@ public final class A2aAgentExecutor implements AgentExecutor {
         List<Message> messages = List.of(Message.user(text));
         return new AgentExecutionContext(
                 new RuntimeIdentity(
-                        ctx.getTenant() != null ? ctx.getTenant() : "default",
+                        metadata(ctx, "tenantId", "default"),
                         metadata(ctx, "userId", "system"),
-                        metadata(ctx, "agentId", handler.agentId()),
                         ctx.getContextId() != null ? ctx.getContextId() : ctx.getTaskId(),
-                        ctx.getTaskId()),
+                        ctx.getTaskId(),
+                        metadata(ctx, "agentId", handler.agentId())),
                 new EngineInput("USER_MESSAGE", messages, Map.of()));
     }
 
@@ -139,8 +140,15 @@ public final class A2aAgentExecutor implements AgentExecutor {
     }
 
     private static String metadata(RequestContext ctx, String key, String fallback) {
+        if ("tenantId".equals(key) && hasText(ctx.getTenant())) {
+            return ctx.getTenant();
+        }
         Map<String, Object> md = ctx.getMetadata();
         Object value = md == null ? null : md.get(key);
-        return value == null || String.valueOf(value).isBlank() ? fallback : String.valueOf(value);
+        return hasText(value) ? String.valueOf(value) : fallback;
+    }
+
+    private static boolean hasText(Object value) {
+        return value != null && !String.valueOf(value).isBlank();
     }
 }

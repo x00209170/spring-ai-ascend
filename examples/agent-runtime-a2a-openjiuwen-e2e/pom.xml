@@ -11,23 +11,17 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>agent-runtime-a2a-llm-e2e-example</artifactId>
+  <artifactId>agent-runtime-a2a-openjiuwen-e2e-example</artifactId>
   <packaging>jar</packaging>
-  <name>spring-ai-ascend agent-runtime A2A LLM E2E example</name>
+  <name>spring-ai-ascend agent-runtime A2A openJiuwen E2E example</name>
   <description>
-    End-to-end example that starts agent-runtime, hosts an openJiuwen ReActAgent,
-    calls it only through the A2A JSON-RPC HTTP endpoint, and verifies a real
-    OpenAI-compatible local LLM response.
+    End-to-end example that starts one agent-runtime instance, binds one
+    openJiuwen ReActAgent, and verifies access through the A2A JSON-RPC
+    streaming endpoint.
   </description>
 
   <properties>
     <enforcer.skip>true</enforcer.skip>
-    <!-- This mixed example keeps its source for reference, but its tests are no
-         longer the default A2A runtime verification surface. Use the dedicated
-         agent-runtime-a2a-openjiuwen-e2e module for single-runtime/single-agent
-         OpenJiuwen coverage. Override with -DskipTests=false when intentionally
-         exercising the legacy mixed sample. -->
-    <skipTests>true</skipTests>
   </properties>
 
   <dependencies>
@@ -40,11 +34,6 @@
       <groupId>com.openjiuwen</groupId>
       <artifactId>agent-core-java</artifactId>
       <version>0.1.7</version>
-    </dependency>
-    <dependency>
-      <groupId>io.agentscope</groupId>
-      <artifactId>agentscope</artifactId>
-      <version>1.0.12</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -69,9 +58,6 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.6.2</version>
       </plugin>
-      <!-- agent-runtime is a library (embeds app.RuntimeApp); the runnable artifact is
-           THIS openJiuwen A2A server. Repackage it as an executable Spring Boot jar so it
-           can be containerized (see the repo-root Dockerfile). -->
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>

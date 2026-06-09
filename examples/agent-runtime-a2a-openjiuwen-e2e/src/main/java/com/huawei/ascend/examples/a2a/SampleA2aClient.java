@@ -14,9 +14,9 @@ import org.a2aproject.sdk.client.http.A2ACardResolver;
 import org.a2aproject.sdk.client.transport.jsonrpc.JSONRPCTransport;
 import org.a2aproject.sdk.client.transport.spi.interceptors.ClientCallContext;
 import org.a2aproject.sdk.spec.AgentCard;
-import org.a2aproject.sdk.spec.Part;
 import org.a2aproject.sdk.spec.Message;
 import org.a2aproject.sdk.spec.MessageSendParams;
+import org.a2aproject.sdk.spec.Part;
 import org.a2aproject.sdk.spec.StreamingEventKind;
 import org.a2aproject.sdk.spec.TaskArtifactUpdateEvent;
 import org.a2aproject.sdk.spec.TaskState;
@@ -56,11 +56,6 @@ public final class SampleA2aClient {
                         }
                     },
                     error -> {
-                        // The A2A SDK cancels the SSE subscription right after the terminal
-                        // event; a CancellationException AFTER a terminal event is normal stream
-                        // completion (incl. terminal FAILED runs), NOT a transport failure. A
-                        // cancellation BEFORE any terminal event — or any other error — is a
-                        // genuine failure (partial stream / transport break).
                         if (isFailureError(error, sawTerminal.get())) {
                             failure.set(error);
                         }
@@ -124,8 +119,6 @@ public final class SampleA2aClient {
                 .build();
     }
 
-    // Match the runtime's canonical RunStatus.wire() terminal values (lower-cased enum names):
-    // completed / failed / canceled / rejected. "cancelled" is kept only as a defensive alias.
     private static final java.util.Set<String> TERMINAL_RUN_STATUSES =
             java.util.Set.of("completed", "failed", "canceled", "rejected", "cancelled");
 
@@ -145,11 +138,6 @@ public final class SampleA2aClient {
         return false;
     }
 
-    /**
-     * A streamed error is a real failure UNLESS it is a CancellationException that arrived
-     * AFTER a terminal event (the SDK's normal post-terminal SSE unsubscribe). A cancellation
-     * before any terminal event is a partial-stream transport failure that must be surfaced.
-     */
     static boolean isFailureError(Throwable error, boolean sawTerminal) {
         return !(causedByCancellation(error) && sawTerminal);
     }
