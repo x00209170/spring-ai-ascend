@@ -6,6 +6,8 @@ import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import org.a2aproject.sdk.server.config.A2AConfigProvider;
+import org.a2aproject.sdk.server.config.DefaultValuesConfigProvider;
 import org.a2aproject.sdk.server.agentexecution.AgentExecutor;
 import org.a2aproject.sdk.server.events.InMemoryQueueManager;
 import org.a2aproject.sdk.server.events.MainEventBus;
@@ -33,6 +35,9 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public class RuntimeAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(RuntimeAutoConfiguration.class);
+
+    @Bean @ConditionalOnMissingBean
+    public A2AConfigProvider a2aConfigProvider() { return new DefaultValuesConfigProvider(); }
 
     @Bean @ConditionalOnMissingBean
     public InMemoryTaskStore a2aTaskStore() { return new InMemoryTaskStore(); }
