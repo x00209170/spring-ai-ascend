@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.engine;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import com.huawei.ascend.runtime.common.Timing;
 import com.huawei.ascend.runtime.engine.spi.AgentExecutionResult;
@@ -37,7 +38,7 @@ public class EngineDispatcher {
     }
 
     private void runHandler(EngineCommandEvent command) {
-        EngineExecutionScope scope = command.getScope();
+        RuntimeIdentity scope = command.getScope();
         route(EngineEvent.started(scope));
         AgentRuntimeHandler handler;
         try {
@@ -109,7 +110,7 @@ public class EngineDispatcher {
         }
     }
 
-    private EngineEvent toEvent(EngineExecutionScope scope, AgentExecutionResult result) {
+    private EngineEvent toEvent(RuntimeIdentity scope, AgentExecutionResult result) {
         return switch (result.type()) {
             case OUTPUT -> EngineEvent.output(scope, result.output());
             case COMPLETED -> EngineEvent.completed(scope, result.output());
@@ -119,12 +120,12 @@ public class EngineDispatcher {
     }
 
     private void cancel(EngineCommandEvent command) {
-        EngineExecutionScope scope = command.getScope();
+        RuntimeIdentity scope = command.getScope();
         taskControlClient.markCancelled(scope, EngineEvent.cancelled(scope, "Cancelled by request"));
     }
 
     private void route(EngineEvent event) {
-        EngineExecutionScope scope = event.scope();
+        RuntimeIdentity scope = event.scope();
         LOGGER.info("engine route event={} tenantId={} sessionId={} taskId={} agentId={}",
                 event.kind(),
                 scope.tenantId(),

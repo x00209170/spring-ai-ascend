@@ -1,7 +1,7 @@
 package com.huawei.ascend.runtime.engine.support;
 
 import com.huawei.ascend.runtime.engine.EngineEvent;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.AccessLayerClient;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -21,25 +21,25 @@ public class RecordingAccessLayerClient implements AccessLayerClient {
     public final List<EngineEvent> userInputRequests = Collections.synchronizedList(new ArrayList<>());
 
     @Override
-    public void appendOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void appendOutput(RuntimeIdentity scope, EngineEvent event) {
         signals.add("APPEND:" + scope.taskId());
         outputs.add(event);
     }
 
     @Override
-    public void completeOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void completeOutput(RuntimeIdentity scope, EngineEvent event) {
         signals.add("COMPLETE:" + scope.taskId());
         completed.add(event);
     }
 
     @Override
-    public void failOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void failOutput(RuntimeIdentity scope, EngineEvent event) {
         signals.add("FAIL:" + scope.taskId());
         failed.add(event);
     }
 
     @Override
-    public void requestUserInput(EngineExecutionScope scope, EngineEvent event) {
+    public void requestUserInput(RuntimeIdentity scope, EngineEvent event) {
         signals.add("REQUEST_INPUT:" + scope.taskId());
         userInputRequests.add(event);
     }

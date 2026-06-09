@@ -1,5 +1,6 @@
 package com.huawei.ascend.runtime.access.a2a;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
@@ -12,7 +13,7 @@ class A2aOutputRegistryTest {
     @Test
     void lateSubscriberAfterTerminalReplaysTheTerminalSoTheStreamCompletes() {
         A2aOutputRegistry registry = new A2aOutputRegistry();
-        A2aOutputHandle handle = new A2aOutputHandle("tenant-1", "session-1", "task-1");
+        RuntimeIdentity handle = new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent");
         registry.append(handle, output("task-1", true));
 
         List<A2aOutput> replayed = new ArrayList<>();
@@ -27,7 +28,7 @@ class A2aOutputRegistryTest {
     @Test
     void listPreservesTerminalOutputForReplayCompatibility() {
         A2aOutputRegistry registry = new A2aOutputRegistry();
-        A2aOutputHandle handle = new A2aOutputHandle("tenant-1", "session-1", "task-1");
+        RuntimeIdentity handle = new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent");
         registry.append(handle, output("task-1", false));
         registry.append(handle, output("task-1", true));
 
@@ -38,7 +39,7 @@ class A2aOutputRegistryTest {
     @Test
     void newSubscribersReplayOpenStreamOutputs() {
         A2aOutputRegistry registry = new A2aOutputRegistry();
-        A2aOutputHandle handle = new A2aOutputHandle("tenant-1", "session-1", "task-1");
+        RuntimeIdentity handle = new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent");
         registry.append(handle, output("task-1", false));
 
         List<A2aOutput> replayed = new ArrayList<>();
@@ -50,9 +51,9 @@ class A2aOutputRegistryTest {
     @Test
     void aFinishedTaskTerminalDoesNotSuppressReplayForAnotherTaskInTheSameSession() {
         A2aOutputRegistry registry = new A2aOutputRegistry();
-        registry.append(new A2aOutputHandle("tenant-1", "session-1", "task-1"), output("task-1", true));
+        registry.append(new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent"), output("task-1", true));
 
-        A2aOutputHandle current = new A2aOutputHandle("tenant-1", "session-1", "task-2");
+        RuntimeIdentity current = new RuntimeIdentity("tenant-1", "user", "session-1", "task-2", "agent");
         registry.append(current, output("task-2", false));
 
         List<A2aOutput> replayed = new ArrayList<>();
@@ -65,7 +66,7 @@ class A2aOutputRegistryTest {
     @Test
     void listAndSubscribeSeeSameTerminalReplayWhenBackedByOutputChannel() {
         A2aOutputRegistry registry = new A2aOutputRegistry();
-        A2aOutputHandle handle = new A2aOutputHandle("tenant-1", "session-1", "task-1");
+        RuntimeIdentity handle = new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent");
         A2aOutput accepted = output("task-1", false);
         A2aOutput terminal = output("task-1", true);
 
@@ -84,7 +85,7 @@ class A2aOutputRegistryTest {
     @Test
     void postTerminalAppendDoesNotDivergeListAndReplay() {
         A2aOutputRegistry registry = new A2aOutputRegistry();
-        A2aOutputHandle handle = new A2aOutputHandle("tenant-1", "session-1", "task-1");
+        RuntimeIdentity handle = new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent");
         A2aOutput terminal = output("task-1", true);
         A2aOutput late = output("task-1", false);
 

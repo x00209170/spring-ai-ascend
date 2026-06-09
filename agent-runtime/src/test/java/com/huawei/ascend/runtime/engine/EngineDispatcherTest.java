@@ -1,5 +1,6 @@
 package com.huawei.ascend.runtime.engine;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -15,8 +16,8 @@ import org.junit.jupiter.api.Test;
 
 class EngineDispatcherTest {
 
-    private EngineExecutionScope scope() {
-        return new EngineExecutionScope("t1", "u1", "s1", "task-1", "echo-agent");
+    private RuntimeIdentity scope() {
+        return new RuntimeIdentity("t1", "u1", "s1", "task-1", "echo-agent");
     }
 
     private EngineCommandEvent cmd() {

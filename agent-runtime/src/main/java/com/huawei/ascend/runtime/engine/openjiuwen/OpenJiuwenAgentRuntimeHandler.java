@@ -1,7 +1,7 @@
 package com.huawei.ascend.runtime.engine.openjiuwen;
 
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.spi.StreamAdapter;
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
 import com.openjiuwen.core.runner.Runner;
@@ -77,7 +77,7 @@ public abstract class OpenJiuwenAgentRuntimeHandler implements AgentRuntimeHandl
         safeRelease(context.getScope());
     }
 
-    protected void safeRelease(EngineExecutionScope scope) {
+    protected void safeRelease(RuntimeIdentity scope) {
         try {
             Runner.release(scope.taskId());
         } catch (Exception ignored) {

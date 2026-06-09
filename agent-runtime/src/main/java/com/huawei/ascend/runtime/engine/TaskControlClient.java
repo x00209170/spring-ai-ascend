@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.engine;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 
 /**
@@ -9,16 +10,16 @@ package com.huawei.ascend.runtime.engine;
  */
 public interface TaskControlClient {
 
-    void markRunning(EngineExecutionScope scope);
+    void markRunning(RuntimeIdentity scope);
 
     /** Streaming output chunk; the control plane forwards it to egress while the task is still live. */
-    void appendOutput(EngineExecutionScope scope, EngineEvent event);
+    void appendOutput(RuntimeIdentity scope, EngineEvent event);
 
-    void markWaiting(EngineExecutionScope scope, EngineEvent event);
+    void markWaiting(RuntimeIdentity scope, EngineEvent event);
 
-    void markSucceeded(EngineExecutionScope scope, EngineEvent event);
+    void markSucceeded(RuntimeIdentity scope, EngineEvent event);
 
-    void markFailed(EngineExecutionScope scope, EngineEvent event);
+    void markFailed(RuntimeIdentity scope, EngineEvent event);
 
-    void markCancelled(EngineExecutionScope scope, EngineEvent event);
+    void markCancelled(RuntimeIdentity scope, EngineEvent event);
 }

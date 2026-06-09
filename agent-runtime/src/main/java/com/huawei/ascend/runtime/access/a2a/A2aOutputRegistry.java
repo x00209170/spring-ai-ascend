@@ -1,94 +1,54 @@
 package com.huawei.ascend.runtime.access.a2a;
 
-import com.huawei.ascend.runtime.access.output.OutputChannelRegistry;
-import com.huawei.ascend.runtime.access.output.RuntimeOutput;
-import com.huawei.ascend.runtime.access.output.RuntimeOutputHandle;
 import com.huawei.ascend.runtime.common.AgentResponseEvent;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import reactor.core.Disposable;
+import reactor.core.publisher.Sinks;
 
 public final class A2aOutputRegistry {
 
-    private final OutputChannelRegistry channels = new OutputChannelRegistry();
-    private final ConcurrentMap<A2aOutputHandle, CopyOnWriteArrayList<A2aOutput>> outputs = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Key, Entry> entries = new ConcurrentHashMap<>();
 
-    public void append(A2aOutputHandle handle, A2aOutput output) {
-        append(handle, output, toResponseEvent(handle, output, nextSequence(handle)));
-    }
-
-    public void append(A2aOutputHandle handle, A2aOutput output, AgentResponseEvent event) {
-        Objects.requireNonNull(event, "event");
-        CopyOnWriteArrayList<A2aOutput> buffer = outputs.computeIfAbsent(handle, ignored -> new CopyOnWriteArrayList<>());
-        synchronized (buffer) {
-            if (buffer.stream().anyMatch(A2aOutput::terminal)) {
-                return;
+    public void append(RuntimeIdentity id, A2aOutput output) {
+        Key key = key(id);
+        Entry entry = entries.computeIfAbsent(key, ignored -> new Entry());
+        synchronized (entry) {
+            if (entry.terminal) return;
+            entry.outputs.add(output);
+            entry.sink.tryEmitNext(output).orThrow();
+            if (output.terminal()) {
+                entry.terminal = true;
+                entry.sink.tryEmitComplete().orThrow();
             }
-            buffer.add(output);
-            channels.getOrCreate(toRuntimeHandle(handle)).write(RuntimeOutput.from(event));
         }
     }
 
-    public List<A2aOutput> list(A2aOutputHandle handle) {
-        return List.copyOf(outputs.getOrDefault(handle, new CopyOnWriteArrayList<>()));
+    public List<A2aOutput> list(RuntimeIdentity id) {
+        Entry entry = entries.get(key(id));
+        return entry == null ? List.of() : List.copyOf(entry.outputs);
     }
 
-    public Runnable subscribe(A2aOutputHandle handle, Consumer<A2aOutput> subscriber) {
-        AtomicInteger delivered = new AtomicInteger();
-        Disposable subscription = channels.getOrCreate(toRuntimeHandle(handle)).stream().subscribe(ignored -> {
-            int index = delivered.getAndIncrement();
-            List<A2aOutput> current = list(handle);
-            if (index < current.size()) {
-                subscriber.accept(current.get(index));
-            }
-        });
-        return subscription::dispose;
+    public Runnable subscribe(RuntimeIdentity id, Consumer<A2aOutput> subscriber) {
+        return entries.computeIfAbsent(key(id), ignored -> new Entry())
+                .sink.asFlux().subscribe(subscriber::accept)::dispose;
     }
 
-    private RuntimeOutputHandle toRuntimeHandle(A2aOutputHandle handle) {
-        return new RuntimeOutputHandle(handle.tenantId(), handle.sessionId(), handle.taskId());
+    private static Key key(RuntimeIdentity id) {
+        return new Key(id.tenantId(), id.sessionId(), id.taskId());
     }
 
-    private int nextSequence(A2aOutputHandle handle) {
-        return outputs.getOrDefault(handle, new CopyOnWriteArrayList<>()).size() + 1;
-    }
+    private record Key(String tenantId, String sessionId, String taskId) {}
 
-    private AgentResponseEvent toResponseEvent(A2aOutputHandle handle, A2aOutput output, int sequence) {
-        String requestId = metadataValue(output, "requestId", handle.taskId());
-        String userId = metadataValue(output, "userId", "");
-        String agentId = metadataValue(output, "agentId", "a2a");
-        String text = output.body() == null ? "" : String.valueOf(output.body());
-        if (output.terminal()) {
-            return AgentResponseEvent.finalText(
-                    requestId,
-                    handle.tenantId(),
-                    userId,
-                    agentId,
-                    handle.sessionId(),
-                    handle.taskId(),
-                    text,
-                    output.metadata());
-        }
-        return AgentResponseEvent.deltaText(
-                requestId,
-                Math.max(1L, sequence),
-                handle.tenantId(),
-                userId,
-                agentId,
-                handle.sessionId(),
-                handle.taskId(),
-                text);
-    }
-
-    private static String metadataValue(A2aOutput output, String key, String fallback) {
-        Map<String, Object> metadata = output.metadata();
-        Object value = metadata == null ? null : metadata.get(key);
-        return value == null || String.valueOf(value).isBlank() ? fallback : String.valueOf(value);
+    private static class Entry {
+        final CopyOnWriteArrayList<A2aOutput> outputs = new CopyOnWriteArrayList<>();
+        final Sinks.Many<A2aOutput> sink = Sinks.many().replay().all();
+        volatile boolean terminal;
     }
 }

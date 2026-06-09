@@ -1,12 +1,13 @@
 package com.huawei.ascend.runtime.bootstrap;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huawei.ascend.runtime.app.RuntimeWiringConfiguration;
 import com.huawei.ascend.runtime.access.AccessLayerConfiguration;
 import com.huawei.ascend.runtime.access.AccessSubmissionService;
 import com.huawei.ascend.runtime.access.a2a.A2aOutput;
-import com.huawei.ascend.runtime.access.a2a.A2aOutputHandle;
+
 import com.huawei.ascend.runtime.access.a2a.A2aOutputRegistry;
 import com.huawei.ascend.runtime.access.a2a.A2aJsonRpcHandler;
 import com.huawei.ascend.runtime.engine.EngineAutoConfiguration;
@@ -76,7 +77,7 @@ class AgentServiceEndToEndIT {
         assertThat(accepted.path("taskId").asText()).isNotBlank();
         assertThat(accepted.path("metadata").path("tenantId").asText()).isEqualTo(TENANT);
 
-        A2aOutputHandle handle = new A2aOutputHandle(TENANT, "session-1", accepted.path("taskId").asText());
+        RuntimeIdentity handle = new RuntimeIdentity(TENANT, "user", "session-1", accepted.path("taskId").asText(), "agent");
         List<A2aOutput> outputs = awaitOutputs(handle);
 
         assertThat(outputs).isNotEmpty();
@@ -92,7 +93,7 @@ class AgentServiceEndToEndIT {
         JsonNode accepted = send(FAILING_AGENT, "session-err", "trigger failure");
         assertThat(accepted.path("metadata").path("accepted").asBoolean()).isTrue();
 
-        A2aOutputHandle handle = new A2aOutputHandle(TENANT, "session-err", accepted.path("taskId").asText());
+        RuntimeIdentity handle = new RuntimeIdentity(TENANT, "user", "session-err", accepted.path("taskId").asText(), "agent");
         List<A2aOutput> outputs = awaitOutputs(handle);
 
         assertThat(outputs).isNotEmpty();
@@ -107,7 +108,7 @@ class AgentServiceEndToEndIT {
         assertThat(accepted.path("metadata").path("accepted").asBoolean()).isTrue();
         assertThat(accepted.path("metadata").path("tenantId").asText()).isEqualTo(TENANT);
 
-        A2aOutputHandle handle = new A2aOutputHandle(TENANT, "session-params", accepted.path("taskId").asText());
+        RuntimeIdentity handle = new RuntimeIdentity(TENANT, "user", "session-params", accepted.path("taskId").asText(), "agent");
         List<A2aOutput> outputs = awaitOutputs(handle);
 
         assertThat(outputs).isNotEmpty();
@@ -121,7 +122,7 @@ class AgentServiceEndToEndIT {
         String firstTaskId = firstTurn.path("taskId").asText();
         awaitTaskState("session-multi", firstTaskId, TaskState.COMPLETED);
         List<A2aOutput> firstOutputs =
-                awaitOutputContaining(new A2aOutputHandle(TENANT, "session-multi", firstTaskId), "first question");
+                awaitOutputContaining(new RuntimeIdentity(TENANT, "user", "session-multi", firstTaskId, "agent"), "first question");
 
         assertThat(sessionManager.get(TENANT, "session-multi")).hasValueSatisfying(session ->
                 assertThat(session.currentUserInput()).anyMatch(message -> "first question".equals(message.text())));
@@ -130,7 +131,7 @@ class AgentServiceEndToEndIT {
         String secondTaskId = secondTurn.path("taskId").asText();
         awaitTaskState("session-multi", secondTaskId, TaskState.COMPLETED);
         List<A2aOutput> secondOutputs = awaitOutputContaining(
-                new A2aOutputHandle(TENANT, "session-multi", secondTaskId),
+                new RuntimeIdentity(TENANT, "user", "session-multi", secondTaskId, "agent"),
                 "second question");
 
         assertThat(firstTaskId).isNotBlank();
@@ -156,7 +157,7 @@ class AgentServiceEndToEndIT {
     void a2aInterruptedTaskCanBeResumedThroughAccessAndComplete() {
         JsonNode waitingAccepted = send(INTERRUPTING_AGENT, "session-wait", "weather");
         String taskId = waitingAccepted.path("taskId").asText();
-        A2aOutputHandle handle = new A2aOutputHandle(TENANT, "session-wait", taskId);
+        RuntimeIdentity handle = new RuntimeIdentity(TENANT, "user", "session-wait", taskId, "agent");
         List<A2aOutput> waitingOutputs = awaitAtLeastOutputs(handle, 1);
 
         assertThat(waitingAccepted.path("metadata").path("accepted").asBoolean()).isTrue();
@@ -187,7 +188,7 @@ class AgentServiceEndToEndIT {
     void aReturnedFailureResultStillRepliesWithATerminalError() {
         JsonNode accepted = send(RESULT_FAILING_AGENT, "session-failed-result", "return failure");
         String taskId = accepted.path("taskId").asText();
-        A2aOutputHandle handle = new A2aOutputHandle(TENANT, "session-failed-result", taskId);
+        RuntimeIdentity handle = new RuntimeIdentity(TENANT, "user", "session-failed-result", taskId, "agent");
         List<A2aOutput> outputs = awaitOutputs(handle);
 
         assertThat(accepted.path("metadata").path("accepted").asBoolean()).isTrue();
@@ -202,7 +203,7 @@ class AgentServiceEndToEndIT {
     void a2aCancelRequestCancelsTaskThroughTaskControlAndEngine() {
         JsonNode accepted = send(INTERRUPTING_AGENT, "session-cancel", "book ticket");
         String taskId = accepted.path("taskId").asText();
-        A2aOutputHandle handle = new A2aOutputHandle(TENANT, "session-cancel", taskId);
+        RuntimeIdentity handle = new RuntimeIdentity(TENANT, "user", "session-cancel", taskId, "agent");
         List<A2aOutput> outputs = awaitAtLeastOutputs(handle, 1);
         awaitTaskState("session-cancel", taskId, TaskState.WAITING);
 
@@ -217,7 +218,7 @@ class AgentServiceEndToEndIT {
         awaitTaskState("session-cancel", taskId, TaskState.CANCELLED);
     }
 
-    private List<A2aOutput> awaitOutputs(A2aOutputHandle handle) {
+    private List<A2aOutput> awaitOutputs(RuntimeIdentity handle) {
         long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
         List<A2aOutput> outputs = outputRegistry.list(handle);
         while (System.nanoTime() < deadline
@@ -233,7 +234,7 @@ class AgentServiceEndToEndIT {
         return outputs;
     }
 
-    private List<A2aOutput> awaitOutputContaining(A2aOutputHandle handle, String text) {
+    private List<A2aOutput> awaitOutputContaining(RuntimeIdentity handle, String text) {
         long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
         List<A2aOutput> outputs = outputRegistry.list(handle);
         while (System.nanoTime() < deadline
@@ -249,7 +250,7 @@ class AgentServiceEndToEndIT {
         return outputs;
     }
 
-    private List<A2aOutput> awaitAtLeastOutputs(A2aOutputHandle handle, int count) {
+    private List<A2aOutput> awaitAtLeastOutputs(RuntimeIdentity handle, int count) {
         long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
         List<A2aOutput> outputs = outputRegistry.list(handle);
         while (System.nanoTime() < deadline && outputs.size() < count) {

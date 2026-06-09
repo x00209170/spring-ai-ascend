@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.engine;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 
 /**
@@ -7,11 +8,11 @@ package com.huawei.ascend.runtime.engine;
  */
 public interface AccessLayerClient {
 
-    void appendOutput(EngineExecutionScope scope, EngineEvent event);
+    void appendOutput(RuntimeIdentity scope, EngineEvent event);
 
-    void completeOutput(EngineExecutionScope scope, EngineEvent event);
+    void completeOutput(RuntimeIdentity scope, EngineEvent event);
 
-    void failOutput(EngineExecutionScope scope, EngineEvent event);
+    void failOutput(RuntimeIdentity scope, EngineEvent event);
 
-    void requestUserInput(EngineExecutionScope scope, EngineEvent event);
+    void requestUserInput(RuntimeIdentity scope, EngineEvent event);
 }

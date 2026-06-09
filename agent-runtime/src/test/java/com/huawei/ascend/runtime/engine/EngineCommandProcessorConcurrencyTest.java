@@ -1,5 +1,6 @@
 package com.huawei.ascend.runtime.engine;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.huawei.ascend.runtime.engine.api.DefaultEngineExecutionApi;
@@ -43,8 +44,8 @@ class EngineCommandProcessorConcurrencyTest {
         executor.shutdownNow();
     }
 
-    private static EngineExecutionScope scope(String taskId) {
-        return new EngineExecutionScope("tenant", "user", "session", taskId, "blocking-agent");
+    private static RuntimeIdentity scope(String taskId) {
+        return new RuntimeIdentity("tenant", "user", "session", taskId, "blocking-agent");
     }
 
     private static EngineInput input() {

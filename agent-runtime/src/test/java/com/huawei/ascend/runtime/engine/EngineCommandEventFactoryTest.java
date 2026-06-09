@@ -1,5 +1,6 @@
 package com.huawei.ascend.runtime.engine;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.huawei.ascend.runtime.engine.api.EnqueueEngineExecutionRequest;
@@ -11,7 +12,7 @@ class EngineCommandEventFactoryTest {
 
     @Test
     void execute_buildsCommandEventWithScopeAndInput() {
-        EngineExecutionScope scope = new EngineExecutionScope("t", "u", "s", "task-9", "echo-agent");
+        RuntimeIdentity scope = new RuntimeIdentity("t", "u", "s", "task-9", "echo-agent");
         EngineInput input = new EngineInput("text", List.of(), Map.of());
         EnqueueEngineExecutionRequest req = new EnqueueEngineExecutionRequest(scope, input);
 

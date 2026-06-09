@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.access.a2a;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import com.huawei.ascend.runtime.access.api.NotificationPort;
 import com.huawei.ascend.runtime.access.AgentNotification;
@@ -23,9 +24,9 @@ public final class DefaultNotificationPort implements NotificationPort {
     public void notify(AgentNotification notification) {
         Objects.requireNonNull(notification, "notification");
         long startedNanos = System.nanoTime();
-        A2aOutputHandle handle = new A2aOutputHandle(
-                notification.tenantId(), notification.sessionId(), notification.taskId());
-        outputRegistry.append(handle, outputMapper.toA2aOutput(notification), outputMapper.toResponseEvent(notification));
+        RuntimeIdentity handle = new RuntimeIdentity(
+                notification.tenantId(), "system", notification.sessionId(), notification.taskId(), "a2a");
+        outputRegistry.append(handle, outputMapper.toA2aOutput(notification));
         LOGGER.info("trace stage=a2a-egress-deliver tenantId={} sessionId={} taskId={} type={} status={} terminal={} durationMs={}",
                 notification.tenantId(),
                 notification.sessionId(),

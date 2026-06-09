@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.huawei.ascend.runtime.engine.EngineCommandEventFactory;
 import com.huawei.ascend.runtime.engine.EngineCommandGateway;
 import com.huawei.ascend.runtime.engine.EngineCommandEvent;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineInput;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,8 +15,8 @@ import reactor.core.publisher.Flux;
 
 class DefaultEngineExecutionApiTest {
 
-    private EngineExecutionScope scope() {
-        return new EngineExecutionScope("t", "u", "s", "task-1", "echo-agent");
+    private RuntimeIdentity scope() {
+        return new RuntimeIdentity("t", "u", "s", "task-1", "echo-agent");
     }
 
     private EngineInput input() {

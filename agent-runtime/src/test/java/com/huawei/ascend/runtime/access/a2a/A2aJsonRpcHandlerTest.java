@@ -1,5 +1,6 @@
 package com.huawei.ascend.runtime.access.a2a;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -128,7 +129,7 @@ class A2aJsonRpcHandlerTest {
     void tasksGetUsesA2aWireValuesForTaskStatusAndMessageParts() throws Exception {
         Message message = A2aTaskMapper.agentMessage("session-1", "task-1", "pong", Map.of("type", "final_response"));
         outputRegistry.append(
-                new A2aOutputHandle("tenant-1", "session-1", "task-1"),
+                new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent"),
                 new A2aOutput(
                         "TaskStatus",
                         "task-1",

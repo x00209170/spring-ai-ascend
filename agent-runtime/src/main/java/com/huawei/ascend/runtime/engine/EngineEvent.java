@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.engine;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 /**
  * A single outcome the engine reports for a running handler, carried through the
@@ -18,7 +19,7 @@ package com.huawei.ascend.runtime.engine;
  */
 public record EngineEvent(
         EngineEventKind kind,
-        EngineExecutionScope scope,
+        RuntimeIdentity scope,
         EngineOutput output,
         String errorCode,
         String errorMessage,
@@ -26,27 +27,27 @@ public record EngineEvent(
         String prompt,
         String reason) {
 
-    public static EngineEvent started(EngineExecutionScope scope) {
+    public static EngineEvent started(RuntimeIdentity scope) {
         return new EngineEvent(EngineEventKind.STARTED, scope, null, null, null, null, null, null);
     }
 
-    public static EngineEvent output(EngineExecutionScope scope, EngineOutput output) {
+    public static EngineEvent output(RuntimeIdentity scope, EngineOutput output) {
         return new EngineEvent(EngineEventKind.OUTPUT, scope, output, null, null, null, null, null);
     }
 
-    public static EngineEvent completed(EngineExecutionScope scope, EngineOutput output) {
+    public static EngineEvent completed(RuntimeIdentity scope, EngineOutput output) {
         return new EngineEvent(EngineEventKind.COMPLETED, scope, output, null, null, null, null, null);
     }
 
-    public static EngineEvent failed(EngineExecutionScope scope, String errorCode, String errorMessage) {
+    public static EngineEvent failed(RuntimeIdentity scope, String errorCode, String errorMessage) {
         return new EngineEvent(EngineEventKind.FAILED, scope, null, errorCode, errorMessage, null, null, null);
     }
 
-    public static EngineEvent interrupted(EngineExecutionScope scope, InterruptType interruptType, String prompt) {
+    public static EngineEvent interrupted(RuntimeIdentity scope, InterruptType interruptType, String prompt) {
         return new EngineEvent(EngineEventKind.INTERRUPTED, scope, null, null, null, interruptType, prompt, null);
     }
 
-    public static EngineEvent cancelled(EngineExecutionScope scope, String reason) {
+    public static EngineEvent cancelled(RuntimeIdentity scope, String reason) {
         return new EngineEvent(EngineEventKind.CANCELLED, scope, null, null, null, null, null, reason);
     }
 }

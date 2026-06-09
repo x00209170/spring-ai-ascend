@@ -1,6 +1,6 @@
 package com.huawei.ascend.runtime.engine.api;
 
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineInput;
 
 import java.util.Objects;
@@ -16,7 +16,7 @@ import java.util.Objects;
  * @param input resume input (manual input, approval result, or child agent result).
  */
 public record EnqueueEngineResumeRequest(
-        EngineExecutionScope scope,
+        RuntimeIdentity scope,
         EngineInput input) {
 
     public EnqueueEngineResumeRequest {

@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.engine;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import java.time.Instant;
 
@@ -9,14 +10,14 @@ import java.time.Instant;
  */
 public class EngineCommandEvent {
     private String commandType;
-    private EngineExecutionScope scope;
+    private RuntimeIdentity scope;
     private EngineInput input;
     private Instant createdAt;
 
     public EngineCommandEvent() {
     }
 
-    public EngineCommandEvent(String commandType, EngineExecutionScope scope, EngineInput input, Instant createdAt) {
+    public EngineCommandEvent(String commandType, RuntimeIdentity scope, EngineInput input, Instant createdAt) {
         this.commandType = commandType;
         this.scope = scope;
         this.input = input;
@@ -31,11 +32,11 @@ public class EngineCommandEvent {
         this.commandType = commandType;
     }
 
-    public EngineExecutionScope getScope() {
+    public RuntimeIdentity getScope() {
         return scope;
     }
 
-    public void setScope(EngineExecutionScope scope) {
+    public void setScope(RuntimeIdentity scope) {
         this.scope = scope;
     }
 

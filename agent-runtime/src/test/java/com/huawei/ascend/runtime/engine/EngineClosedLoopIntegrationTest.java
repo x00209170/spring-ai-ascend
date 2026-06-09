@@ -1,5 +1,6 @@
 package com.huawei.ascend.runtime.engine;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.huawei.ascend.runtime.engine.api.DefaultEngineExecutionApi;
@@ -41,8 +42,8 @@ class EngineClosedLoopIntegrationTest {
         api = new DefaultEngineExecutionApi(new EngineCommandEventFactory(), gateway);
     }
 
-    private EngineExecutionScope scope() {
-        return new EngineExecutionScope("t", "u", "s", "task-1", "echo-agent");
+    private RuntimeIdentity scope() {
+        return new RuntimeIdentity("t", "u", "s", "task-1", "echo-agent");
     }
 
     private EngineInput input() {
@@ -80,7 +81,7 @@ class EngineClosedLoopIntegrationTest {
         // A request for an agentId with no registered handler is still accepted + enqueued;
         // the engine must converge it to a terminal FAILED via the single control authority
         // (not let the worker thread throw out of dispatch() and leave the task hanging).
-        EngineExecutionScope unknown = new EngineExecutionScope("t", "u", "s", "task-x", "missing-agent");
+        RuntimeIdentity unknown = new RuntimeIdentity("t", "u", "s", "task-x", "missing-agent");
         EnqueueEngineStatus status = api.enqueueExecution(new EnqueueEngineExecutionRequest(unknown, input()));
 
         assertThat(status).isEqualTo(EnqueueEngineStatus.SUCCESS);

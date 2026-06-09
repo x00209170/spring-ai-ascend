@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.access.a2a;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +20,7 @@ public final class A2aTaskMapper {
     private A2aTaskMapper() {
     }
 
-    public static Task toTask(A2aTaskQueryParams query, List<A2aOutput> outputs) {
+    public static Task toTask(RuntimeIdentity query, List<A2aOutput> outputs) {
         List<Artifact> artifacts = new ArrayList<>();
         List<Message> history = new ArrayList<>();
         TaskStatus status = new TaskStatus(TaskState.TASK_STATE_SUBMITTED);

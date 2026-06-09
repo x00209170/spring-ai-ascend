@@ -3,7 +3,7 @@ package com.huawei.ascend.runtime.engine.openjiuwen;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineInput;
 import com.huawei.ascend.runtime.common.Message;
 import com.openjiuwen.core.session.AgentSessionApi;
@@ -39,7 +39,7 @@ class OpenJiuwenAgentRuntimeHandlerTest {
     }
 
     private static AgentExecutionContext context() {
-        EngineExecutionScope scope = new EngineExecutionScope("tenant", "user", "session", "task-1", "base-agent");
+        RuntimeIdentity scope = new RuntimeIdentity("tenant", "user", "session", "task-1", "base-agent");
         EngineInput input = new EngineInput("text", List.of(Message.user("ping")), Map.of());
         return new AgentExecutionContext(scope, input);
     }

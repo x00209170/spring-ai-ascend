@@ -3,7 +3,7 @@ package com.huawei.ascend.runtime.engine.openjiuwen;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineInput;
 import com.huawei.ascend.runtime.common.Message;
 import java.util.List;
@@ -14,7 +14,7 @@ class OpenJiuwenMessageAdapterTest {
 
     @Test
     void toOpenJiuwenInput_buildsQueryAndConversationId() {
-        EngineExecutionScope scope = new EngineExecutionScope("t", "u", "s", "task-7", "echo-agent");
+        RuntimeIdentity scope = new RuntimeIdentity("t", "u", "s", "task-7", "echo-agent");
         EngineInput input = new EngineInput("text", List.of(Message.user("你好")), Map.of());
         AgentExecutionContext ctx = new AgentExecutionContext(scope, input);
 

@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.engine;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 
 /**
@@ -6,22 +7,22 @@ package com.huawei.ascend.runtime.engine;
  * scope (who/what is running) plus the input. See engine model design §9.2.
  */
 public class AgentExecutionContext {
-    private EngineExecutionScope scope;
+    private RuntimeIdentity scope;
     private EngineInput input;
 
     public AgentExecutionContext() {
     }
 
-    public AgentExecutionContext(EngineExecutionScope scope, EngineInput input) {
+    public AgentExecutionContext(RuntimeIdentity scope, EngineInput input) {
         this.scope = scope;
         this.input = input;
     }
 
-    public EngineExecutionScope getScope() {
+    public RuntimeIdentity getScope() {
         return scope;
     }
 
-    public void setScope(EngineExecutionScope scope) {
+    public void setScope(RuntimeIdentity scope) {
         this.scope = scope;
     }
 

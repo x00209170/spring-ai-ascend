@@ -1,7 +1,7 @@
 package com.huawei.ascend.runtime.engine.support;
 
 import com.huawei.ascend.runtime.engine.EngineEvent;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.TaskControlClient;
 import java.util.Collections;
 import java.util.ArrayList;
@@ -22,36 +22,36 @@ public class RecordingTaskControlClient implements TaskControlClient {
     public final List<EngineEvent> cancelled = Collections.synchronizedList(new ArrayList<>());
 
     @Override
-    public void markRunning(EngineExecutionScope scope) {
+    public void markRunning(RuntimeIdentity scope) {
         transitions.add("RUNNING:" + scope.taskId());
     }
 
     @Override
-    public void appendOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void appendOutput(RuntimeIdentity scope, EngineEvent event) {
         transitions.add("APPEND:" + scope.taskId());
         outputs.add(event);
     }
 
     @Override
-    public void markWaiting(EngineExecutionScope scope, EngineEvent event) {
+    public void markWaiting(RuntimeIdentity scope, EngineEvent event) {
         transitions.add("WAITING:" + scope.taskId());
         waiting.add(event);
     }
 
     @Override
-    public void markSucceeded(EngineExecutionScope scope, EngineEvent event) {
+    public void markSucceeded(RuntimeIdentity scope, EngineEvent event) {
         transitions.add("SUCCEEDED:" + scope.taskId());
         succeeded.add(event);
     }
 
     @Override
-    public void markFailed(EngineExecutionScope scope, EngineEvent event) {
+    public void markFailed(RuntimeIdentity scope, EngineEvent event) {
         transitions.add("FAILED:" + scope.taskId());
         failed.add(event);
     }
 
     @Override
-    public void markCancelled(EngineExecutionScope scope, EngineEvent event) {
+    public void markCancelled(RuntimeIdentity scope, EngineEvent event) {
         transitions.add("CANCELLED:" + scope.taskId());
         cancelled.add(event);
     }

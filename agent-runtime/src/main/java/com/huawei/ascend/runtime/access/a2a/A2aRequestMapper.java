@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.access.a2a;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,7 +13,7 @@ import java.util.Objects;
 
 /**
  * Parses inbound A2A JSON-RPC {@code params} into the runtime's neutral request
- * types ({@link AgentRequest}, {@link AccessCancelCommand}, {@link A2aTaskQueryParams}).
+ * types ({@link AgentRequest}, {@link AccessCancelCommand}, {@link RuntimeIdentity}).
  *
  * <p>Split out of {@code A2aJsonRpcHandler} so the protocol-to-domain mapping —
  * field extraction, metadata merging, tenant/agent defaulting and session-id
@@ -92,18 +93,23 @@ final class A2aRequestMapper {
                 Map.of("taskId", taskId == null ? "" : taskId));
     }
 
-    A2aTaskQueryParams toTaskQuery(JsonNode params) {
+    RuntimeIdentity toTaskQuery(JsonNode params) {
         if (params == null || params.isNull()) {
             throw new IllegalArgumentException("Missing JSON-RPC params");
         }
         JsonNode metadata = object(params.get("metadata"));
-        return new A2aTaskQueryParams(
+        String defaultUserId = text(metadata.get("userId"));
+        if (defaultUserId == null || defaultUserId.isBlank()) defaultUserId = "a2a-client";
+        return new RuntimeIdentity(
                 requiredTextOrDefault(
                         text(metadata.get("tenantId")),
                         properties.getDefaultTenantId(),
                         "A2A metadata.tenantId"),
+                defaultUserId,
                 requiredText(metadata, "sessionId"),
-                firstText(params.get("id"), params.get("taskId")));
+                firstText(params.get("id"), params.get("taskId")),
+                requiredTextOrDefault(text(metadata.get("agentId")),
+                        properties.getDefaultAgentId(), "A2A metadata.agentId"));
     }
 
     private void validatePushNotificationConfig(JsonNode params) {

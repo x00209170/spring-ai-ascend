@@ -5,7 +5,7 @@ import com.huawei.ascend.runtime.engine.api.EnqueueEngineCancelRequest;
 import com.huawei.ascend.runtime.engine.api.EnqueueEngineExecutionRequest;
 import com.huawei.ascend.runtime.engine.api.EnqueueEngineResumeRequest;
 import com.huawei.ascend.runtime.engine.api.EnqueueEngineStatus;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineInput;
 import com.huawei.ascend.runtime.common.AgentRequest;
 import com.huawei.ascend.runtime.common.Guards;
@@ -244,7 +244,7 @@ public class TaskControlService implements TaskControlApi {
         long startedNanos = System.nanoTime();
         EnqueueEngineStatus status;
         try {
-            EngineExecutionScope scope = scopeFor(task, userId(request.userId()));
+            RuntimeIdentity scope = scopeFor(task, userId(request.userId()));
             EngineInput input = engineInput(request.input(), resume ? "RESUME_SIGNAL" : "USER_MESSAGE");
             LOGGER.info("task dispatch engine tenantId={} sessionId={} taskId={} agentId={} resume={} inputType={} inputMessages={}",
                     scope.tenantId(),
@@ -411,8 +411,8 @@ public class TaskControlService implements TaskControlApi {
         return sessionLocks.computeIfAbsent(new SessionKey(tenantId, sessionId), ignored -> new Object());
     }
 
-    private EngineExecutionScope scopeFor(Task task, String userId) {
-        return new EngineExecutionScope(task.getTenantId(), userId, task.getSessionId(),
+    private RuntimeIdentity scopeFor(Task task, String userId) {
+        return new RuntimeIdentity(task.getTenantId(), userId, task.getSessionId(),
                 task.getTaskId(), task.getAgentId() == null ? "" : task.getAgentId());
     }
 

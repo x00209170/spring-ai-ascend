@@ -1,4 +1,5 @@
 package com.huawei.ascend.runtime.access.a2a;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -175,8 +176,8 @@ public final class A2aJsonRpcHandler {
                         "accepted", accepted.accepted()));
     }
 
-    private A2aOutputHandle outputHandle(A2aAcceptedResponse accepted) {
-        return new A2aOutputHandle(accepted.tenantId(), accepted.sessionId(), accepted.taskId());
+    private RuntimeIdentity outputHandle(A2aAcceptedResponse accepted) {
+        return new RuntimeIdentity(accepted.tenantId(), accepted.userId(), accepted.sessionId(), accepted.taskId(), accepted.agentId());
     }
 
     private SendMessageResponse handleSend(Object id, JsonNode params) {
@@ -192,9 +193,8 @@ public final class A2aJsonRpcHandler {
 
     private GetTaskResponse handleGetTask(Object id, JsonNode params) {
         try {
-            A2aTaskQueryParams query = requestMapper.toTaskQuery(params);
-            A2aOutputHandle handle = new A2aOutputHandle(query.tenantId(), query.sessionId(), query.taskId());
-            List<A2aOutput> outputs = outputRegistry.list(handle);
+            RuntimeIdentity query = requestMapper.toTaskQuery(params);
+            List<A2aOutput> outputs = outputRegistry.list(query);
             return new GetTaskResponse(id, A2aTaskMapper.toTask(query, outputs));
         } catch (IllegalArgumentException ex) {
             return new GetTaskResponse(id, new InvalidRequestError(ex.getMessage()));

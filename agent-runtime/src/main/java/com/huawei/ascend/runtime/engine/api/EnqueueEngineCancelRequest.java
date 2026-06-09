@@ -1,6 +1,6 @@
 package com.huawei.ascend.runtime.engine.api;
 
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 
 import java.util.Objects;
 
@@ -14,7 +14,7 @@ import java.util.Objects;
  * @param scope execution scope (identifies the execution to cancel).
  */
 public record EnqueueEngineCancelRequest(
-        EngineExecutionScope scope) {
+        RuntimeIdentity scope) {
 
     public EnqueueEngineCancelRequest {
         Objects.requireNonNull(scope, "scope");

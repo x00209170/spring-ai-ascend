@@ -1,5 +1,6 @@
 package com.huawei.ascend.runtime.access.a2a;
 
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.List;
@@ -41,7 +42,7 @@ class A2aJsonRpcControllerTest {
         when(handler.openStream(body)).thenReturn(new A2aJsonRpcStreamExchange(
                 "request-stream",
                 Map.of("accepted", Boolean.TRUE),
-                new A2aOutputHandle("tenant-1", "session-1", "task-1")));
+                new RuntimeIdentity("tenant-1", "user", "session-1", "task-1", "agent")));
         when(handler.toJson(org.mockito.ArgumentMatchers.any())).thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"request-stream\"}");
         MockMvc mockMvc = MockMvcBuilders
                 .standaloneSetup(new A2aJsonRpcController(handler, new A2aOutputRegistry()))

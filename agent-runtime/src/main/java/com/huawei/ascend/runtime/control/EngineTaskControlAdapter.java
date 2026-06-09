@@ -2,7 +2,7 @@ package com.huawei.ascend.runtime.control;
 
 import com.huawei.ascend.runtime.engine.AccessLayerClient;
 import com.huawei.ascend.runtime.engine.EngineEvent;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.InterruptType;
 import com.huawei.ascend.runtime.control.api.TaskControlApi.MarkTaskCommand;
 import com.huawei.ascend.runtime.control.api.TaskControlApi.TaskResult;
@@ -28,12 +28,12 @@ public class EngineTaskControlAdapter implements com.huawei.ascend.runtime.engin
     }
 
     @Override
-    public void markRunning(EngineExecutionScope scope) {
+    public void markRunning(RuntimeIdentity scope) {
         taskControlService.markRunning(command(scope, null, null, null, Map.of())).toCompletableFuture().join();
     }
 
     @Override
-    public void appendOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void appendOutput(RuntimeIdentity scope, EngineEvent event) {
         // Streaming chunk: forward to egress only while control still considers the task live,
         // so no output escapes after the authoritative task has terminated or is cancelling.
         boolean live = taskControlService.findTask(scope.tenantId(), scope.sessionId(), scope.taskId())
@@ -45,7 +45,7 @@ public class EngineTaskControlAdapter implements com.huawei.ascend.runtime.engin
     }
 
     @Override
-    public void markWaiting(EngineExecutionScope scope, EngineEvent event) {
+    public void markWaiting(RuntimeIdentity scope, EngineEvent event) {
         TaskResult result = taskControlService
                 .markWaiting(command(scope, waitingReason(event), null, event, Map.of()))
                 .toCompletableFuture().join();
@@ -56,7 +56,7 @@ public class EngineTaskControlAdapter implements com.huawei.ascend.runtime.engin
     }
 
     @Override
-    public void markSucceeded(EngineExecutionScope scope, EngineEvent event) {
+    public void markSucceeded(RuntimeIdentity scope, EngineEvent event) {
         TaskResult result = taskControlService
                 .markSucceeded(command(scope, null, null, event, Map.of()))
                 .toCompletableFuture().join();
@@ -66,7 +66,7 @@ public class EngineTaskControlAdapter implements com.huawei.ascend.runtime.engin
     }
 
     @Override
-    public void markFailed(EngineExecutionScope scope, EngineEvent event) {
+    public void markFailed(RuntimeIdentity scope, EngineEvent event) {
         TaskResult result = taskControlService
                 .markFailed(command(scope, null, failureCode(event), event, Map.of()))
                 .toCompletableFuture().join();
@@ -76,12 +76,12 @@ public class EngineTaskControlAdapter implements com.huawei.ascend.runtime.engin
     }
 
     @Override
-    public void markCancelled(EngineExecutionScope scope, EngineEvent event) {
+    public void markCancelled(RuntimeIdentity scope, EngineEvent event) {
         taskControlService.markCancelled(command(scope, null, TaskFailureCode.CANCELLED_BY_RUNTIME, event, Map.of()))
                 .toCompletableFuture().join();
     }
 
-    private MarkTaskCommand command(EngineExecutionScope scope, WaitingReason waitingReason,
+    private MarkTaskCommand command(RuntimeIdentity scope, WaitingReason waitingReason,
                                     TaskFailureCode failureCode, Object detail, Map<String, Object> metadata) {
         Task task = taskControlService.findTask(scope.tenantId(), scope.sessionId(), scope.taskId())
                 .orElseThrow(() -> new IllegalArgumentException("task not found: " + scope.taskId()));

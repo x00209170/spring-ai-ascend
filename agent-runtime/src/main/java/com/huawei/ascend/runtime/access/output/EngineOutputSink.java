@@ -5,7 +5,7 @@ import com.huawei.ascend.runtime.access.AgentNotification;
 import com.huawei.ascend.runtime.access.AgentNotification.RunError;
 import com.huawei.ascend.runtime.access.NotificationType;
 import com.huawei.ascend.runtime.engine.EngineEvent;
-import com.huawei.ascend.runtime.engine.EngineExecutionScope;
+import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.EngineOutput;
 import com.huawei.ascend.runtime.engine.AccessLayerClient;
 import com.huawei.ascend.runtime.common.Message;
@@ -41,7 +41,7 @@ public final class EngineOutputSink implements AccessLayerClient {
     }
 
     @Override
-    public void appendOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void appendOutput(RuntimeIdentity scope, EngineEvent event) {
         EngineOutput output = event == null ? null : event.output();
         boolean terminal = output != null && output.isFinalOutput();
         RunStatus status = terminal ? RunStatus.COMPLETED : RunStatus.IN_PROGRESS;
@@ -49,14 +49,14 @@ public final class EngineOutputSink implements AccessLayerClient {
     }
 
     @Override
-    public void completeOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void completeOutput(RuntimeIdentity scope, EngineEvent event) {
         EngineOutput output = event == null ? null : event.output();
         publish(scope, NotificationType.LLM_RESULT, RunStatus.COMPLETED,
                 messages(text(output)), null, Map.of(), true);
     }
 
     @Override
-    public void failOutput(EngineExecutionScope scope, EngineEvent event) {
+    public void failOutput(RuntimeIdentity scope, EngineEvent event) {
         String code = event == null ? "UNKNOWN" : event.errorCode();
         String message = event == null ? "" : event.errorMessage();
         publish(scope, NotificationType.ERROR, RunStatus.FAILED,
@@ -64,13 +64,13 @@ public final class EngineOutputSink implements AccessLayerClient {
     }
 
     @Override
-    public void requestUserInput(EngineExecutionScope scope, EngineEvent event) {
+    public void requestUserInput(RuntimeIdentity scope, EngineEvent event) {
         String prompt = event == null ? null : event.prompt();
         publish(scope, NotificationType.ACK, RunStatus.INCOMPLETE,
                 messages(prompt), null, Map.of("waitingReason", "USER_INPUT"), false);
     }
 
-    private void publish(EngineExecutionScope scope, NotificationType type, RunStatus status, List<Message> output,
+    private void publish(RuntimeIdentity scope, NotificationType type, RunStatus status, List<Message> output,
                          RunError error, Map<String, Object> metadata, boolean terminal) {
         long startedNanos = System.nanoTime();
         Objects.requireNonNull(scope, "scope");
