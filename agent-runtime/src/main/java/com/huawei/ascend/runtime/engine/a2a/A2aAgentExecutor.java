@@ -5,7 +5,6 @@ import com.huawei.ascend.runtime.common.RuntimeIdentity;
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.spi.AgentExecutionResult;
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
-import com.huawei.ascend.runtime.engine.spi.AgentRuntimeProviderChain;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -64,13 +63,14 @@ public final class A2aAgentExecutor implements AgentExecutor {
         } catch (Exception e) {
             LOG.error("[A2A] execute failed taskId={} errorClass={} message={}",
                     taskId, e.getClass().getSimpleName(), e.getMessage(), e);
-            emitter.fail();
+            String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            emitter.fail(failureMessage(emitter, "RUNTIME_ERROR", detail));
             LOG.info("[A2A] task state=FAILED taskId={}", taskId);
         }
     }
 
     private Stream<?> executeAgent(AgentExecutionContext context) {
-        return AgentRuntimeProviderChain.execute(handler, context);
+        return handler.execute(context);
     }
 
     @Override
@@ -85,7 +85,7 @@ public final class A2aAgentExecutor implements AgentExecutor {
             case OUTPUT -> {
                 String text = outputText(result);
                 LOG.info("[A2A] output stream taskId={} textChars={}", taskId, text.length());
-                emitter.sendMessage(text);
+                emitter.addArtifact(List.<Part<?>>of(new TextPart(text)));
                 // state stays WORKING — more output may follow
             }
             case COMPLETED -> {
@@ -102,7 +102,7 @@ public final class A2aAgentExecutor implements AgentExecutor {
                 String code = result.errorCode() == null ? "RUNTIME_ERROR" : result.errorCode();
                 String msg = result.errorMessage() == null ? code : result.errorMessage();
                 LOG.warn("[A2A] task state=FAILED taskId={} code={} message={}", taskId, code, msg);
-                emitter.fail();
+                emitter.fail(failureMessage(emitter, code, result.errorMessage()));
             }
             case INTERRUPTED -> {
                 String prompt = result.prompt() == null ? "" : result.prompt();
@@ -117,6 +117,15 @@ public final class A2aAgentExecutor implements AgentExecutor {
 
     private static String outputText(AgentExecutionResult result) {
         return result.outputContent() != null ? result.outputContent() : "";
+    }
+
+    /**
+     * Builds an agent message carrying the failure reason so the A2A client sees
+     * why the task failed instead of a bare FAILED status with no detail.
+     */
+    private static Message failureMessage(AgentEmitter emitter, String code, String detail) {
+        String text = (detail == null || detail.isBlank()) ? code : code + ": " + detail;
+        return emitter.newAgentMessage(List.<Part<?>>of(new TextPart(text)), null);
     }
 
     private AgentExecutionContext toExecutionContext(RequestContext ctx) {
