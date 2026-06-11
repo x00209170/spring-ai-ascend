@@ -14,16 +14,20 @@ import org.slf4j.LoggerFactory;
  * Builds a {@link VersatileHttpRequest} from an {@link AgentExecutionContext}.
  *
  * <h3>URL</h3>
- * {@code https://{host}:{port}/v1/0/agent-manager/workflows/{workflowId}/conversations/{sessionId}?workspace_id={workspaceId}}
+ * The {@code url-template} from {@link VersatileProperties} is resolved with
+ * {@code {conversation_id} → sessionId} and any static {@code url-variables}.
+ * {@code query-params} are appended as {@code ?key=value&...}.
  *
  * <h3>Headers (two-level priority)</h3>
  * <ol>
- *   <li>YAML pre-config {@code versatile.headers} — low priority</li>
- *   <li>A2A client metadata, filtered by {@code versatile.passthrough-headers} — high priority, overrides YAML</li>
+ *   <li>YAML {@code versatile.headers} — low priority</li>
+ *   <li>A2A client metadata ({@code versatile.passthrough-headers} allowlist) — high priority</li>
  * </ol>
  *
  * <h3>Body</h3>
- * {@code {inputs:{query}, memory_inputs:{}, globals:{}, plugin_configs:[], version, long_term_memory}}
+ * <pre>{@code {"inputs": {"query": <user-text>, ...<input-metadata-keys>}}}</pre>
+ * Additional input fields are sourced from A2A metadata for keys listed in
+ * {@code versatile.input-metadata-keys}.
  */
 public class VersatileMessageAdapter {
 
@@ -35,18 +39,16 @@ public class VersatileMessageAdapter {
         this.properties = Objects.requireNonNull(properties, "properties");
     }
 
-    /**
-     * Build the full REST request from the execution context.
-     */
     public VersatileHttpRequest toRequest(AgentExecutionContext context) {
         String conversationId = context.getScope().sessionId();
-        String url = properties.workflowPath(conversationId);
+        String url = properties.resolveUrl(conversationId);
 
         Map<String, String> headers = buildHeaders(context);
         Map<String, Object> body = buildBody(context);
 
-        LOG.info("versatile request url={} headerKeys={} bodyQuery={}",
-                url, headers.keySet(), body.getOrDefault("inputs", Map.of()));
+        LOG.info("versatile request url={} headerKeys={} inputKeys={}",
+                url, headers.keySet(),
+                ((Map<?, ?>) body.getOrDefault("inputs", Map.of())).keySet());
 
         return new VersatileHttpRequest("POST", url, headers, body);
     }
@@ -84,21 +86,28 @@ public class VersatileMessageAdapter {
         String query = lastUserText(context);
         LOG.info("versatile body query extracted chars={}", query.length());
 
+        Map<String, Object> inputs = new LinkedHashMap<>();
+        inputs.put("query", query);
+
+        // Merge additional input fields from A2A metadata
+        List<String> metadataKeys = properties.getInputMetadataKeys();
+        if (metadataKeys != null && !metadataKeys.isEmpty()) {
+            Map<String, Object> a2aMetadata = context.getVariables();
+            for (String key : metadataKeys) {
+                Object value = a2aMetadata.get(key);
+                if (value != null) {
+                    inputs.put(key, value);
+                }
+            }
+        }
+
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("inputs", java.util.Map.of("query", query));
-        body.put("memory_inputs", java.util.Map.of());
-        body.put("globals", java.util.Map.of());
-        body.put("plugin_configs", List.of());
-        body.put("version", properties.getVersion());
-        body.put("long_term_memory", properties.getLongTermMemory());
+        body.put("inputs", inputs);
         return body;
     }
 
     // ── Helpers ──
 
-    /**
-     * Extract text from the last user message in the conversation.
-     */
     static String lastUserText(AgentExecutionContext context) {
         List<Message> messages = context.getMessages();
         if (messages == null || messages.isEmpty()) {
@@ -126,10 +135,6 @@ public class VersatileMessageAdapter {
         return sb.toString();
     }
 
-    /**
-     * Convert a hyphenated metadata key to an HTTP header name.
-     * Example: {@code x-invoke-mode} → {@code X-Invoke-Mode}.
-     */
     private static String toHeaderName(String key) {
         if (key == null) {
             return "";

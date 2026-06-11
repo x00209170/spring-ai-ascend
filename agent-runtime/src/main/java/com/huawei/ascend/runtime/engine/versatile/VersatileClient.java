@@ -2,6 +2,9 @@ package com.huawei.ascend.runtime.engine.versatile;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -38,11 +41,19 @@ public class VersatileClient {
     private final HttpClient httpClient;
     private final VersatileProperties properties;
 
+    /** Always route directly — never through a proxy. */
+    private static final ProxySelector NO_PROXY = new ProxySelector() {
+        @Override public java.util.List<Proxy> select(URI uri) { return java.util.List.of(Proxy.NO_PROXY); }
+        @Override public void connectFailed(URI uri, SocketAddress sa, java.io.IOException ioe) {}
+    };
+
     public VersatileClient(VersatileProperties properties) {
         this.properties = Objects.requireNonNull(properties, "properties");
         Duration timeout = properties.getTimeout() != null ? properties.getTimeout() : Duration.ofSeconds(30);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(timeout)
+                .version(HttpClient.Version.HTTP_1_1)
+                .proxy(NO_PROXY)
                 .executor(Executors.newCachedThreadPool())
                 .build();
     }
@@ -56,9 +67,9 @@ public class VersatileClient {
         BlockingQueue<String> queue = new LinkedBlockingQueue<>(256);
         AtomicReference<Throwable> upstreamError = new AtomicReference<>();
 
-        byte[] bodyBytes;
+        String bodyJson;
         try {
-            bodyBytes = MAPPER.writeValueAsBytes(
+            bodyJson = MAPPER.writeValueAsString(
                     request.body() != null ? request.body() : java.util.Collections.emptyMap());
         } catch (Exception e) {
             throw new VersatileClientException("Failed to serialize request body", e);
@@ -66,19 +77,27 @@ public class VersatileClient {
 
         HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(request.url()))
-                .method(request.method().toUpperCase(),
-                        bodyBytes.length > 0
-                                ? HttpRequest.BodyPublishers.ofByteArray(bodyBytes)
-                                : HttpRequest.BodyPublishers.noBody())
                 .timeout(properties.getTimeout());
 
+        // Set headers first so Content-Type is established before the body publisher
         request.headers().forEach((key, value) -> {
             if (value != null) {
                 reqBuilder.header(key, value);
             }
         });
 
+        // If no Content-Type was set by config, default to application/json
+        if (!request.headers().containsKey("content-type")
+                && !request.headers().containsKey("Content-Type")) {
+            reqBuilder.header("Content-Type", "application/json");
+        }
+
+        byte[] bodyBytes = bodyJson.getBytes(StandardCharsets.UTF_8);
+        reqBuilder.method(request.method().toUpperCase(),
+                HttpRequest.BodyPublishers.ofByteArray(bodyBytes));
+
         HttpRequest httpRequest = reqBuilder.build();
+        logCurl(httpRequest, bodyJson);
 
         Thread.ofVirtual().start(() -> {
             try {
@@ -136,6 +155,35 @@ public class VersatileClient {
                 return null;
             }
         }).takeWhile(Objects::nonNull);
+    }
+
+    /** Header names that must never be logged in plain text. */
+    private static final java.util.Set<String> SENSITIVE_HEADERS = java.util.Set.of(
+            "authorization", "cookie", "set-cookie", "x-api-key",
+            "x-auth-token", "cftk", "cf2-cftk", "cust-token");
+
+    /**
+     * Log the outgoing request as a copy-pasteable {@code curl} command.
+     * Sensitive headers (tokens, cookies) have their values redacted.
+     */
+    private static void logCurl(HttpRequest request, String body) {
+        if (!LOG.isInfoEnabled()) return;
+        StringBuilder curl = new StringBuilder();
+        curl.append("curl -X ").append(request.method()).append(" '").append(request.uri()).append("'");
+        request.headers().map().forEach((name, values) -> {
+            String lower = name.toLowerCase();
+            if ("content-length".equals(lower) || "host".equals(lower)) return;
+            for (String value : values) {
+                String displayValue = SENSITIVE_HEADERS.contains(lower) ? "***" : value;
+                curl.append(" \\\n  -H '").append(name).append(": ").append(displayValue).append("'");
+            }
+        });
+        if (body != null && !body.isEmpty()) {
+            String displayBody = body.length() > 500 ? body.substring(0, 500) + "..." : body;
+            String escaped = displayBody.replace("'", "'\\''");
+            curl.append(" \\\n  -d '").append(escaped).append("'");
+        }
+        LOG.info("versatile outgoing request:\n{}", curl);
     }
 
     private static void safeOffer(BlockingQueue<String> queue, String item) {

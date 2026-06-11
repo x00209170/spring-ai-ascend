@@ -14,26 +14,26 @@ management:
         include: health,info
 
 # ── Versatile remote service configuration ──
-# Override these values via environment variables or a custom
-# application-local.yaml when running against a real versatile instance.
 versatile:
-  host: ${VERSATILE_HOST:100.93.15.185}
-  port: ${VERSATILE_PORT:30001}
-  ssl: ${VERSATILE_SSL:true}
-  workflow-id: ${VERSATILE_WORKFLOW_ID:17bf8748-d35d-41da-ad61-9cf53f6bb4b3}
-  workspace-id: ${VERSATILE_WORKSPACE_ID:38e96fe921ff4daf8af01bd3529346c6}
+  url: ${VERSATILE_URL:http://7.213.200.213:3001/v1/{project_id}/agents/{agent_id}/conversations/{conversation_id}}
   timeout: 30s
-  version: 1772196378200
-  long-term-memory:
-    enable-retrieve: true
-    enable-extract: true
+
+  url-variables:
+    project_id: ${VERSATILE_PROJECT_ID:mock_project_id}
+    agent_id: ${VERSATILE_AGENT_ID:fb723468-c8ca-424b-a95f-a3e74b37e090}
+
+  query-params:
+    type: ${VERSATILE_QUERY_TYPE:controller}
+    workspace_id: ${VERSATILE_WORKSPACE_ID:10}
+
   headers:
-    accept: "application/json, text/event-stream"
     content-type: "application/json"
     stream: "true"
+
   passthrough-headers:
     - x-invoke-mode
     - x-language
-    - cftk
-    - cf2-cftk
-    - cookie
+
+  input-metadata-keys:
+    - intent
+    - wap_userName

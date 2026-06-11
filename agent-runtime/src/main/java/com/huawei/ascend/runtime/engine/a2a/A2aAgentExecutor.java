@@ -310,11 +310,35 @@ public final class A2aAgentExecutor implements AgentExecutor {
                         metadata(ctx, "agentId", handler.agentId())),
                 "USER_MESSAGE",
                 messages,
-                // In A2A every message/send of a conversation opens a NEW task within
-                // the same contextId, so the framework conversation key must follow the
-                // session - keying it by taskId would start a fresh framework
-                // conversation each turn and checkpointer restore would never fire.
-                Map.of(AgentExecutionContext.AGENT_STATE_KEY_VARIABLE, sessionId));
+                // Merge A2A message metadata into variables so adapters (versatile, etc.)
+                // can access business fields like intent, wap_userName without changing
+                // the neutral AgentExecutionContext contract.
+                mergeVariables(ctx));
+    }
+
+    /**
+     * Merge A2A request and message metadata into an immutable variables map,
+     * preserving the framework {@link AgentExecutionContext#AGENT_STATE_KEY_VARIABLE}.
+     * Message-level metadata (e.g. {@code intent}, {@code wap_userName}) takes
+     * precedence over request-level metadata on key collision.
+     */
+    private static Map<String, Object> mergeVariables(RequestContext ctx) {
+        java.util.LinkedHashMap<String, Object> vars = new java.util.LinkedHashMap<>();
+        // Request-level metadata (low priority)
+        Map<String, Object> requestMd = ctx.getMetadata();
+        if (requestMd != null) {
+            vars.putAll(requestMd);
+        }
+        // Message-level metadata (high priority — business fields)
+        if (ctx.getMessage() != null) {
+            Map<String, Object> messageMd = ctx.getMessage().metadata();
+            if (messageMd != null) {
+                vars.putAll(messageMd);
+            }
+        }
+        String sessionId = ctx.getContextId() != null ? ctx.getContextId() : ctx.getTaskId();
+        vars.put(AgentExecutionContext.AGENT_STATE_KEY_VARIABLE, sessionId);
+        return Map.copyOf(vars);
     }
 
     private static String extractText(RequestContext ctx) {

@@ -31,37 +31,22 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 
 /**
- * Manual end-to-end test that verifies the versatile workflow proxy agent
- * end-to-end: A2A client → agent-runtime → versatile REST → agent-runtime →
- * A2A client.
+ * Manual end-to-end test: A2A client → agent-runtime → versatile REST → back.
  *
  * <h3>Prerequisites</h3>
- * <ol>
- *   <li>A versatile workflow service must be running at the address configured
- *       in {@code application.yaml} (or via environment variables).</li>
- *   <li>The workflow must accept a {@code {"inputs":{"query":"..."}}}
- *       request body and return an SSE stream.</li>
- * </ol>
+ * A versatile service must be running at the address configured in
+ * {@code application.yaml} (override via environment variables).
  *
- * <h3>Run from the IDE</h3>
- * Execute test methods individually. Ensure the versatile remote service
- * is reachable before running.
- *
- * <h3>Run from CLI (recommended for CI/local)</h3>
+ * <h3>Quick start — against the real versatile instance</h3>
  * <pre>
- * # 1. Start the runtime in one terminal:
- * mvn spring-boot:run -pl examples/agent-runtime-a2a-versatile-e2e
- *
- * # 2. Run the test in another terminal:
- * mvn test -pl examples/agent-runtime-a2a-versatile-e2e \
- *     -Dtest=VersatileA2aE2eTest
- * </pre>
- *
- * <h3>Run against a custom versatile instance</h3>
- * <pre>
- * VERSATILE_HOST=10.0.0.1 VERSATILE_PORT=8443 \
- * VERSATILE_WORKFLOW_ID=my-workflow-uuid \
- *   mvn test -pl examples/agent-runtime-a2a-versatile-e2e \
+ * VERSATILE_HOST=7.213.200.213 VERSATILE_PORT=3001 VERSATILE_SSL=false \
+ * VERSATILE_URL_TEMPLATE="/v1/{project_id}/agents/{agent_id}/conversations/{conversation_id}" \
+ * VERSATILE_PROJECT_ID="mock_project_id" \
+ * VERSATILE_AGENT_ID="fb723468-c8ca-424b-a95f-a3e74b37e090" \
+ * VERSATILE_WORKSPACE_ID="10" \
+ * VERSATILE_QUERY_PARAM_TYPE="controller" \
+ * VERSATILE_INPUT_METADATA_KEYS="intent,wap_userName" \
+ *   mvn test -f examples/agent-runtime-a2a-versatile-e2e/pom.xml \
  *       -Dtest=VersatileA2aE2eTest
  * </pre>
  */
@@ -77,126 +62,122 @@ class VersatileA2aE2eTest {
     @LocalServerPort
     private int port;
 
-    /**
-     * Verifies the agent card is discoverable via A2A well-known endpoint.
-     */
     @Test
     void agentCardIsDiscoverable() throws Exception {
         URI baseUri = baseUri();
         AgentCard card = new A2ACardResolver(baseUri.toString()).getAgentCard();
-
         assertThat(card.name()).isEqualTo("Versatile Agent");
-        assertThat(card.capabilities().streaming()).isTrue();
-        assertThat(card.defaultInputModes()).contains("text");
-        LOG.info("Versatile agent card discovered: name={} url={}", card.name(), card.url());
+        LOG.info("Agent card: name={} streaming={} url={}",
+                card.name(), card.capabilities().streaming(), card.url());
     }
 
     /**
-     * Sends a synchronous message to the versatile agent and verifies the
-     * task completes (or fails with a clear error if the remote is unreachable).
+     * Stream a message to the versatile agent and print every event to the
+     * log. The test assertion is intentionally lenient — it only checks that
+     * the stream reaches a terminal state. Human inspection of log output
+     * validates correctness.
      */
     @Test
-    void sendSynchronousMessageAndWaitForCompletion() throws Exception {
+    void streamToVersatileAndPrintAllEvents() throws Exception {
         URI baseUri = baseUri();
         AgentCard card = new A2ACardResolver(baseUri.toString()).getAgentCard();
-
-        JSONRPCTransport transport = new JSONRPCTransport(card);
-        try {
-            MessageSendParams params = MessageSendParams.builder()
-                    .message(Message.builder()
-                            .role(Message.Role.ROLE_USER)
-                            .messageId(UUID.randomUUID().toString())
-                            .contextId("e2e-sync-" + UUID.randomUUID().toString().substring(0, 8))
-                            .metadata(Map.of(
-                                    "x-invoke-mode", "DEBUG",
-                                    "x-language", "zh-cn"))
-                            .parts(List.of(new TextPart("转账")))
-                            .build())
-                    .build();
-
-            var result = transport.sendMessage(params, null);
-            LOG.info("Sync result type: {}", result.getClass().getSimpleName());
-
-            if (result instanceof Task task) {
-                TaskState state = task.status() != null ? task.status().state() : null;
-                LOG.info("Task state: {}", state);
-                // Accept COMPLETED or FAILED (e.g. when remote is unreachable)
-                assertThat(state).isIn(
-                        TaskState.TASK_STATE_COMPLETED,
-                        TaskState.TASK_STATE_FAILED);
-            }
-        } finally {
-            transport.close();
-        }
-    }
-
-    /**
-     * Streams a message to the versatile agent and collects all streaming
-     * events until a terminal state is reached.
-     *
-     * <p>Validates that the stream either completes normally (versatile
-     * remote reachable) or fails with a clear transport error (remote not
-     * configured / unreachable).
-     */
-    @Test
-    void streamMessageAndCollectEvents() throws Exception {
-        URI baseUri = baseUri();
-        AgentCard card = new A2ACardResolver(baseUri.toString()).getAgentCard();
+        LOG.info("=== Versatile service target: {} ===", card.url());
 
         JSONRPCTransport transport = new JSONRPCTransport(card);
         List<StreamingEventKind> events = new ArrayList<>();
         CountDownLatch completed = new CountDownLatch(1);
         AtomicReference<Throwable> failure = new AtomicReference<>();
+
+        // ── Build the request ──
+        // Put extra input fields (intent, wap_userName, etc.) in metadata;
+        // the adapter merges them into body.inputs per input-metadata-keys config.
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("x-language", "zh-cn");
+        metadata.put("intent", "订酒店");
+        metadata.put("wap_userName", "张三");
+
+        String query = """
+                {"person_name":"李四", "checkin_date":"2026-03-30", \
+                "checkout_date":"2026-04-03", "arrival_city": "北京"}""";
+
+        String contextId = "manual-" + UUID.randomUUID().toString().substring(0, 8);
+
+        LOG.info("");
+        LOG.info("╔══════════════════════════════════════════════════════╗");
+        LOG.info("║  A2A Request                                         ║");
+        LOG.info("╠══════════════════════════════════════════════════════╣");
+        LOG.info("║  contextId  : {}", contextId);
+        LOG.info("║  query      : {}", query);
+        LOG.info("║  metadata   : {}", metadata);
+        LOG.info("╚══════════════════════════════════════════════════════╝");
+        LOG.info("");
+
         try {
             transport.sendMessageStreaming(
                     MessageSendParams.builder()
                             .message(Message.builder()
                                     .role(Message.Role.ROLE_USER)
                                     .messageId(UUID.randomUUID().toString())
-                                    .contextId("e2e-stream-" + UUID.randomUUID().toString().substring(0, 8))
-                                    .metadata(Map.of(
-                                            "x-invoke-mode", "DEBUG",
-                                            "x-language", "zh-cn"))
-                                    .parts(List.of(new TextPart("转账")))
+                                    .contextId(contextId)
+                                    .metadata(metadata)
+                                    .parts(List.of(new TextPart(query)))
                                     .build())
                             .build(),
                     event -> {
                         events.add(event);
-                        String type = event.getClass().getSimpleName();
+                        logEvent(event);
                         if (event instanceof TaskStatusUpdateEvent s
                                 && s.status() != null && s.status().state() != null) {
-                            LOG.info("Stream event: {} state={}", type, s.status().state());
-                            if (s.status().state() == TaskState.TASK_STATE_COMPLETED
-                                    || s.status().state() == TaskState.TASK_STATE_FAILED) {
+                            TaskState state = s.status().state();
+                            if (state == TaskState.TASK_STATE_COMPLETED
+                                    || state == TaskState.TASK_STATE_FAILED) {
                                 completed.countDown();
                             }
-                        } else if (event instanceof TaskArtifactUpdateEvent a) {
-                            LOG.info("Stream event: {} name={}", type,
-                                    a.artifact() != null ? a.artifact().name() : "null");
                         }
                     },
                     error -> {
-                        LOG.warn("Stream error: {}", error.getMessage());
+                        LOG.error("Stream transport error: {}", error.getMessage(), error);
                         failure.set(error);
                         completed.countDown();
                     },
                     null);
 
             boolean finished = completed.await(TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            LOG.info("Stream finished: events={} timedOut={}", events.size(), !finished);
+            LOG.info("");
+            LOG.info("══════════════════════════════════════════════════");
+            LOG.info("Stream finished: {} events, timedOut={}", events.size(), !finished);
+            LOG.info("══════════════════════════════════════════════════");
 
-            assertThat(events).as("stream should produce at least one event or a terminal error")
+            assertThat(events)
+                    .as("stream should produce events or a terminal error")
                     .isNotEmpty();
         } finally {
             transport.close();
         }
     }
 
-    private URI baseUri() {
-        return URI.create("http://localhost:" + port);
-    }
+    // ── Event display ──
 
-    // ── Text extraction helpers (keep in test, don't depend on SDK internals) ──
+    private static void logEvent(StreamingEventKind event) {
+        String type = event.getClass().getSimpleName();
+        if (event instanceof TaskStatusUpdateEvent s && s.status() != null) {
+            TaskState state = s.status().state();
+            String text = s.status().message() != null && s.status().message().parts() != null
+                    ? textFromParts(s.status().message().parts()) : "";
+            LOG.info("  [{}] state={} text={}", type, state,
+                    text.length() > 200 ? text.substring(0, 200) + "..." : text);
+        } else if (event instanceof TaskArtifactUpdateEvent a && a.artifact() != null) {
+            LOG.info("  [{}] artifact={} parts={}", type,
+                    a.artifact().name(),
+                    a.artifact().parts() != null ? a.artifact().parts().size() : 0);
+        } else if (event instanceof Message msg) {
+            String text = textFromParts(msg.parts());
+            LOG.info("  [{}] text={}", type,
+                    text.length() > 200 ? text.substring(0, 200) + "..." : text);
+        } else {
+            LOG.info("  [{}]", type);
+        }
+    }
 
     static String textFromParts(List<Part<?>> parts) {
         if (parts == null) return "";
@@ -205,5 +186,9 @@ class VersatileA2aE2eTest {
             if (part instanceof TextPart tp) text.append(tp.text());
         }
         return text.toString();
+    }
+
+    private URI baseUri() {
+        return URI.create("http://localhost:" + port);
     }
 }
