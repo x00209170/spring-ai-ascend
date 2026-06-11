@@ -9,6 +9,7 @@ import com.huawei.ascend.runtime.engine.service.RemoteAgentCatalog;
 import com.openjiuwen.core.foundation.llm.schema.ToolCall;
 import com.openjiuwen.core.session.AgentSessionApi;
 import com.openjiuwen.core.session.Session;
+import com.openjiuwen.core.session.interaction.InteractiveInput;
 import com.openjiuwen.core.session.stream.StreamMode;
 import com.openjiuwen.core.singleagent.BaseAgent;
 import com.openjiuwen.core.singleagent.interrupt.ToolInterruptException;
@@ -77,6 +78,40 @@ class OpenJiuwenRemoteToolInstallerTest {
         Map<String, Object> arguments =
                 (Map<String, Object>) error.getRequest().getContext().get("runtime.remote.arguments");
         assertThat(arguments).containsEntry("message", "hello remote");
+    }
+
+    @Test
+    void railTurnsRemoteResumeInputIntoSyntheticToolResult() {
+        RemoteAgentCatalog.RemoteAgentToolSpec spec = toolSpec();
+        OpenJiuwenRemoteAgentInterruptRail rail =
+                new OpenJiuwenRemoteAgentInterruptRail(context(), List.of(spec));
+        ToolCall toolCall = ToolCall.builder()
+                .id("tool-call-1")
+                .name("a2a_remote_remote_planner")
+                .arguments("{\"message\":\"hello remote\"}")
+                .build();
+        ToolCallInputs inputs = ToolCallInputs.builder()
+                .toolCall(toolCall)
+                .toolName("a2a_remote_remote_planner")
+                .toolArgs(toolCall.getArguments())
+                .build();
+        InteractiveInput resumeInput = new InteractiveInput();
+        resumeInput.update("tool-call-1", "{\"ok\":true}");
+        AgentCallbackContext callbackContext = AgentCallbackContext.builder()
+                .session(AgentSessionApi.create("session-1", null, null))
+                .inputs(inputs)
+                .extra(new java.util.LinkedHashMap<>(Map.of(
+                        com.openjiuwen.core.singleagent.interrupt.ToolInterruptionState.RESUME_USER_INPUT_KEY,
+                        resumeInput)))
+                .build();
+
+        rail.beforeToolCall(callbackContext);
+
+        assertThat(callbackContext.getExtra()).containsEntry("_skip_tool", Boolean.TRUE);
+        assertThat(inputs.getToolResult()).isEqualTo("{\"ok\":true}");
+        assertThat(inputs.getToolMsg()).isNotNull();
+        assertThat(inputs.getToolMsg().getToolCallId()).isEqualTo("tool-call-1");
+        assertThat(inputs.getToolMsg().getContent()).isEqualTo("{\"ok\":true}");
     }
 
     private static RemoteAgentCatalog.RemoteAgentToolSpec toolSpec() {

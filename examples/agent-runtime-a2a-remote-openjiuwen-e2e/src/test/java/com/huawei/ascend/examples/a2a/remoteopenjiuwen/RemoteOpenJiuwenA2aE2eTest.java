@@ -1,9 +1,11 @@
 package com.huawei.ascend.examples.a2a.remoteopenjiuwen;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.huawei.ascend.runtime.engine.openjiuwen.OpenJiuwenAgentRuntimeHandler;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -31,11 +33,39 @@ import org.a2aproject.sdk.spec.TaskArtifactUpdateEvent;
 import org.a2aproject.sdk.spec.TaskState;
 import org.a2aproject.sdk.spec.TaskStatusUpdateEvent;
 import org.a2aproject.sdk.spec.TextPart;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
 class RemoteOpenJiuwenA2aE2eTest {
+
+    @Test
+    void agentADefaultsToDeterministicModeAndCanSwitchToLlmMode() {
+        try (ConfigurableApplicationContext deterministic = startRuntime("a", List.of())) {
+            OpenJiuwenAgentRuntimeHandler handler = deterministic.getBean(OpenJiuwenAgentRuntimeHandler.class);
+            assertThat(handler.getClass().getName()).contains("AgentAConfiguration");
+        }
+
+        try (ConfigurableApplicationContext llm = startRuntime("a", List.of(
+                "sample.remote-openjiuwen.agent-a.mode=llm",
+                "sample.remote-openjiuwen.agent-a.llm.api-key=test-key",
+                "sample.remote-openjiuwen.agent-a.llm.api-base=http://localhost:1/v1",
+                "sample.remote-openjiuwen.agent-a.llm.model-name=test-model"))) {
+            OpenJiuwenAgentRuntimeHandler handler = llm.getBean(OpenJiuwenAgentRuntimeHandler.class);
+            assertThat(handler.getClass().getName()).contains("AgentALlmConfiguration");
+        }
+    }
+
+    @Test
+    void agentALlmModeRequiresExternalModelCredentials() {
+        assertThatThrownBy(() -> startRuntime("a", List.of(
+                "sample.remote-openjiuwen.agent-a.mode=llm",
+                "sample.remote-openjiuwen.agent-a.llm.api-key=",
+                "sample.remote-openjiuwen.agent-a.llm.api-base=")))
+                .hasRootCauseMessage("SAA_REMOTE_OPENJIUWEN_LLM_API_KEY must be set "
+                        + "when sample.remote-openjiuwen.agent-a.mode=llm");
+    }
 
     @Test
     void localAgentInvokesRemoteAgentWithInputRequiredAndResume() throws Exception {
@@ -89,6 +119,50 @@ class RemoteOpenJiuwenA2aE2eTest {
                 assertThat(completedTask.text())
                         .contains("AgentA resumed from remote tool result")
                         .contains("AgentB completed after the second user input");
+                assertThat(completedTask.state()).isEqualTo(TaskState.TASK_STATE_COMPLETED.name());
+            }
+        }
+    }
+
+    @Test
+    void manualLlmAgentInvokesRemoteAgentWithInputRequiredAndResume() throws Exception {
+        Assumptions.assumeTrue(Boolean.parseBoolean(System.getenv("SAA_REMOTE_OPENJIUWEN_RUN_LLM_E2E")),
+                "Set SAA_REMOTE_OPENJIUWEN_RUN_LLM_E2E=true to run the real LLM manual E2E test");
+        try (ConfigurableApplicationContext agentB = startRuntime("b", List.of())) {
+            int agentBPort = port(agentB);
+            try (ConfigurableApplicationContext agentA = startRuntime("a", List.of(
+                    "sample.remote-openjiuwen.agent-a.mode=llm",
+                    "agent-runtime.remote-agents[0].url=http://localhost:" + agentBPort))) {
+                A2aTestClient client = new A2aTestClient(
+                        URI.create("http://localhost:" + port(agentA)), Duration.ofSeconds(90));
+
+                List<StreamingEventKind> first = client.streamMessage(
+                        "manual-user",
+                        AgentAConfiguration.AGENT_ID,
+                        "ctx-remote-e2e-llm",
+                        null,
+                        "Please call remote AgentB to run the streaming input-required demo.",
+                        TaskState.TASK_STATE_INPUT_REQUIRED,
+                        List.of("AgentB needs one more user input"));
+
+                String parentTaskId = A2aTestClient.firstTaskIdWithState(first, TaskState.TASK_STATE_INPUT_REQUIRED);
+                assertThat(parentTaskId).isNotBlank();
+                TaskSnapshot firstTask = client.getTask(parentTaskId);
+                assertThat(firstTask.state()).isEqualTo(TaskState.TASK_STATE_INPUT_REQUIRED.name());
+                assertThat(firstTask.text()).contains("AgentB needs one more user input");
+
+                List<StreamingEventKind> second = client.streamMessage(
+                        "manual-user",
+                        AgentAConfiguration.AGENT_ID,
+                        "ctx-remote-e2e-llm",
+                        parentTaskId,
+                        "follow up from user",
+                        null,
+                        List.of("AgentB second stream message 1", "AgentB second stream message 2"));
+                assertThat(A2aTestClient.textFrom(second)).contains("AgentB second stream message");
+
+                TaskSnapshot completedTask = client.awaitTaskState(parentTaskId, TaskState.TASK_STATE_COMPLETED);
+                assertThat(completedTask.statusText()).isNotBlank();
                 assertThat(completedTask.state()).isEqualTo(TaskState.TASK_STATE_COMPLETED.name());
             }
         }
@@ -150,7 +224,7 @@ class RemoteOpenJiuwenA2aE2eTest {
                             }
                         },
                         error -> {
-                            if (!(sawExpectedEnd.get() && causedByCancellation(error))) {
+                            if (!causedByCancellation(error)) {
                                 failure.set(error);
                             }
                             completed.countDown();
@@ -164,6 +238,10 @@ class RemoteOpenJiuwenA2aE2eTest {
             }
             if (failure.get() != null) {
                 throw new IllegalStateException("A2A stream failed", failure.get());
+            }
+            if (!sawExpectedEnd.get()) {
+                throw new IllegalStateException("A2A stream ended before expected state/text, events="
+                        + events.size() + ", text=" + textFrom(events));
             }
             return List.copyOf(events);
         }
@@ -188,9 +266,11 @@ class RemoteOpenJiuwenA2aE2eTest {
             }
             JsonNode task = root.path("result").has("task") ? root.path("result").path("task") : root.path("result");
             String state = task.path("status").path("state").asText("");
+            StringBuilder statusText = new StringBuilder();
+            appendTextFields(task.path("status").path("message"), statusText);
             StringBuilder text = new StringBuilder();
             appendTextFields(task, text);
-            return new TaskSnapshot(state, text.toString());
+            return new TaskSnapshot(state, statusText.toString(), text.toString());
         }
 
         private TaskSnapshot awaitTaskState(String taskId, TaskState expectedState) throws Exception {
@@ -326,6 +406,6 @@ class RemoteOpenJiuwenA2aE2eTest {
         }
     }
 
-    private record TaskSnapshot(String state, String text) {
+    private record TaskSnapshot(String state, String statusText, String text) {
     }
 }

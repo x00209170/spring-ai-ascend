@@ -17,6 +17,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "sample.remote-openjiuwen.role", havingValue = "a")
+@ConditionalOnProperty(
+        prefix = "sample.remote-openjiuwen.agent-a",
+        name = "mode",
+        havingValue = "deterministic",
+        matchIfMissing = true)
 public class AgentAConfiguration {
     static final String AGENT_ID = "local-a";
 
@@ -47,7 +52,8 @@ public class AgentAConfiguration {
 
         @Override
         protected Object runOpenJiuwenAgent(BaseAgent agent, Object input, String conversationId) {
-            if (input instanceof com.openjiuwen.core.session.interaction.InteractiveInput interactiveInput
+            com.openjiuwen.core.session.interaction.InteractiveInput interactiveInput = interactiveInput(input);
+            if (interactiveInput != null
                     && interactiveInput.getUserInputs() != null
                     && !interactiveInput.getUserInputs().isEmpty()) {
                 return Map.of(
@@ -65,6 +71,18 @@ public class AgentAConfiguration {
                     "runtime.remote.parentContextId", currentContext.getScope().sessionId(),
                     "runtime.remote.localConversationId", conversationId,
                     "runtime.remote.arguments", Map.of("message", "start remote-b streaming input-required demo"));
+        }
+
+        private com.openjiuwen.core.session.interaction.InteractiveInput interactiveInput(Object input) {
+            if (input instanceof com.openjiuwen.core.session.interaction.InteractiveInput interactiveInput) {
+                return interactiveInput;
+            }
+            if (input instanceof Map<?, ?> inputMap
+                    && inputMap.get("query") instanceof com.openjiuwen.core.session.interaction.InteractiveInput
+                            interactiveInput) {
+                return interactiveInput;
+            }
+            return null;
         }
     }
 

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 class OpenJiuwenRemoteAgentAdapterTest {
 
     @Test
-    void remoteResumeBuildsInteractiveInputForInterruptedToolCall() {
+    void remoteResumeWrapsInteractiveInputInOpenJiuwenQueryMap() {
         AgentExecutionContext context = new AgentExecutionContext(
                 new RuntimeIdentity("tenant", "user", "session", "task", "agent"),
                 AgentExecutionContext.INPUT_TYPE_REMOTE_RESUME,
@@ -30,8 +30,12 @@ class OpenJiuwenRemoteAgentAdapterTest {
 
         Object input = new OpenJiuwenMessageAdapter().toOpenJiuwenInput(context);
 
-        assertThat(input).isInstanceOf(InteractiveInput.class);
-        InteractiveInput interactiveInput = (InteractiveInput) input;
+        assertThat(input).isInstanceOf(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> inputMap = (Map<String, Object>) input;
+        assertThat(inputMap).containsEntry("conversation_id", "conversation-1");
+        assertThat(inputMap.get("query")).isInstanceOf(InteractiveInput.class);
+        InteractiveInput interactiveInput = (InteractiveInput) inputMap.get("query");
         assertThat(interactiveInput.getUserInputs()).containsEntry("tool-call-1", "{\"ok\":true}");
     }
 

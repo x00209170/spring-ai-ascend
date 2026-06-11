@@ -20,11 +20,14 @@ public class OpenJiuwenMessageAdapter {
         return input;
     }
 
-    private Object remoteResumeInput(AgentExecutionContext context) {
+    private Map<String, Object> remoteResumeInput(AgentExecutionContext context) {
         Object toolCallId = context.getVariables().get(AgentExecutionContext.REMOTE_TOOL_CALL_ID_VARIABLE);
         Object toolResult = context.getVariables().get(AgentExecutionContext.REMOTE_TOOL_RESULT_VARIABLE);
-        InteractiveInput input = new InteractiveInput();
-        input.update(String.valueOf(toolCallId), toolResult == null ? "" : String.valueOf(toolResult));
+        InteractiveInput interactiveInput = new InteractiveInput();
+        interactiveInput.update(String.valueOf(toolCallId), toolResult == null ? "" : String.valueOf(toolResult));
+        Map<String, Object> input = new LinkedHashMap<>();
+        input.put("query", interactiveInput);
+        input.put("conversation_id", context.getAgentStateKey());
         return input;
     }
 

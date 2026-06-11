@@ -46,6 +46,9 @@ public final class OpenJiuwenRemoteAgentInterruptRail extends BaseInterruptRail 
         if (spec == null) {
             return approve();
         }
+        if (userInput != null) {
+            return reject(userInput);
+        }
         String toolCallId = toolCall != null && toolCall.getId() != null ? toolCall.getId() : toolName;
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("runtime.remote.kind", REMOTE_KIND);
