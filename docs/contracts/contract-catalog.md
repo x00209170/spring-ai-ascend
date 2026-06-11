@@ -48,7 +48,7 @@ SPI impls: thread-safe, no null returns. SPIs that process tenant-owned runtime 
 | `MemoryProvider` | `agent-runtime` | `com.huawei.ascend.runtime.engine.spi` | shipped — reserved narrow memory init/search/save SPI for future memory middleware integration; does not bind runtime to one memory backend |
 | `StreamAdapter` | `agent-runtime` | `com.huawei.ascend.runtime.engine.spi` | shipped — adapts a framework's native result stream into the neutral `AgentExecutionResult` stream |
 
-Trajectory observability plumbing — `TrajectoryEmitter`, `TrajectoryChannel`, `TrajectorySource`, `TrajectorySink`, `TrajectorySinkFactory` — is (internal): per-invocation, emit-only telemetry seams between the runtime executor and the adapter bases (events are never read back; the runtime stays the source of truth). These interfaces live in `engine.spi` for package-boundary reasons but are not part of the shipped SPI surface, which remains the four rows above.
+Trajectory observability plumbing — `TrajectoryEmitter`, `TrajectorySource`, `TrajectorySink`, `TrajectorySinkFactory` — is (internal): per-invocation, emit-only telemetry seams between the runtime executor and the adapter bases (events are never read back; the runtime stays the source of truth). These interfaces live in `engine.spi` for package-boundary reasons but are not part of the shipped SPI surface.
 
 **SPI count by module (shipped surface; the agent-runtime SPI surface is the framework-neutral `engine.spi` set `AgentRuntimeHandler` + `AgentCardProvider` + `MemoryProvider` + `StreamAdapter`):**
 
@@ -175,7 +175,7 @@ SemVer from 1.0.0: PATCH=fix, MINOR=additive, MAJOR=breaking. Stable surface: st
 | `spring-ai-ascend-parent` | none | Parent POM (not a reactor row by itself; declared via `<parent>`) |
 | `spring-ai-ascend-dependencies` | none | BoM (dependency management) |
 | `agent-service` | compute_control | Enterprise serviceization façade (skeleton) — registration/discovery driving runtime-built Agent instances via agent-runtime; the runtime SDK formerly hosted here was relocated to agent-runtime per ADR-0159 |
-| `agent-runtime` | compute_control | Run-owning runtime SDK: framework-neutral engine (`engine.spi.AgentRuntimeHandler` + `StreamAdapter`, openJiuwen and AgentScope adapters) + trajectory observability + remote A2A tool invocation + access (A2A) + bootable runtime app (`app.RuntimeApp` / `LocalA2aRuntimeHost`); its only external protocol contract is the A2A SDK — ADR-0159 |
+| `agent-runtime` | compute_control | Run-owning runtime SDK: framework-neutral engine (`engine.spi.AgentRuntimeHandler` + `StreamAdapter`, openJiuwen and AgentScope adapters) + trajectory observability + remote A2A tool invocation + access (A2A) + bootable runtime app (`app.RuntimeApp` / `LocalA2aRuntimeHost`); its only external protocol contract is the A2A SDK — ADR-0159. W0 inbound A2A message semantics are text-only (TextParts forwarded; non-text parts dropped with a WARN; see `a2a-envelope.v1.yaml` trust_boundaries) |
 | `agent-bus` | bus_state | Active cross-plane control surfaces: `bus.spi.ingress.IngressGateway` (ADR-0089) + `bus.spi.s2c.S2cCallbackTransport` (ADR-0074 + ADR-0088) + neutral orchestration/engine SPI `bus.spi.engine` (EnginePort + RunMode + Checkpointer + Orchestrator + RunContext + SuspendSignal + TraceContext + ExecutorDefinition + ExecutionContext; ADR-0158). Workflow primitives W2 per ADR-0050 |
 
 **Module history (rc12 → rc13 reactor count: 9 → 8)**

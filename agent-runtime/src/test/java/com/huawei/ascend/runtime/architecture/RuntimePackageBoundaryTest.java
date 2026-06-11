@@ -28,7 +28,6 @@ class RuntimePackageBoundaryTest {
                         "com.huawei.ascend.runtime.engine",
                         "com.huawei.ascend.runtime.engine.a2a..",
                         "com.huawei.ascend.runtime.engine.agentscope..",
-                        "com.huawei.ascend.runtime.engine.langgraph..",
                         "com.huawei.ascend.runtime.engine.openjiuwen..",
                         "com.huawei.ascend.runtime.engine.versatile..",
                         "com.huawei.ascend.runtime.engine.service..",
@@ -82,6 +81,28 @@ class RuntimePackageBoundaryTest {
                 .that().resideInAPackage("..runtime.engine.spi..")
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("com.openjiuwen..");
+        rule.check(RUNTIME_CLASSES);
+    }
+
+    @Test
+    void engineSpiDependsOnlyOnContractSafePackages() {
+        // engine.spi is the contract surface sibling modules (agent-sdk, agent-service, examples)
+        // compile against. Pinning its dependency whitelist keeps sibling-layer semantics from
+        // leaking into the contracts (the corruption mode where a core contract type accretes
+        // upper-layer keys/types), which would otherwise force consumers to inherit executor,
+        // boot, or protocol-server machinery just to see the SPI.
+        ArchRule rule = classes()
+                .that().resideInAPackage("..runtime.engine.spi..")
+                .should().onlyDependOnClassesThat()
+                .resideInAnyPackage(
+                        "com.huawei.ascend.runtime.engine.spi..",
+                        "com.huawei.ascend.runtime.engine",
+                        "com.huawei.ascend.runtime.common",
+                        "java..",
+                        "org.slf4j..",
+                        "org.springframework.util",
+                        "org.a2aproject.sdk.spec..")
+                .allowEmptyShould(false);
         rule.check(RUNTIME_CLASSES);
     }
 

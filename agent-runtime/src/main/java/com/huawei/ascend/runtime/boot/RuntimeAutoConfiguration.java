@@ -9,7 +9,6 @@ import com.huawei.ascend.runtime.engine.service.RemoteAgentInvocationService;
 import com.huawei.ascend.runtime.engine.spi.AgentCardProvider;
 import com.huawei.ascend.runtime.engine.spi.AgentCards;
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
-import com.huawei.ascend.runtime.engine.spi.TrajectoryLevel;
 import com.huawei.ascend.runtime.engine.spi.TrajectoryMasking;
 import com.huawei.ascend.runtime.engine.spi.TrajectorySettings;
 import com.huawei.ascend.runtime.engine.spi.TrajectorySinkFactory;
@@ -129,7 +128,7 @@ public class RuntimeAutoConfiguration {
     @Bean @ConditionalOnMissingBean
     public AgentExecutor a2aAgentExecutor(ObjectProvider<AgentRuntimeHandler> handlers,
             ObjectProvider<A2aAgentExecutor.RemoteSupport> remoteSupport,
-            RuntimeReadiness readiness, A2aServerExecutor exec, TrajectoryProperties trajectoryProperties,
+            RuntimeReadiness readiness, TrajectoryProperties trajectoryProperties,
             ObjectProvider<TrajectorySinkFactory> sinkFactories) {
         var registered = handlers.orderedStream().toList();
         A2aAgentExecutor.RemoteSupport support = remoteSupport.getIfAvailable();
@@ -144,7 +143,7 @@ public class RuntimeAutoConfiguration {
                     registered.get(0).agentId(),
                     registered.stream().skip(1).map(AgentRuntimeHandler::agentId).toList());
         }
-        return new A2aAgentExecutor(registered.get(0), support, readiness::isReady, exec.executor(),
+        return new A2aAgentExecutor(registered.get(0), support, readiness::isReady,
                 toTrajectorySettings(trajectoryProperties), sinkFactories.orderedStream().toList());
     }
 
@@ -152,11 +151,7 @@ public class RuntimeAutoConfiguration {
         if (!properties.isEnabled()) {
             return TrajectorySettings.off();
         }
-        TrajectoryLevel level = TrajectoryLevel.from(properties.getDefaultLevel(), TrajectoryLevel.SUMMARY);
-        if (level == TrajectoryLevel.OFF) {
-            return TrajectorySettings.off();
-        }
-        return new TrajectorySettings(level, compileMaskPattern(properties.getMask().getKeyPattern()),
+        return new TrajectorySettings(true, compileMaskPattern(properties.getMask().getKeyPattern()),
                 properties.getMask().getTruncateChars());
     }
 
@@ -198,8 +193,11 @@ public class RuntimeAutoConfiguration {
 
     /**
      * Remote A2A wiring, activated only when at least one remote agent URL is
-     * configured. Grouping the remote beans under one guarded nested configuration
-     * keeps the {@code @ConditionalOnProperty} guard in a single place instead of
+     * configured in the runtime's own deployment file: the runtime perceives the
+     * remote agents it can call as tools through {@code agent-runtime.remote-agents},
+     * the same way any service declares its outbound dependencies. Grouping the
+     * remote beans under one guarded nested configuration keeps the
+     * {@code @ConditionalOnProperty} guard in a single place instead of
      * repeating it on every remote bean.
      */
     @Configuration(proxyBeanMethods = false)
@@ -228,18 +226,33 @@ public class RuntimeAutoConfiguration {
         }
 
         @Bean @ConditionalOnMissingBean
-        public OpenJiuwenRemoteToolInstaller openJiuwenRemoteToolInstaller(RemoteAgentCatalog catalog,
-                ObjectProvider<OpenJiuwenAgentRuntimeHandler> handlers) {
-            OpenJiuwenRemoteToolInstaller installer =
-                    new OpenJiuwenRemoteToolInstaller(catalog::availableToolSpecs);
-            handlers.orderedStream().forEach(handler -> handler.setRuntimeToolInstaller(installer));
-            return installer;
-        }
-
-        @Bean @ConditionalOnMissingBean
         public RemoteAgentCatalogRefresher remoteAgentCatalogRefresher(RemoteAgentCatalog catalog,
                 A2aServerExecutor executor) {
             return new RemoteAgentCatalogRefresher(catalog, executor.executor());
+        }
+
+        /**
+         * Isolated in a nested class because the openJiuwen framework is an optional dependency:
+         * a bean method whose signature mentions openJiuwen-typed classes makes reflective
+         * introspection of the enclosing configuration throw NoClassDefFoundError in hosts
+         * without the framework. The condition is evaluated from class metadata, so this nested
+         * class is never loaded unless openJiuwen is present. The remote-agents property guard is
+         * REPEATED here because classpath scanning registers nested configuration classes
+         * independently of the enclosing class — the outer @ConditionalOnProperty does not cascade.
+         */
+        @Configuration(proxyBeanMethods = false)
+        @ConditionalOnProperty(prefix = "agent-runtime.remote-agents.0", name = "url")
+        @ConditionalOnClass(name = "com.openjiuwen.core.singleagent.BaseAgent")
+        public static class OpenJiuwenRemoteToolConfiguration {
+
+            @Bean @ConditionalOnMissingBean
+            public OpenJiuwenRemoteToolInstaller openJiuwenRemoteToolInstaller(RemoteAgentCatalog catalog,
+                    ObjectProvider<OpenJiuwenAgentRuntimeHandler> handlers) {
+                OpenJiuwenRemoteToolInstaller installer =
+                        new OpenJiuwenRemoteToolInstaller(catalog::availableToolSpecs);
+                handlers.orderedStream().forEach(handler -> handler.setRuntimeToolInstaller(installer));
+                return installer;
+            }
         }
     }
 
@@ -278,6 +291,7 @@ public class RuntimeAutoConfiguration {
         }
     }
 
+    /** Polls the catalog so remote runtimes that boot later (or restart) become callable without a redeploy. */
     public static final class RemoteAgentCatalogRefresher implements SmartLifecycle {
         private final RemoteAgentCatalog catalog;
         private final ExecutorService executor;
