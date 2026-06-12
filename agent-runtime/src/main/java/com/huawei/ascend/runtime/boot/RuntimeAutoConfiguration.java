@@ -3,7 +3,6 @@ package com.huawei.ascend.runtime.boot;
 import com.huawei.ascend.runtime.engine.a2a.A2aAgentExecutor;
 import com.huawei.ascend.runtime.engine.a2a.RemoteSupport;
 import com.huawei.ascend.runtime.engine.spi.AgentCardProvider;
-import com.huawei.ascend.runtime.engine.spi.AgentCards;
 import com.huawei.ascend.runtime.engine.spi.AgentRuntimeHandler;
 import com.huawei.ascend.runtime.engine.spi.TrajectoryMasking;
 import com.huawei.ascend.runtime.engine.spi.TrajectorySettings;
@@ -185,7 +184,7 @@ public class RuntimeAutoConfiguration {
         }
         // AgentCards is the canonical default-card shape; a second inline copy here
         // meant every card fix had to land twice.
-        return AgentCards.createFromProperties(name, cardProperties);
+        return cardProperties.createAgentCard(name);
     }
 
     /**
