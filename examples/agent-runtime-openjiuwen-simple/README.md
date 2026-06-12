@@ -170,7 +170,7 @@ public class MyApplication {
 | `sample.openjiuwen.api-key` | `sk-local-placeholder` | LLM API Key |
 | `sample.openjiuwen.api-base` | `http://localhost:4000/v1` | LLM API 地址 |
 | `sample.openjiuwen.model-name` | `gpt-5.4-mini` | 模型名称 |
-| `sample.openjiuwen.ssl-verify` | `false` | SSL 证书校验 |
+| `sample.openjiuwen.ssl-verify` | `true` | SSL 证书校验 |
 
 ## 运行测试
 

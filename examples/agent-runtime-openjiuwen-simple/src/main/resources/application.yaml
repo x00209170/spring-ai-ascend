@@ -47,4 +47,4 @@ sample:
     # Model name
     model-name: ${SAA_SAMPLE_LLM_MODEL:gpt-5.4-mini}
     # SSL certificate verification
-    ssl-verify: ${SAA_SAMPLE_OPENJIUWEN_SSL_VERIFY:false}
+    ssl-verify: ${SAA_SAMPLE_OPENJIUWEN_SSL_VERIFY:true}
