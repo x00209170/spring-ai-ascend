@@ -71,6 +71,11 @@ final class A2aParentTaskProjector {
         if (result == null) {
             return;
         }
+        // Only forward to end-user when target is USER or BOTH (LLM-only stays internal)
+        AgentExecutionResult.Target target = result.target();
+        if (target == AgentExecutionResult.Target.LLM) {
+            return;
+        }
         if ((result.type() == RemoteAgentInvocationService.RemoteAgentResult.Type.MESSAGE
                 || result.type() == RemoteAgentInvocationService.RemoteAgentResult.Type.ARTIFACT)
                 && result.text() != null && !result.text().isBlank()) {
@@ -103,9 +108,23 @@ final class A2aParentTaskProjector {
                     return RemoteOutcome.waitForInput();
                 }
                 case COMPLETED -> {
-                    LOG.info("[A2A] remote outcome=completed remoteAgentId={} resultLen={}",
-                            invocation.remoteAgentId(), result.text() != null ? result.text().length() : 0);
-                    return RemoteOutcome.resumeWith(safeText(result.text()));
+                    AgentExecutionResult.Target target = result.target();
+                    String text = safeText(result.text());
+                    LOG.info("[A2A] remote outcome=completed remoteAgentId={} resultLen={} target={}",
+                            invocation.remoteAgentId(), text.length(), target);
+                    // target=USER: show to user, empty tool result for LLM
+                    // target=LLM: tool result for LLM, don't show to user
+                    // target=BOTH: both
+                    if (target == AgentExecutionResult.Target.USER
+                            || target == AgentExecutionResult.Target.BOTH) {
+                        if (!text.isBlank()) {
+                            emitter.addArtifact(List.<Part<?>>of(new TextPart(text)));
+                        }
+                    }
+                    if (target == AgentExecutionResult.Target.USER) {
+                        return RemoteOutcome.resumeWith("");
+                    }
+                    return RemoteOutcome.resumeWith(text);
                 }
                 case FAILED -> {
                     LOG.warn("[A2A] remote outcome=failed remoteAgentId={} error={}",

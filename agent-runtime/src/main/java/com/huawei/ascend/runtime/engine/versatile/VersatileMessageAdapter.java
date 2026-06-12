@@ -1,6 +1,8 @@
 package com.huawei.ascend.runtime.engine.versatile;
 
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,25 +13,45 @@ import org.slf4j.LoggerFactory;
 /**
  * Builds a {@link VersatileHttpRequest} from an {@link AgentExecutionContext}.
  *
- * <h3>URL</h3>
- * The {@code url-template} from {@link VersatileProperties} is resolved with
- * {@code {conversation_id} → sessionId} and any static {@code url-variables}.
- * {@code query-params} are appended as {@code ?key=value&...}.
+ * <h3>Structured metadata (recommended)</h3>
+ * Users may nest versatile call parameters under a {@code "versatile"} key in
+ * A2A metadata to clearly separate headers, query params, and body inputs:
+ * <pre>{@code
+ * "metadata": {
+ *   "versatile": {
+ *     "headers": {"x-language": "zh-cn"},
+ *     "query":   {"type": "controller"},
+ *     "inputs":  {"intent": "订酒店", "wap_userName": "张三"}
+ *   }
+ * }
+ * }</pre>
+ * When the {@code "versatile"} key is present its sub-maps are used directly.
+ * When absent the adapter falls back to flat-metadata behaviour.
  *
- * <h3>Headers (two-level priority)</h3>
+ * <h3>Header priority (highest wins)</h3>
+ * All paths respect the {@code versatile.passthrough-headers} allowlist.
  * <ol>
- *   <li>YAML {@code versatile.headers} — low priority</li>
- *   <li>A2A client metadata ({@code versatile.passthrough-headers} allowlist) — high priority</li>
+ *   <li>YAML {@code versatile.headers} — low priority (defaults)</li>
+ *   <li>Flat A2A metadata matching the allowlist — medium</li>
+ *   <li>Structured {@code versatile.headers} matching the allowlist — high priority</li>
  * </ol>
  *
  * <h3>Body</h3>
- * <pre>{@code {"inputs": {"query": <user-text>, ...<input-metadata-keys>}}}</pre>
- * Additional input fields are sourced from A2A metadata for keys listed in
- * {@code versatile.input-metadata-keys}.
+ * <pre>{@code {"inputs": {"query": <user-text>, ...versatile.inputs, ...flat metadata}}}</pre>
+ *
+ * <h3>Security note</h3>
+ * HTTP headers are restricted to the {@code passthroughHeaders} allowlist
+ * (flat) or the explicit {@code versatile.headers} map (structured).
+ * Body fields are unrestricted — the remote endpoint validates its own inputs.
  */
 public class VersatileMessageAdapter {
 
     private static final Logger LOG = LoggerFactory.getLogger(VersatileMessageAdapter.class);
+
+    static final String STRUCTURED_KEY = "versatile";
+    private static final String STRUCTURED_HEADERS = "headers";
+    private static final String STRUCTURED_QUERY = "query";
+    private static final String STRUCTURED_INPUTS = "inputs";
 
     private final VersatileProperties properties;
 
@@ -39,7 +61,7 @@ public class VersatileMessageAdapter {
 
     public VersatileHttpRequest toRequest(AgentExecutionContext context) {
         String conversationId = context.getScope().sessionId();
-        String url = properties.resolveUrl(conversationId);
+        String url = buildUrl(context, conversationId);
 
         Map<String, String> headers = buildHeaders(context);
         Map<String, Object> body = buildBody(context);
@@ -51,18 +73,40 @@ public class VersatileMessageAdapter {
         return new VersatileHttpRequest("POST", url, headers, body);
     }
 
+    // ── URL assembly ──
+
+    private String buildUrl(AgentExecutionContext context, String conversationId) {
+        String baseUrl = properties.resolveUrl(conversationId);
+        Map<String, Object> structuredQuery = structuredQuery(context);
+        if (structuredQuery.isEmpty()) {
+            return baseUrl;
+        }
+        // Append URL-encoded structured query params (override config query-params)
+        StringBuilder sb = new StringBuilder(baseUrl);
+        boolean first = !baseUrl.contains("?");
+        for (var entry : structuredQuery.entrySet()) {
+            sb.append(first ? '?' : '&');
+            sb.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+            sb.append('=');
+            sb.append(URLEncoder.encode(String.valueOf(entry.getValue()), StandardCharsets.UTF_8));
+            first = false;
+        }
+        LOG.info("versatile url with structured query params={}", structuredQuery.keySet());
+        return sb.toString();
+    }
+
     // ── Header assembly ──
 
     private Map<String, String> buildHeaders(AgentExecutionContext context) {
         Map<String, String> finalHeaders = new LinkedHashMap<>();
 
-        // Level 1: YAML pre-configured headers (low priority)
+        // Level 1: YAML pre-configured headers (low priority — defaults)
         Map<String, String> preConfig = properties.getHeaders();
         if (preConfig != null && !preConfig.isEmpty()) {
             finalHeaders.putAll(preConfig);
         }
 
-        // Level 2: A2A client passthrough (high priority — overrides on collision)
+        // Level 2: flat A2A metadata matching passthroughHeaders allowlist (medium priority)
         List<String> passthroughKeys = properties.getPassthroughHeaders();
         if (passthroughKeys != null && !passthroughKeys.isEmpty()) {
             Map<String, Object> a2aMetadata = context.getVariables();
@@ -74,27 +118,60 @@ public class VersatileMessageAdapter {
             }
         }
 
+        // Level 3: structured versatile.headers (high priority — user override).
+        // Enforce the same passthroughHeaders allowlist as flat metadata so the
+        // structured path cannot bypass the header security boundary.
+        Map<String, Object> structuredHeaders = structuredHeaders(context);
+        if (!structuredHeaders.isEmpty()) {
+            List<String> allowed = properties.getPassthroughHeaders();
+            for (var entry : structuredHeaders.entrySet()) {
+                String key = entry.getKey();
+                if (allowed != null && allowed.contains(key)) {
+                    finalHeaders.put(toHeaderName(key), String.valueOf(entry.getValue()));
+                } else {
+                    LOG.warn("versatile structured header '{}' blocked — not in passthroughHeaders", key);
+                }
+            }
+        }
+
         LOG.debug("versatile resolved headers: {}", finalHeaders.keySet());
         return finalHeaders;
     }
 
     // ── Body assembly ──
 
+    @SuppressWarnings("unchecked")
     private Map<String, Object> buildBody(AgentExecutionContext context) {
+        Map<String, Object> vars = context.getVariables();
+        LOG.info("versatile context vars keys={} hasVersatileKey={}",
+                vars.keySet(), vars.containsKey(STRUCTURED_KEY));
         String query = context.lastUserText();
         LOG.info("versatile body query extracted chars={}", query.length());
 
         Map<String, Object> inputs = new LinkedHashMap<>();
         inputs.put("query", query);
 
-        // Merge additional input fields from A2A metadata
-        List<String> metadataKeys = properties.getInputMetadataKeys();
-        if (metadataKeys != null && !metadataKeys.isEmpty()) {
-            Map<String, Object> a2aMetadata = context.getVariables();
-            for (String key : metadataKeys) {
-                Object value = a2aMetadata.get(key);
-                if (value != null) {
-                    inputs.put(key, value);
+        // Structured versatile.inputs (high priority — user-specified contract)
+        Map<String, Object> structuredInputs = structuredInputs(context);
+        if (!structuredInputs.isEmpty()) {
+            inputs.putAll(structuredInputs);
+            LOG.info("versatile structured inputs applied: {}", structuredInputs.keySet());
+        }
+
+        // Flat metadata (low priority — catch-all for backward compat).
+        // Structured inputs override flat metadata on key collision because
+        // they are put first.
+        Map<String, Object> a2aMetadata = context.getVariables();
+        if (a2aMetadata != null) {
+            for (var entry : a2aMetadata.entrySet()) {
+                String key = entry.getKey();
+                if (isPassthroughHeader(key)) continue;
+                if (STRUCTURED_KEY.equals(key)) continue;
+                if (AgentExecutionContext.AGENT_STATE_KEY_VARIABLE.equals(key)
+                        || key.startsWith("runtime.")) continue;
+                if ("query".equals(key)) continue;
+                if (entry.getValue() != null) {
+                    inputs.putIfAbsent(key, entry.getValue());
                 }
             }
         }
@@ -104,7 +181,38 @@ public class VersatileMessageAdapter {
         return body;
     }
 
+    // ── Structured metadata accessors ──
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> structuredMap(AgentExecutionContext context, String subKey) {
+        Map<String, Object> vars = context.getVariables();
+        if (vars == null) return Map.of();
+        Object versatile = vars.get(STRUCTURED_KEY);
+        if (!(versatile instanceof Map<?, ?> versatileMap)) return Map.of();
+        Object sub = versatileMap.get(subKey);
+        if (!(sub instanceof Map<?, ?> subMap)) return Map.of();
+        return (Map<String, Object>) subMap;
+    }
+
+    private Map<String, Object> structuredHeaders(AgentExecutionContext context) {
+        return structuredMap(context, STRUCTURED_HEADERS);
+    }
+
+    private Map<String, Object> structuredQuery(AgentExecutionContext context) {
+        return structuredMap(context, STRUCTURED_QUERY);
+    }
+
+    private Map<String, Object> structuredInputs(AgentExecutionContext context) {
+        return structuredMap(context, STRUCTURED_INPUTS);
+    }
+
     // ── Helpers ──
+
+    private boolean isPassthroughHeader(String key) {
+        List<String> passthroughKeys = properties.getPassthroughHeaders();
+        return passthroughKeys != null && passthroughKeys.contains(key);
+    }
+
 
     private static String toHeaderName(String key) {
         if (key == null) {

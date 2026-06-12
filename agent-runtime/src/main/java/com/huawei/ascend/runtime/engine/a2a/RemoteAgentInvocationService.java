@@ -92,11 +92,18 @@ public final class RemoteAgentInvocationService {
             String text,
             String remoteTaskId,
             String remoteContextId,
-            Map<String, Object> metadata) {
+            Map<String, Object> metadata,
+            AgentExecutionResult.Target target) {
         public enum Type { MESSAGE, ARTIFACT, INPUT_REQUIRED, COMPLETED, FAILED }
 
         public RemoteAgentResult {
             metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+            target = target == null ? AgentExecutionResult.Target.BOTH : target;
+        }
+
+        public RemoteAgentResult(Type type, String text, String remoteTaskId,
+                String remoteContextId, Map<String, Object> metadata) {
+            this(type, text, remoteTaskId, remoteContextId, metadata, AgentExecutionResult.Target.BOTH);
         }
 
         public static RemoteAgentResult failed(String text) {

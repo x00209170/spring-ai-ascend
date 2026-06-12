@@ -36,6 +36,10 @@ public class VersatileClient {
     private static final Logger LOG = LoggerFactory.getLogger(VersatileClient.class);
 
     private static final String POISON = "__VERSATILE_STREAM_END__";
+    static final String CONNECTION_CLOSED_EVENT =
+            "data:{\"event\":\"connection_closed\",\"data\":{\"reason\":\"eof\"}}";
+    static final String CONNECTION_CLOSED_ERROR_EVENT =
+            "data:{\"event\":\"connection_closed\",\"data\":{\"reason\":\"error\"}}";
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final HttpClient httpClient;
@@ -111,6 +115,7 @@ public class VersatileClient {
                     String errorBody = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
                     upstreamError.set(new VersatileClientException(
                             "HTTP " + statusCode + ": " + errorBody));
+                    safeOffer(queue, CONNECTION_CLOSED_ERROR_EVENT);
                     safeOffer(queue, POISON);
                     return;
                 }
@@ -124,10 +129,13 @@ public class VersatileClient {
                             safeOffer(queue, line);
                         }
                     }
+                    // Normal EOF — emit connection_closed before poison
+                    safeOffer(queue, CONNECTION_CLOSED_EVENT);
                 }
             } catch (Exception e) {
                 LOG.warn("versatile upstream error: {}", e.getMessage());
                 upstreamError.set(e);
+                safeOffer(queue, CONNECTION_CLOSED_ERROR_EVENT);
             } finally {
                 safeOffer(queue, POISON);
             }

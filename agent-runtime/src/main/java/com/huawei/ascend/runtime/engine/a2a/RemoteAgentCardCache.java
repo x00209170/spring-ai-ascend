@@ -196,14 +196,14 @@ public class RemoteAgentCardCache {
                 && protocolBinding.replace("_", "").replace("-", "").equalsIgnoreCase("JSONRPC");
     }
 
+    /**
+     * Build the tool description for the LLM. Skills come first — they
+     * describe the tool contract (how to invoke, what parameters to pass).
+     * Card name and description provide additional context.
+     */
     private static String description(AgentCard card) {
         List<String> parts = new ArrayList<>();
-        if (hasText(card.name())) {
-            parts.add(card.name());
-        }
-        if (hasText(card.description())) {
-            parts.add(card.description());
-        }
+        // Primary: skill descriptions (tool contract — how to call)
         if (card.skills() != null) {
             for (AgentSkill skill : card.skills()) {
                 if (skill != null && hasText(skill.description())) {
@@ -211,17 +211,30 @@ public class RemoteAgentCardCache {
                 }
             }
         }
-        return String.join("\n", parts);
+        // Context: card name + description (what the agent is)
+        if (hasText(card.name())) {
+            parts.add(card.name());
+        }
+        if (hasText(card.description())) {
+            parts.add(card.description());
+        }
+        String result = String.join("\n", parts);
+        LOG.info("remote agent tool description assembled name={} skillsCount={} totalChars={}",
+                card.name(), card.skills() != null ? card.skills().size() : 0, result.length());
+        return result;
     }
 
+    /**
+     * Returns an open input schema that accepts arbitrary key-value pairs.
+     * The remote agent's skill descriptions (from its AgentCard) tell the
+     * LLM which specific fields to extract; the schema stays open so the
+     * LLM can pass whatever business parameters the workflow needs.
+     */
     private static Map<String, Object> inputSchema() {
         return Map.of(
                 "type", "object",
-                "properties", Map.of(
-                        "message", Map.of(
-                                "type", "string",
-                                "description", "Input message sent to the remote A2A runtime.")),
-                "required", List.of("message"));
+                "properties", Map.of(),
+                "additionalProperties", true);
     }
 
     private static String normalize(String value) {

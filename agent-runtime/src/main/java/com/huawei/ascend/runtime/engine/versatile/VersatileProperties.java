@@ -67,6 +67,14 @@ public class VersatileProperties {
      */
     private List<String> inputMetadataKeys = List.of();
 
+    /**
+     * When set, only the cached content for the given node_type is used as
+     * the final completion result. When unset (default), all cached output
+     * across all node types is merged. Case-insensitive match against the
+     * {@code node_type} field in SSE message data.
+     */
+    private String resultNodeType;
+
     // ── Derived accessors ──
 
     /**
@@ -120,4 +128,7 @@ public class VersatileProperties {
 
     public List<String> getInputMetadataKeys() { return inputMetadataKeys; }
     public void setInputMetadataKeys(List<String> inputMetadataKeys) { this.inputMetadataKeys = inputMetadataKeys; }
+
+    public String getResultNodeType() { return resultNodeType; }
+    public void setResultNodeType(String resultNodeType) { this.resultNodeType = resultNodeType; }
 }

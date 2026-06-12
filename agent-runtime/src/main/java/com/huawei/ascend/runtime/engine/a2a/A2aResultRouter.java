@@ -2,6 +2,7 @@ package com.huawei.ascend.runtime.engine.a2a;
 
 import com.huawei.ascend.runtime.engine.spi.AgentExecutionResult;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.a2aproject.sdk.server.tasks.AgentEmitter;
 import org.a2aproject.sdk.spec.Message;
@@ -58,26 +59,37 @@ final class A2aResultRouter {
      */
     static RouteDecision route(AgentExecutionResult result, AgentEmitter emitter, String taskId,
             String artifactId, AtomicBoolean firstArtifact, boolean remoteInvocationAllowed) {
+        AgentExecutionResult.Target target = result.target();
         switch (result.type()) {
             case OUTPUT -> {
                 String text = outputText(result);
-                LOG.info("[A2A] output stream taskId={} textChars={}", taskId, text.length());
-                // First chunk opens the artifact (append=false); later chunks append to the same
-                // artifactId so the stream forms one growing artifact rather than many fragments.
-                boolean append = !firstArtifact.getAndSet(false);
-                emitter.addArtifact(List.<Part<?>>of(new TextPart(text)),
-                        artifactId, "agent-response", null, append, false);
-                // state stays WORKING - more output may follow; the terminal status closes the stream
+                LOG.info("[A2A] output stream taskId={} textChars={} target={}", taskId, text.length(), target);
+                if (target == AgentExecutionResult.Target.USER
+                        || target == AgentExecutionResult.Target.BOTH) {
+                    boolean append = !firstArtifact.getAndSet(false);
+                    emitter.addArtifact(List.<Part<?>>of(new TextPart(text)),
+                            artifactId, "agent-response", null, append, false);
+                }
                 return RouteDecision.continueRoute();
             }
             case COMPLETED -> {
                 String text = outputText(result);
+                boolean showToUser = target == AgentExecutionResult.Target.USER
+                        || target == AgentExecutionResult.Target.BOTH;
+                Map<String, Object> completeMetadata = Map.of("a2a.target", target.name());
                 return RouteDecision.terminal(() -> {
-                    if (!text.isBlank()) {
-                        LOG.info("[A2A] complete with final output taskId={} textChars={}", taskId, text.length());
-                        emitter.complete(emitter.newAgentMessage(List.<Part<?>>of(new TextPart(text)), null));
+                    if (showToUser && !text.isBlank()) {
+                        LOG.info("[A2A] complete with final output taskId={} textChars={} target={}",
+                                taskId, text.length(), target);
+                        emitter.complete(emitter.newAgentMessage(
+                                List.<Part<?>>of(new TextPart(text)), completeMetadata));
                     } else {
-                        emitter.complete();
+                        if (!showToUser) {
+                            LOG.info("[A2A] complete target=LLM — final content not shown to user taskId={}",
+                                    taskId);
+                        }
+                        emitter.complete(emitter.newAgentMessage(
+                                List.<Part<?>>of(), completeMetadata));
                     }
                     LOG.info("[A2A] task state=COMPLETED taskId={}", taskId);
                 });
@@ -105,10 +117,13 @@ final class A2aResultRouter {
                 }
                 String prompt = result.prompt() == null ? "" : result.prompt();
                 return RouteDecision.terminal(() -> {
-                    LOG.info("[A2A] task state=INPUT_REQUIRED taskId={} promptChars={}", taskId, prompt.length());
-                    Message message = prompt.isBlank()
-                            ? null
-                            : emitter.newAgentMessage(List.<Part<?>>of(new TextPart(prompt)), null);
+                    LOG.info("[A2A] task state=INPUT_REQUIRED taskId={} prompt={} target={}",
+                            taskId, prompt, target);
+                    boolean showPrompt = target == AgentExecutionResult.Target.USER
+                            || target == AgentExecutionResult.Target.BOTH;
+                    Message message = (showPrompt && !prompt.isBlank())
+                            ? emitter.newAgentMessage(List.<Part<?>>of(new TextPart(prompt)), null)
+                            : null;
                     emitter.requiresInput(message, false);
                 });
             }

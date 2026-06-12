@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.spi.RemoteAgentToolSpec;
 import com.openjiuwen.core.foundation.llm.schema.ToolCall;
+import com.openjiuwen.core.session.interaction.InteractiveInput;
 import com.openjiuwen.core.singleagent.interrupt.InterruptRequest;
 import com.openjiuwen.core.singleagent.rail.AgentCallbackContext;
 import com.openjiuwen.harness.rails.interrupt.BaseInterruptRail;
@@ -46,10 +47,10 @@ public final class OpenJiuwenRemoteAgentInterruptRail extends BaseInterruptRail 
         if (spec == null) {
             return approve();
         }
-        if (userInput != null) {
-            return reject(userInput);
-        }
         String toolCallId = toolCall != null && toolCall.getId() != null ? toolCall.getId() : toolName;
+        if (userInput != null) {
+            return reject(resumeToolResult(toolCallId, userInput));
+        }
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("runtime.remote.kind", REMOTE_KIND);
         context.put("runtime.remote.agentId", spec.remoteAgentId());
@@ -58,12 +59,60 @@ public final class OpenJiuwenRemoteAgentInterruptRail extends BaseInterruptRail 
         context.put("runtime.remote.parentTaskId", executionContext.getScope().taskId());
         context.put("runtime.remote.parentContextId", executionContext.getScope().sessionId());
         context.put("runtime.remote.localConversationId", executionContext.getAgentStateKey());
-        context.put("runtime.remote.arguments", arguments(toolCall));
+        // Merge user metadata (from original A2A request) into tool call arguments
+        // so the child agent receives biz fields (intent, wap_userName, etc.)
+        // needed to reconstruct the target REST call. Tool call arguments
+        // take priority over context variables on key collision.
+        Map<String, Object> mergedArgs = mergeMetadata(executionContext, arguments(toolCall));
+        context.put("runtime.remote.arguments", mergedArgs);
         return interrupt(InterruptRequest.builder()
-                .interruptId(toolCallId)
                 .message("Remote agent invocation requested: " + spec.toolName())
                 .context(context)
                 .build());
+    }
+
+    /**
+     * Merge execution context variables (user metadata from the original A2A
+     * request) with the LLM's tool call arguments. Context variables go first
+     * (lower priority); tool call arguments override on key collision.
+     *
+     * <p>All context variables are forwarded. The child agent's adapter
+     * (e.g. {@code VersatileMessageAdapter}) applies its own mapping rules
+     * to place each field in the correct position (header, query param, or
+     * body input). No filtering is done here — the child decides.
+     *
+     * <h3>Security rationale</h3>
+     * The variables forwarded here originate from user-supplied A2A metadata
+     * ({@code AgentExecutionContext.mergeVariables()}). Unlike internal state
+     * which is never placed in the variables map, these are biz fields the
+     * user explicitly chose to send. The child agent's adapter provides the
+     * actual security boundary (e.g. {@code passthroughHeaders} allowlist for
+     * HTTP headers, body input merging into a structured payload the remote
+     * endpoint validates independently).
+     *
+     * <p>The merged map flows through {@code RemoteInvocation.arguments()} →
+     * A2A message metadata → child's {@code AgentExecutionContext.variables}.
+     */
+    private static Map<String, Object> mergeMetadata(AgentExecutionContext executionContext,
+            Map<String, Object> toolArgs) {
+        Map<String, Object> merged = new LinkedHashMap<>();
+        Map<String, Object> vars = executionContext.getVariables();
+        if (vars != null) {
+            merged.putAll(vars);
+        }
+        // Tool call arguments override context variables (higher priority)
+        if (toolArgs != null) {
+            merged.putAll(toolArgs);
+        }
+        return merged;
+    }
+
+    private static Object resumeToolResult(String toolCallId, Object userInput) {
+        if (userInput instanceof InteractiveInput interactiveInput) {
+            Object value = interactiveInput.getUserInputs().get(toolCallId);
+            return value == null ? userInput : value;
+        }
+        return userInput;
     }
 
     private static List<String> toolNames(List<RemoteAgentToolSpec> toolSpecs) {
