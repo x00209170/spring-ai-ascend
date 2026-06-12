@@ -5,9 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.a2a.RemoteAgentCardCache;
 import com.openjiuwen.core.foundation.llm.schema.ToolCall;
-import com.openjiuwen.core.session.interaction.InteractiveInput;
+import com.openjiuwen.core.singleagent.interrupt.InterruptRequest;
 import com.openjiuwen.core.singleagent.rail.AgentCallbackContext;
-import com.openjiuwen.core.singleagent.rail.ToolCallInputs;
 import com.openjiuwen.harness.rails.interrupt.BaseInterruptRail;
 import com.openjiuwen.harness.rails.interrupt.InterruptDecision;
 import java.util.LinkedHashMap;
@@ -41,18 +40,16 @@ public final class OpenJiuwenRemoteAgentInterruptRail extends BaseInterruptRail 
     }
 
     @Override
-    public InterruptDecision resolveInterrupt(Object ctx, Object input, Object userInput,
-            Map<String, Object> kwargs) {
-        ToolCall toolCall = toolCall(input);
+    protected InterruptDecision resolveInterrupt(AgentCallbackContext ctx, ToolCall toolCall, Object userInput) {
         String toolName = toolCall == null ? "" : toolCall.getName();
         RemoteAgentCardCache.RemoteAgentToolSpec spec = specsByToolName.get(toolName);
         if (spec == null) {
-            return InterruptDecision.approve();
+            return approve();
+        }
+        if (userInput != null) {
+            return reject(userInput);
         }
         String toolCallId = toolCall != null && toolCall.getId() != null ? toolCall.getId() : toolName;
-        if (userInput != null) {
-            return InterruptDecision.reject(resumeToolResult(toolCallId, userInput));
-        }
         Map<String, Object> context = new LinkedHashMap<>();
         context.put("runtime.remote.kind", REMOTE_KIND);
         context.put("runtime.remote.agentId", spec.remoteAgentId());
@@ -62,31 +59,11 @@ public final class OpenJiuwenRemoteAgentInterruptRail extends BaseInterruptRail 
         context.put("runtime.remote.parentContextId", executionContext.getScope().sessionId());
         context.put("runtime.remote.localConversationId", executionContext.getAgentStateKey());
         context.put("runtime.remote.arguments", arguments(toolCall));
-        return InterruptDecision.interrupt(com.openjiuwen.core.single_agent.interrupt.InterruptRequest.builder()
+        return interrupt(InterruptRequest.builder()
+                .interruptId(toolCallId)
                 .message("Remote agent invocation requested: " + spec.toolName())
-                .payloadSchema(context)
+                .context(context)
                 .build());
-    }
-
-    private static ToolCall toolCall(Object input) {
-        if (input instanceof ToolCall toolCall) {
-            return toolCall;
-        }
-        if (input instanceof ToolCallInputs inputs) {
-            return inputs.getToolCall();
-        }
-        if (input instanceof AgentCallbackContext context && context.getInputs() instanceof ToolCallInputs inputs) {
-            return inputs.getToolCall();
-        }
-        return null;
-    }
-
-    private static Object resumeToolResult(String toolCallId, Object userInput) {
-        if (userInput instanceof InteractiveInput interactiveInput) {
-            Object value = interactiveInput.getUserInputs().get(toolCallId);
-            return value == null ? userInput : value;
-        }
-        return userInput;
     }
 
     private static List<String> toolNames(List<RemoteAgentCardCache.RemoteAgentToolSpec> toolSpecs) {

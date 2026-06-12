@@ -17,6 +17,16 @@ export SAA_SAMPLE_LLM_MODEL=gpt-5.4-mini
 export SAA_SAMPLE_OPENJIUWEN_SSL_VERIFY=false
 ```
 
+PowerShell：
+
+```powershell
+$env:SAA_SAMPLE_LLM_API_KEY = "sk-x00550472"
+$env:SAA_SAMPLE_OPENJIUWEN_MODEL_PROVIDER = "openai"
+$env:SAA_SAMPLE_OPENJIUWEN_API_BASE = "http://localhost:4000/v1"
+$env:SAA_SAMPLE_LLM_MODEL = "gpt-5.4-mini"
+$env:SAA_SAMPLE_OPENJIUWEN_SSL_VERIFY = "false"
+```
+
 ## 构建
 
 ```bash
@@ -30,6 +40,14 @@ mvn -f examples/agent-runtime-a2a-remote-openjiuwen-e2e/pom.xml package -DskipTe
 ```bash
 java -jar examples/agent-runtime-a2a-remote-openjiuwen-e2e/target/agent-runtime-a2a-remote-openjiuwen-e2e-example-0.1.0-SNAPSHOT.jar \
   --spring.profiles.active=agent-b \
+  --server.port=18082
+```
+
+PowerShell：
+
+```powershell
+java -jar examples/agent-runtime-a2a-remote-openjiuwen-e2e/target/agent-runtime-a2a-remote-openjiuwen-e2e-example-0.1.0-SNAPSHOT.jar `
+  --spring.profiles.active=agent-b `
   --server.port=18082
 ```
 
@@ -48,6 +66,14 @@ curl http://localhost:18082/.well-known/agent-card.json
 ```bash
 java -jar examples/agent-runtime-a2a-remote-openjiuwen-e2e/target/agent-runtime-a2a-remote-openjiuwen-e2e-example-0.1.0-SNAPSHOT.jar \
   --spring.profiles.active=agent-a \
+  --server.port=18081
+```
+
+PowerShell：
+
+```powershell
+java -jar examples/agent-runtime-a2a-remote-openjiuwen-e2e/target/agent-runtime-a2a-remote-openjiuwen-e2e-example-0.1.0-SNAPSHOT.jar `
+  --spring.profiles.active=agent-a `
   --server.port=18081
 ```
 
@@ -96,6 +122,32 @@ curl http://localhost:18081/a2a \
   }'
 ```
 
+PowerShell：
+
+```powershell
+$body = @'
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "method": "SendStreamingMessage",
+  "params": {
+    "message": {
+      "role": "ROLE_USER",
+      "messageId": "msg-1",
+      "contextId": "ctx-1",
+      "metadata": {"userId": "manual-user", "agentId": "local-a"},
+      "parts": [{"text": "Please call remote AgentB to run the streaming input-required demo."}]
+    }
+  }
+}
+'@
+
+curl.exe http://localhost:18081/a2a `
+  -H "Content-Type: application/json" `
+  -H "Accept: text/event-stream" `
+  --data-raw $body
+```
+
 **成功现象：**
 - SSE 中能看到远端 Agent B 的流式消息（`AgentB first stream message` 等）
 - 最终 `TASK_STATE_COMPLETED`，响应文本包含 Agent B 的 tool result 摘要
@@ -107,6 +159,15 @@ mvn -f examples/agent-runtime-a2a-remote-openjiuwen-e2e/pom.xml \
   exec:java \
   -Dexec.mainClass=com.huawei.ascend.examples.a2a.remoteopenjiuwen.A2aConsoleClientApplication \
   -Dexec.args="http://localhost:18081 local-a manual-user"
+```
+
+PowerShell：
+
+```powershell
+mvn -f examples/agent-runtime-a2a-remote-openjiuwen-e2e/pom.xml `
+  exec:java `
+  "-Dexec.mainClass=com.huawei.ascend.examples.a2a.remoteopenjiuwen.A2aConsoleClientApplication" `
+  "-Dexec.args=http://localhost:18081 local-a manual-user"
 ```
 
 出现 `>` 提示符后输入消息回车，输入 `exit` 退出。

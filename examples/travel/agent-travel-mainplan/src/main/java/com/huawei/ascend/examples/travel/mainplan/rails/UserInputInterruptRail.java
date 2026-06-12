@@ -8,7 +8,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.huawei.ascend.examples.travel.mainplan.constant.AgentConstants;
 import com.openjiuwen.core.foundation.llm.schema.ToolCall;
-import com.openjiuwen.core.single_agent.interrupt.InterruptRequest;
+import com.openjiuwen.core.singleagent.interrupt.InterruptRequest;
+import com.openjiuwen.core.singleagent.rail.AgentCallbackContext;
 import com.openjiuwen.harness.rails.interrupt.BaseInterruptRail;
 import com.openjiuwen.harness.rails.interrupt.InterruptDecision;
 
@@ -35,19 +36,17 @@ public class UserInputInterruptRail extends BaseInterruptRail {
     }
 
     @Override
-    public InterruptDecision resolveInterrupt(Object ctx, Object input, Object userInput,
-            Map<String, Object> kwargs) {
-        ToolCall toolCall = input instanceof ToolCall call ? call : null;
+    protected InterruptDecision resolveInterrupt(
+            AgentCallbackContext ctx, ToolCall toolCall, Object userInput) {
         if (userInput == null) {
-            String toolCallId = toolCall == null ? AgentConstants.TOOL_REQUEST_USER_INPUT : toolCall.getId();
-            String arguments = toolCall == null ? null : toolCall.getArguments();
-            String followUpMessage = extractFollowUpMessage(arguments);
-            return InterruptDecision.interrupt(InterruptRequest.builder()
+            String followUpMessage = extractFollowUpMessage(toolCall.getArguments());
+            return interrupt(InterruptRequest.builder()
+                    .interruptId(toolCall.getId())
                     .message(followUpMessage)
-                    .payloadSchema(Map.of("tool_call_id", toolCallId))
+                    .context(Map.of("tool_call_id", toolCall.getId()))
                     .build());
         }
-        return InterruptDecision.approve(toJsonArgs(String.valueOf(userInput)));
+        return approve(toJsonArgs(String.valueOf(userInput)));
     }
 
     private String extractFollowUpMessage(String argsJson) {

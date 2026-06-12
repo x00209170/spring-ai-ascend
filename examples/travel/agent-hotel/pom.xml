@@ -32,7 +32,7 @@
   <properties>
     <enforcer.skip>true</enforcer.skip>
     <!-- 用户指定 0.1.12；参考例子用的是 0.1.7，实现期需验证 API 兼容性 -->
-    <openjiuwen.agent-core.version>0.1.12</openjiuwen.agent-core.version>
+    <openjiuwen.agent-core.version>0.1.12-jdk17</openjiuwen.agent-core.version>
   </properties>
 
   <dependencies>
