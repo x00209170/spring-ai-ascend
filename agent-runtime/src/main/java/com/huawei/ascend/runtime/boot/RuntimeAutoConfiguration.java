@@ -40,7 +40,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({RuntimeAccessProperties.class, TrajectoryProperties.class})
+@EnableConfigurationProperties({RuntimeAccessProperties.class, AgentCardProperties.class, TrajectoryProperties.class})
 @Import(TrajectoryOtelConfiguration.class)
 public class RuntimeAutoConfiguration {
     private static final Logger log = LoggerFactory.getLogger(RuntimeAutoConfiguration.class);
@@ -173,15 +173,19 @@ public class RuntimeAutoConfiguration {
 
     @Bean @ConditionalOnMissingBean
     public AgentCard a2aAgentCard(ObjectProvider<AgentCardProvider> cardProviders,
-                                   ObjectProvider<AgentRuntimeHandler> handlers) {
+                                   ObjectProvider<AgentRuntimeHandler> handlers,
+                                   AgentCardProperties cardProperties) {
         var cp = cardProviders.getIfAvailable();
         if (cp != null) {
             return cp.agentCard();
         }
         String name = handlers.orderedStream().map(AgentRuntimeHandler::agentId).findFirst().orElse("agent");
+        if (cardProperties.hasExplicitName()) {
+            name = cardProperties.getName();
+        }
         // AgentCards is the canonical default-card shape; a second inline copy here
         // meant every card fix had to land twice.
-        return AgentCards.create(name, "agent-runtime");
+        return AgentCards.createFromProperties(name, cardProperties);
     }
 
     /**

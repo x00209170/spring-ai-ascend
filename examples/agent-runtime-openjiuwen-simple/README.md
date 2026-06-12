@@ -132,21 +132,29 @@ protected BaseAgent createOpenJiuwenAgent(AgentExecutionContext context) {
 public class MyConfiguration {
 
     @Bean
-    org.a2aproject.sdk.spec.AgentCard agentCard() {
-        return AgentCards.create("my-agent-id", "description");
-    }
-
-    @Bean
     OpenJiuwenAgentRuntimeHandler myHandler(...) {
         return new MyHandler();
     }
 }
 ```
 
-| Bean | 作用 |
+Handler bean 是唯一需要注册的 bean。runtime 会根据 handler 的 `agentId` 自动生成 A2A AgentCard；
+如需自定义卡片信息，在 `application.yaml` 中配置：
+
+```yaml
+agent-runtime:
+  access:
+    a2a:
+      agent-card:
+        name: my-agent-id
+        description: 我的自定义 agent
+```
+
+| 方式 | 说明 |
 |---|---|
-| `OpenJiuwenAgentRuntimeHandler` | 运行时 SPI 桥接 — runtime 启动时自动发现并注册 |
-| `AgentCard` | A2A 协议发现 — 暴露在 `/.well-known/agent-card.json` |
+| 不配置 | runtime 自动从 handler.agentId() 生成 AgentCard |
+| YAML 配置 | 在 `application.yaml` 中自定义卡片字段 |
+| 自定义 Bean | 注册 `@Bean AgentCard` 完全接管 |
 
 ### Spring Boot 入口
 
@@ -171,6 +179,12 @@ public class MyApplication {
 | `sample.openjiuwen.api-base` | `http://localhost:4000/v1` | LLM API 地址 |
 | `sample.openjiuwen.model-name` | `gpt-5.4-mini` | 模型名称 |
 | `sample.openjiuwen.ssl-verify` | `true` | SSL 证书校验 |
+| `agent-runtime.access.a2a.agent-card.name` | handler.agentId() | A2A AgentCard 名称 |
+| `agent-runtime.access.a2a.agent-card.description` | `agent-runtime` | A2A AgentCard 描述 |
+| `agent-runtime.access.a2a.agent-card.version` | `0.1.0` | 版本号 |
+| `agent-runtime.access.a2a.agent-card.organization` | `spring-ai-ascend` | 组织名 |
+| `agent-runtime.access.a2a.agent-card.organization-url` | `http://localhost:8080` | 组织 URL |
+| `agent-runtime.access.a2a.agent-card.endpoint` | `/a2a` | A2A 端点路径 |
 
 ## 运行测试
 

@@ -28,6 +28,19 @@ agent-runtime:
       default-agent-id: openjiuwen-simple-agent
       # public-base-url: https://agents.example.com/runtime-simple
 
+      # ── Agent Card metadata (all fields optional) ──
+      # When name is set, the runtime builds the A2A agent card from these
+      # values instead of deriving them from the handler. Every unset field
+      # draws a sensible default. Leave the entire block out to auto-generate
+      # a card from handler.agentId().
+      agent-card:
+        # name: openjiuwen-simple-agent          # defaults to handler.agentId()
+        # description: A minimal openJiuwen agent # defaults to "agent-runtime"
+        # version: "0.1.0"                       # defaults to "0.1.0"
+        # organization: spring-ai-ascend         # defaults to "spring-ai-ascend"
+        # organization-url: http://localhost:8080 # defaults to "http://localhost:8080"
+        # endpoint: /a2a                         # defaults to "/a2a"
+
 # ── Logging ──
 logging:
   level:

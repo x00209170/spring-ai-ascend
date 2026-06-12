@@ -2,7 +2,6 @@ package com.huawei.ascend.examples.a2a.openjiuwensimple;
 
 import com.huawei.ascend.runtime.engine.AgentExecutionContext;
 import com.huawei.ascend.runtime.engine.openjiuwen.OpenJiuwenAgentRuntimeHandler;
-import com.huawei.ascend.runtime.engine.spi.AgentCards;
 import com.openjiuwen.core.foundation.llm.schema.ModelRequestConfig;
 import com.openjiuwen.core.singleagent.BaseAgent;
 import com.openjiuwen.core.singleagent.ReActAgent;
@@ -37,9 +36,11 @@ import org.springframework.context.annotation.Configuration;
  * execution.
  *
  * <strong>Step 3: Register as a Spring Bean</strong>
- * Create a {@code @Bean} method that returns your handler. Also register an
- * {@link org.a2aproject.sdk.spec.AgentCard} so the agent is discoverable via
- * A2A's {@code /.well-known/agent-card.json}.
+ * Create a {@code @Bean} method that returns your handler — that is the only
+ * required bean. The runtime auto-generates an A2A
+ * {@link org.a2aproject.sdk.spec.AgentCard} from the handler's {@code agentId}
+ * and the optional {@code agent-runtime.access.a2a.agent-card} YAML block.
+ * You can still override it with a custom {@code @Bean AgentCard} if needed.
  *
  * <p>That's it — the runtime discovers your handler bean, exposes it through
  * the A2A JSON-RPC endpoint, and handles message conversion, streaming, and
@@ -50,13 +51,7 @@ public class OpenJiuwenSimpleAgentConfiguration {
 
     static final String AGENT_ID = "openjiuwen-simple-agent";
 
-    // ── Step 3: AgentCard bean — makes the agent discoverable via A2A ──
-    @Bean
-    org.a2aproject.sdk.spec.AgentCard simpleDefaultAgentCard() {
-        return AgentCards.create(AGENT_ID, "A minimal openJiuwen ReAct agent hosted by agent-runtime.");
-    }
-
-    // ── Step 1 & 2: Handler bean — the runtime SPI bridge ──
+    // ── Step 1 & 2: Handler bean — the runtime SPI bridge (the only required bean) ──
     @Bean
     OpenJiuwenAgentRuntimeHandler openJiuwenSimpleAgentHandler(
             @Value("${sample.openjiuwen.model-provider:${SAA_SAMPLE_OPENJIUWEN_MODEL_PROVIDER:openai}}")
@@ -65,7 +60,7 @@ public class OpenJiuwenSimpleAgentConfiguration {
             @Value("${sample.openjiuwen.api-base:${SAA_SAMPLE_OPENJIUWEN_API_BASE:http://localhost:4000/v1}}")
             String apiBase,
             @Value("${sample.openjiuwen.model-name:${SAA_SAMPLE_LLM_MODEL:gpt-5.4-mini}}") String modelName,
-            @Value("${sample.openjiuwen.ssl-verify:${SAA_SAMPLE_OPENJIUWEN_SSL_VERIFY:false}}")
+            @Value("${sample.openjiuwen.ssl-verify:${SAA_SAMPLE_OPENJIUWEN_SSL_VERIFY:true}}")
             boolean sslVerify) {
         return new SimpleOpenJiuwenAgentHandler(modelProvider, apiKey, apiBase, modelName, sslVerify);
     }
