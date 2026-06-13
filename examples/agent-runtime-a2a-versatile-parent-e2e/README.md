@@ -167,7 +167,13 @@ curl -s -X POST http://localhost:18080/a2a \
 
 **预期行为**：
 1. SSE 流中看到 `TaskArtifactUpdateEvent` — 透传 Versatile 返回的酒店列表（hotels_info）
-2. 最终状态 `TASK_STATE_COMPLETED`，LLM 将酒店列表展示给用户并询问选择
+2. 最终状态 `TASK_STATE_INPUT_REQUIRED`，父任务记录远端 task/context 路由信息，等待用户选择酒店
+
+记录第一轮返回的父任务 `taskId`，第二轮必须带上它；只复用 `contextId` 会创建新的父任务，无法续写同一个 Versatile 远端任务。
+
+```bash
+TASK_ID="<第一轮 SSE 中 statusUpdate.taskId 或 artifactUpdate.taskId 的值>"
+```
 
 **关键验证点** — 主 Agent 日志中检查 LLM 封装出了正确的 JSON `query`：
 
@@ -210,6 +216,7 @@ curl -s -X POST http://localhost:18080/a2a \
             }
           }
         },
+        "taskId": "'"$TASK_ID"'",
         "parts": [{"text": "帮我选美居宾馆"}]
       }
     }

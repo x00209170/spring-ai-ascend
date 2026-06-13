@@ -766,7 +766,7 @@ class A2aAgentExecutorTest {
                 .execute(requestContext(), emitter);
 
         ArgumentCaptor<Message> msgCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(emitter).requiresInput(msgCaptor.capture(), eq(true));
+        verify(emitter).requiresInput(msgCaptor.capture(), eq(false));
         assertThat(msgCaptor.getValue().metadata())
                 .containsEntry("runtime.waitingTarget", "REMOTE_AGENT")
                 .containsEntry("runtime.remoteTaskId", "remote-task-1")
@@ -906,7 +906,7 @@ class A2aAgentExecutorTest {
                 .execute(requestContext(), emitter);
 
         ArgumentCaptor<Message> msgCaptor = ArgumentCaptor.forClass(Message.class);
-        verify(emitter).requiresInput(msgCaptor.capture(), eq(true));
+        verify(emitter).requiresInput(msgCaptor.capture(), eq(false));
         assertThat(msgCaptor.getValue().metadata())
                 .containsEntry("runtime.waitingTarget", "REMOTE_AGENT")
                 .containsEntry("runtime.remoteTaskId", "remote-task-1")

@@ -92,7 +92,7 @@ final class A2aParentTaskProjector {
         metadata.put("a2a.target", AgentExecutionResult.Target.USER.name());
         Message message = emitter.newAgentMessage(
                 List.<Part<?>>of(new TextPart(safeText(result.text()))), metadata);
-        emitter.requiresInput(message, true);
+        emitter.requiresInput(message, false);
     }
 
     RemoteOutcome projectRemoteOutcome(AgentExecutionResult.RemoteInvocation invocation,
