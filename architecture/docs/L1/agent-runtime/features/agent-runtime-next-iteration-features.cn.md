@@ -55,8 +55,5 @@ covers: [agent-runtime, agent-sdk, agent-service]
 ### 3.2 功能要求
 
 - 一键部署：一个 Spring Boot 应用启动即用，自动集成 A2A 协议端点和 Agent 管理
-- 多 Agent 支持：一个服务平台同时托管多个 Agent，按 agentId 路由请求
 - YAML 驱动：通过 YAML 配置文件声明 Agent，无需编写 Java 代码
-- 内置安全：支持 API Key 认证，保护 A2A 端点
 - Agent 管理 API：提供 Agent 列表、状态查询、启停控制的管理接口
-- 调用监控：Agent 请求量、延迟、成功率的可视化 Dashboard
