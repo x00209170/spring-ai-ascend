@@ -87,19 +87,20 @@ public class RemoteA2aAgentConfiguration {
         }
 
         @Override
-        protected Object runOpenJiuwenAgent(BaseAgent agent, Object input, String conversationId) {
+        protected Iterator<Object> runOpenJiuwenAgentStreaming(BaseAgent agent, Object input, String conversationId,
+                List<StreamMode> streamModes) {
             boolean firstTurn = STARTED_CONVERSATIONS.add(conversationId);
             if (firstTurn) {
-                return Stream.of(
+                return Stream.<Object>of(
                         AgentExecutionResult.output("Remote agent first stream message 1: remote task started. "),
                         AgentExecutionResult.output("Remote agent first stream message 2: more detail is needed. "),
                         AgentExecutionResult.interrupted("Remote agent needs one more user input. "
-                                + "Send a follow-up message with the same parent taskId/contextId."));
+                                + "Send a follow-up message with the same parent taskId/contextId.")).iterator();
             }
-            return Stream.of(
+            return Stream.<Object>of(
                     AgentExecutionResult.output("Remote agent second stream message 1: received user follow-up. "),
                     AgentExecutionResult.output("Remote agent second stream message 2: preparing final answer. "),
-                    AgentExecutionResult.completed("Remote agent completed after the second user input."));
+                    AgentExecutionResult.completed("Remote agent completed after the second user input.")).iterator();
         }
     }
 

@@ -42,6 +42,40 @@ public class OpenJiuwenStreamAdapter {
         return AgentExecutionResult.failed(ERROR_CODE, output);
     }
 
+    public AgentExecutionResult map(OutputSchema chunk) {
+        if (chunk == null) {
+            return null;
+        }
+        Object payload = chunk.getPayload();
+        String type = chunk.getType();
+        if ("llm_output".equals(type)) {
+            String content = payload instanceof Map<?, ?> map ? asString(map.get("content")) : asString(payload);
+            return content.isBlank() ? null : AgentExecutionResult.output(content);
+        }
+        if ("llm_usage".equals(type) || "llm_reasoning".equals(type) || "custom".equals(type)) {
+            return null;
+        }
+        if ("interaction".equals(type)) {
+            Object value = payload instanceof InteractionOutput interactionOutput
+                    ? interactionOutput.getValue()
+                    : payload;
+            if (value instanceof InterruptRequest request && isRemoteInvocation(request.getContext())) {
+                return AgentExecutionResult.interrupted(remoteInvocation(request.getContext()));
+            }
+            return AgentExecutionResult.interrupted(asString(value));
+        }
+        if (payload instanceof Map<?, ?> map) {
+            return map(normalizeMap(map));
+        }
+        return AgentExecutionResult.output(asString(payload));
+    }
+
+    private static Map<String, Object> normalizeMap(Map<?, ?> map) {
+        java.util.LinkedHashMap<String, Object> normalized = new java.util.LinkedHashMap<>();
+        map.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+        return normalized;
+    }
+
     private static Map<String, Object> remoteContext(Map<String, Object> result) {
         if (isRemoteInvocation(result)) {
             return result;

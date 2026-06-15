@@ -82,7 +82,13 @@ class MemoryMem0ExampleTest {
         }
 
         @Override
-        protected Object runOpenJiuwenAgent(BaseAgent agent, Object input, String conversationId) {
+        protected Iterator<Object> runOpenJiuwenAgentStreaming(BaseAgent agent, Object input, String conversationId,
+                List<StreamMode> streamModes) {
+            fireMemoryRails(agent);
+            return List.<Object>of(Map.of("result_type", "answer", "output", "pong")).iterator();
+        }
+
+        private void fireMemoryRails(BaseAgent agent) {
             RecordingModelContext modelContext = new RecordingModelContext();
             modelContext.setMessages(List.of(
                     new SystemMessage("business policy: keep original system prompt"),
@@ -95,7 +101,6 @@ class MemoryMem0ExampleTest {
                 rail.beforeInvoke(callbackContext);
                 rail.afterInvoke(callbackContext);
             }
-            return Map.of("result_type", "answer", "output", "pong");
         }
     }
 
