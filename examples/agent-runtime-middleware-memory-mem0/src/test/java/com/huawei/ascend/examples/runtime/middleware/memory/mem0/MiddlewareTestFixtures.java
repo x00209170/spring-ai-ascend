@@ -13,6 +13,6 @@ final class MiddlewareTestFixtures {
         RuntimeIdentity identity =
                 new RuntimeIdentity("tenant", "user", "session", "task", "openjiuwen-simple-agent");
         return new AgentExecutionContext(identity, "USER_MESSAGE",
-                java.util.List.of(RuntimeMessage.user("green tea")), Map.of(), stateKey, null);
+                java.util.List.of(RuntimeMessage.user("What drink does the user prefer?")), Map.of(), stateKey, null);
     }
 }
