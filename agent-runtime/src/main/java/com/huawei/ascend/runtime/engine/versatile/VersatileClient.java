@@ -47,6 +47,7 @@ public class VersatileClient implements AutoCloseable {
     private final HttpClient httpClient;
     private final VersatileProperties properties;
     private final ExecutorService httpExecutor;
+    private final Duration timeout;
 
     /** Always route directly — never through a proxy. */
     private static final ProxySelector NO_PROXY = new ProxySelector() {
@@ -56,7 +57,7 @@ public class VersatileClient implements AutoCloseable {
 
     public VersatileClient(VersatileProperties properties) {
         this.properties = Objects.requireNonNull(properties, "properties");
-        Duration timeout = properties.getTimeout() != null ? properties.getTimeout() : Duration.ofSeconds(30);
+        this.timeout = properties.getTimeout() != null ? properties.getTimeout() : Duration.ofSeconds(30);
         this.httpExecutor = Executors.newCachedThreadPool(runnable -> {
             Thread t = new Thread(runnable, "versatile-http");
             t.setDaemon(true);
@@ -106,7 +107,7 @@ public class VersatileClient implements AutoCloseable {
 
         HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(request.url()))
-                .timeout(properties.getTimeout());
+                .timeout(timeout);
 
         request.headers().forEach((key, value) -> {
             if (value != null) {
@@ -182,7 +183,7 @@ public class VersatileClient implements AutoCloseable {
             }
         });
 
-        long timeoutMs = properties.getTimeout().toMillis();
+        long timeoutMs = timeout.toMillis();
 
         return Stream.generate(() -> {
             try {
