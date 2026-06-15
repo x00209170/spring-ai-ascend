@@ -1,7 +1,7 @@
 # Contract Catalog
 
 > Single source of truth for all public contracts in the spring-ai-ascend platform.
-> Version: 0.1.0-SNAPSHOT | Last refreshed: 2026-05-28 (PR 92 absorption — added 14 design_only YAML schemas + 5 design_only SPI interfaces per ADR-0155)
+> Version: 0.2.0-SNAPSHOT | Last refreshed: 2026-06-15 (PR 92 absorption — added 14 design_only YAML schemas + 5 design_only SPI interfaces per ADR-0155)
 
 ## Rhetorical stance
 
@@ -196,7 +196,7 @@ SemVer from 1.0.0: PATCH=fix, MINOR=additive, MAJOR=breaking. Stable surface: st
 
 ## 7. Maven BoM
 
-`com.huawei.ascend:spring-ai-ascend-dependencies:0.1.0-SNAPSHOT` — active reactor modules (8 per `architecture-status.yaml#repository_counts.reactor_modules`):
+`com.huawei.ascend:spring-ai-ascend-dependencies:0.2.0-SNAPSHOT` — active reactor modules (4 per `architecture-status.yaml#repository_counts.reactor_modules`):
 
 | Artifact | Plane (P-I) | Status |
 |---|---|---|
