@@ -164,7 +164,7 @@ public final class A2aAgentExecutor implements AgentExecutor {
             LOG.info("[A2A] task state=WORKING taskId={}", taskId);
 
             String inputText = extractText(ctx);
-            LOG.info("[A2A] input parsed taskId={} textChars={} inputText={}", taskId, inputText.length(), inputText);
+            LOG.info("[A2A] input parsed taskId={} textChars={}", taskId, inputText.length());
 
             if (remote.isRemoteContinuation(ctx)) {
                 runRemoteSegment(taskId, cancelled,
@@ -400,10 +400,10 @@ public final class A2aAgentExecutor implements AgentExecutor {
         String sessionId = ctx.getContextId() != null ? ctx.getContextId() : ctx.getTaskId();
         vars.put(AgentExecutionContext.AGENT_STATE_KEY_VARIABLE, sessionId);
         Map<String, Object> merged = Map.copyOf(vars);
-        LOG.info("[A2A] request received taskId={} sessionId={} textLen={} metadataKeys={} metadata={}",
+        LOG.info("[A2A] request received taskId={} sessionId={} textLen={} metadataKeys={}",
                 ctx.getTaskId(), sessionId,
                 ctx.getMessage() != null ? Messages.text(ctx.getMessage()).length() : 0,
-                merged.keySet(), merged);
+                merged.keySet());
         return merged;
     }
 
