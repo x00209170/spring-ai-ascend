@@ -234,16 +234,22 @@ public final class A2aRemoteAgentOutboundAdapter
         }
         // compute() removes the mapping when the builder yields null, so an endpoint
         // that is not yet resolvable stays uncached and is retried on the next call.
+        // The stale transport is closed OUTSIDE the compute lambda so network I/O
+        // during close does not hold the ConcurrentHashMap bin lock.
+        AtomicReference<ClientTransport> toClose = new AtomicReference<>();
         CachedTransport cached = transportCache.compute(remoteAgentId, (id, existing) -> {
             if (existing != null && existing.endpoint().equals(endpoint)) {
                 return existing;
             }
             if (existing != null) {
-                closeQuietly(id, existing.transport());
+                toClose.set(existing.transport());
             }
             ClientTransport created = transportBuilder.apply(endpoint);
             return created == null ? null : new CachedTransport(endpoint, created);
         });
+        if (toClose.get() != null) {
+            closeQuietly(remoteAgentId, toClose.get());
+        }
         return cached == null ? null : cached.transport();
     }
 
