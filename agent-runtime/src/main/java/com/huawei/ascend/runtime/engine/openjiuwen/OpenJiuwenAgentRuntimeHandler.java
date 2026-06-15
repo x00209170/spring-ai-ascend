@@ -13,6 +13,7 @@ import com.openjiuwen.core.context.ModelContext;
 import com.openjiuwen.core.foundation.llm.schema.BaseMessage;
 import com.openjiuwen.core.foundation.llm.schema.SystemMessage;
 import com.openjiuwen.core.runner.Runner;
+import com.openjiuwen.core.session.interaction.InteractionOutput;
 import com.openjiuwen.core.session.stream.OutputSchema;
 import com.openjiuwen.core.session.stream.StreamMode;
 import com.openjiuwen.core.singleagent.BaseAgent;
@@ -252,6 +253,9 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractAgentRuntime
         }
         if (rawResult instanceof OutputSchema chunk) {
             return resultMapper.map(chunk);
+        }
+        if (rawResult instanceof InteractionOutput interactionOutput) {
+            return resultMapper.map(interactionOutput);
         }
         return resultMapper.map(Map.of("result_type", "answer", "output", String.valueOf(rawResult)));
     }

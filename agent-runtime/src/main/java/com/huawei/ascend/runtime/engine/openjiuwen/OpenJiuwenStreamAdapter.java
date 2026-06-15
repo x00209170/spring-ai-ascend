@@ -56,13 +56,7 @@ public class OpenJiuwenStreamAdapter {
             return null;
         }
         if ("interaction".equals(type)) {
-            Object value = payload instanceof InteractionOutput interactionOutput
-                    ? interactionOutput.getValue()
-                    : payload;
-            if (value instanceof InterruptRequest request && isRemoteInvocation(request.getContext())) {
-                return AgentExecutionResult.interrupted(remoteInvocation(request.getContext()));
-            }
-            return AgentExecutionResult.interrupted(asString(value));
+            return mapInteraction(payload);
         }
         if (payload instanceof Map<?, ?> map) {
             return map(normalizeMap(map));
@@ -71,6 +65,20 @@ public class OpenJiuwenStreamAdapter {
             return AgentExecutionResult.completed(asString(payload));
         }
         return AgentExecutionResult.output(asString(payload));
+    }
+
+    AgentExecutionResult map(InteractionOutput interactionOutput) {
+        return mapInteraction(interactionOutput);
+    }
+
+    private AgentExecutionResult mapInteraction(Object payload) {
+        Object value = payload instanceof InteractionOutput interactionOutput
+                ? interactionOutput.getValue()
+                : payload;
+        if (value instanceof InterruptRequest request && isRemoteInvocation(request.getContext())) {
+            return AgentExecutionResult.interrupted(remoteInvocation(request.getContext()));
+        }
+        return AgentExecutionResult.interrupted(asString(value));
     }
 
     private static Map<String, Object> normalizeMap(Map<?, ?> map) {
