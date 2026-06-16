@@ -70,7 +70,7 @@ class OpenJiuwenAgentRuntimeHandlerTest {
         List<Object> rawResults = handler.execute(context).map(Object.class::cast).toList();
 
         assertThat(rawResults).containsExactly(
-                new OutputSchema("llm_output", 0, Map.of("content", "pong")),
+                new OutputSchema("llm_output", 0, Map.of("result_type", "answer", "content", "pong")),
                 new OutputSchema("answer", 0, Map.of("result_type", "answer", "output", "done")));
         assertThat(handler.agent.registeredRails).isEmpty();
         assertThat(handler.capturedConversationId).isEqualTo("order-42");
@@ -427,8 +427,8 @@ class OpenJiuwenAgentRuntimeHandlerTest {
         TestOpenJiuwenHandler handler = new TestOpenJiuwenHandler();
 
         List<AgentExecutionResult> results = handler.resultAdapter().adapt(Stream.of(
-                new OutputSchema("llm_output", 0, Map.of("content", "first ")),
-                new OutputSchema("llm_output", 1, Map.of("content", "second")),
+                new OutputSchema("llm_output", 0, Map.of("result_type", "answer", "content", "first ")),
+                new OutputSchema("llm_output", 1, Map.of("result_type", "answer", "content", "second")),
                 new OutputSchema("answer", 0, Map.of("result_type", "answer", "output", "final")))).toList();
 
         assertThat(results).extracting(AgentExecutionResult::type)
@@ -469,21 +469,6 @@ class OpenJiuwenAgentRuntimeHandlerTest {
     }
 
     @Test
-    void resultAdapterMapsOpenJiuwenLlmOutputInteractionContentToRemoteInvocation() {
-        TestOpenJiuwenHandler handler = new TestOpenJiuwenHandler();
-        ToolCallInterruptRequest request = remoteInterruptRequest();
-
-        List<AgentExecutionResult> results = handler.resultAdapter().adapt(Stream.of(
-                new OutputSchema("llm_output", 0, Map.of(
-                        "content", new InteractionOutput("tool-call-1", request))))).toList();
-
-        assertThat(results).extracting(AgentExecutionResult::type)
-                .containsExactly(AgentExecutionResult.Type.INTERRUPTED);
-        assertThat(results.get(0).remoteInvocation().remoteAgentId()).isEqualTo("remote-agent");
-        assertThat(results.get(0).remoteInvocation().arguments()).containsEntry("message", "hello remote");
-    }
-
-    @Test
     void resultAdapterMapsOpenJiuwenInteractionMarkerToRemoteInvocation() {
         TestOpenJiuwenHandler handler = new TestOpenJiuwenHandler();
         ToolCallInterruptRequest request = remoteInterruptRequest();
@@ -496,6 +481,34 @@ class OpenJiuwenAgentRuntimeHandlerTest {
                 .containsExactly(AgentExecutionResult.Type.INTERRUPTED);
         assertThat(results.get(0).remoteInvocation().remoteAgentId()).isEqualTo("remote-agent");
         assertThat(results.get(0).remoteInvocation().arguments()).containsEntry("message", "hello remote");
+    }
+
+    @Test
+    void resultAdapterMapsPlainInterruptRequestToPromptMessage() {
+        TestOpenJiuwenHandler handler = new TestOpenJiuwenHandler();
+        ToolCallInterruptRequest request = new ToolCallInterruptRequest();
+        request.setMessage("need approval");
+
+        List<AgentExecutionResult> results = handler.resultAdapter().adapt(Stream.of(
+                new OutputSchema("__interaction__", 0,
+                        new InteractionOutput("tool-call-1", request)))).toList();
+
+        assertThat(results).extracting(AgentExecutionResult::type)
+                .containsExactly(AgentExecutionResult.Type.INTERRUPTED);
+        assertThat(results.get(0).prompt()).isEqualTo("need approval");
+    }
+
+    @Test
+    void resultAdapterFailsUnsupportedInteractionPayloads() {
+        TestOpenJiuwenHandler handler = new TestOpenJiuwenHandler();
+
+        List<AgentExecutionResult> results = handler.resultAdapter().adapt(Stream.of(
+                new OutputSchema("__interaction__", 0,
+                        new InteractionOutput("tool-call-1", Map.of("unexpected", true))))).toList();
+
+        assertThat(results).extracting(AgentExecutionResult::type)
+                .containsExactly(AgentExecutionResult.Type.FAILED);
+        assertThat(results.get(0).errorMessage()).contains("Unsupported openjiuwen interaction payload");
     }
 
     @Test
@@ -923,7 +936,7 @@ class OpenJiuwenAgentRuntimeHandlerTest {
         public Iterator<Object> stream(Object input, Session session, List<StreamMode> streamModes) {
             this.streamModes = List.copyOf(streamModes);
             return List.<Object>of(
-                    new OutputSchema("llm_output", 0, Map.of("content", "pong")),
+                    new OutputSchema("llm_output", 0, Map.of("result_type", "answer", "content", "pong")),
                     new OutputSchema("answer", 0, Map.of("result_type", "answer", "output", "done")))
                     .iterator();
         }

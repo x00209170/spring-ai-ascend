@@ -1,6 +1,5 @@
 package com.huawei.ascend.runtime.engine.openjiuwen;
 
-
 import java.util.Map;
 import com.huawei.ascend.runtime.engine.spi.AgentExecutionResult;
 import com.openjiuwen.core.session.interaction.InteractionOutput;
@@ -31,12 +30,6 @@ public class OpenJiuwenStreamAdapter {
         if ("answer".equals(type)) {
             return AgentExecutionResult.completed(output);
         }
-        if ("interrupt".equals(type)) {
-            if (isRemoteInvocation(result)) {
-                return AgentExecutionResult.interrupted(remoteInvocation(result));
-            }
-            return AgentExecutionResult.interrupted(output);
-        }
         return AgentExecutionResult.failed(ERROR_CODE, output);
     }
 
@@ -47,14 +40,14 @@ public class OpenJiuwenStreamAdapter {
         Object payload = chunk.getPayload();
         String type = chunk.getType();
         if ("llm_output".equals(type)) {
-            Object content = payload instanceof Map<?, ?> map ? map.get("content") : payload;
-            if (content instanceof InteractionOutput) {
-                return mapInteraction(content);
+            Object output = payload;
+            if (payload instanceof Map<?, ?> map) {
+                if (!map.containsKey("content")) {
+                    return null;
+                }
+                output = map.get("content");
             }
-            if (payload instanceof Map<?, ?> map && !map.containsKey("content")) {
-                return null;
-            }
-            String text = asString(content);
+            String text = asString(output);
             return text.isBlank() ? null : AgentExecutionResult.output(text);
         }
         if ("llm_usage".equals(type) || "llm_reasoning".equals(type) || "custom".equals(type)) {
@@ -79,7 +72,26 @@ public class OpenJiuwenStreamAdapter {
         if (value instanceof InterruptRequest request && isRemoteInvocation(request.getContext())) {
             return AgentExecutionResult.interrupted(remoteInvocation(request.getContext()));
         }
-        return AgentExecutionResult.interrupted(asString(value));
+        if (value instanceof InterruptRequest request) {
+            return AgentExecutionResult.interrupted(promptFrom(request));
+        }
+        if (value instanceof String prompt) {
+            return AgentExecutionResult.interrupted(prompt);
+        }
+        return AgentExecutionResult.failed(ERROR_CODE, "Unsupported openjiuwen interaction payload: "
+                + (value == null ? "null" : value.getClass().getName()));
+    }
+
+    private static String promptFrom(InterruptRequest request) {
+        String message = request.getMessage();
+        if (message != null && !message.isBlank()) {
+            return message;
+        }
+        String interruptId = request.getInterruptId();
+        if (interruptId != null && !interruptId.isBlank()) {
+            return interruptId;
+        }
+        return "Input required";
     }
 
     private static Map<String, Object> normalizeMap(Map<?, ?> map) {
