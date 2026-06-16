@@ -52,7 +52,7 @@ class OpenJiuwenRemoteAgentAdapterTest {
                 "runtime.remote.parentTaskId", "task-1",
                 "runtime.remote.parentContextId", "ctx-1",
                 "runtime.remote.localConversationId", "conversation-1",
-                "runtime.remote.arguments", Map.of("message", "hello remote")));
+                "runtime.remote.arguments", Map.of("remoteInput", "hello remote")));
 
         AgentExecutionResult result = new OpenJiuwenStreamAdapter().map(
                 new OutputSchema("__interaction__", 0, new InteractionOutput("tool-call-1", request)));
@@ -62,7 +62,7 @@ class OpenJiuwenRemoteAgentAdapterTest {
                 .isInstanceOf(AgentExecutionResult.RemoteAgentInterrupt.class);
         assertThat(result.remoteInvocation().remoteAgentId()).isEqualTo("remote-agent");
         assertThat(result.remoteInvocation().parentTaskId()).isEqualTo("task-1");
-        assertThat(result.remoteInvocation().arguments()).containsEntry("message", "hello remote");
+        assertThat(result.remoteInvocation().arguments()).containsEntry("remoteInput", "hello remote");
     }
 
     @Test

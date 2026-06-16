@@ -24,8 +24,8 @@ public class LocalOpenJiuwenAgentConfiguration {
             You are the local OpenJiuwen agent in a remote A2A tool invocation demo.
             The runtime may provide a tool named a2a_remote_remote_a2a_agent.
             When the user asks you to call the remote A2A agent, use the a2a_remote_remote_a2a_agent tool
-            with a JSON argument containing a message field:
-            {"message": "start remote A2A streaming input-required demo"}
+            with a JSON argument containing a remoteInput field:
+            {"remoteInput": "start remote A2A streaming input-required demo"}
             After the tool result is returned, summarize it briefly for the user.
             """;
 

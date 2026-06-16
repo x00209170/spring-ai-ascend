@@ -51,7 +51,7 @@ class OpenJiuwenRemoteToolInstallerTest {
         ToolCall toolCall = ToolCall.builder()
                 .id("tool-call-1")
                 .name("remote-planner")
-                .arguments("{\"message\":\"hello remote\"}")
+                .arguments("{\"remoteInput\":\"hello remote\"}")
                 .build();
         InterruptDecision decision = rail.resolveInterrupt(null, toolCall, null);
 
@@ -70,7 +70,7 @@ class OpenJiuwenRemoteToolInstallerTest {
                 .containsEntry("runtime.remote.localConversationId", "conversation-1");
         Map<String, Object> arguments =
                 (Map<String, Object>) irContext.get("runtime.remote.arguments");
-        assertThat(arguments).containsEntry("message", "hello remote");
+        assertThat(arguments).containsEntry("remoteInput", "hello remote");
     }
 
     @Test
@@ -81,7 +81,7 @@ class OpenJiuwenRemoteToolInstallerTest {
         ToolCall toolCall = ToolCall.builder()
                 .id("tool-call-1")
                 .name("remote-planner")
-                .arguments("{\"message\":\"hello remote\"}")
+                .arguments("{\"remoteInput\":\"hello remote\"}")
                 .build();
         InteractiveInput resumeInput = new InteractiveInput();
         resumeInput.update("tool-call-1", "{\"ok\":true}");
@@ -99,8 +99,8 @@ class OpenJiuwenRemoteToolInstallerTest {
                 "Remote Planner\nPlans trips",
                 Map.of(
                         "type", "object",
-                        "properties", Map.of("message", Map.of("type", "string")),
-                        "required", List.of("message")));
+                        "properties", Map.of("remoteInput", Map.of("type", "string")),
+                        "required", List.of("remoteInput")));
     }
 
     private static AgentExecutionContext context() {

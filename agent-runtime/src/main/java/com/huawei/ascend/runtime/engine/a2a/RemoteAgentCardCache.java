@@ -236,19 +236,19 @@ public class RemoteAgentCardCache {
     }
 
     /**
-     * Returns the common remote-A2A tool envelope. The outbound adapter serializes
-     * the tool arguments as the child A2A message text, so a message field must be
-     * visible to the LLM instead of relying on description-only prompting. Extra
-     * properties stay open for remote-agent-specific business fields.
+     * Returns the common remote-A2A tool envelope. The remoteInput value becomes
+     * the child A2A message text, so the field must be visible to the LLM instead
+     * of relying on description-only prompting. Extra properties stay open for
+     * remote-agent-specific business fields.
      */
     private static Map<String, Object> inputSchema() {
         return Map.of(
                 "type", "object",
                 "properties", Map.of(
-                        "message", Map.of(
+                        "remoteInput", Map.of(
                                 "type", "string",
-                                "description", "Message text to send to the remote A2A agent.")),
-                "required", List.of("message"),
+                                "description", "Text to send as the remote A2A user message.")),
+                "required", List.of("remoteInput"),
                 "additionalProperties", true);
     }
 

@@ -480,7 +480,7 @@ class OpenJiuwenAgentRuntimeHandlerTest {
         assertThat(results).extracting(AgentExecutionResult::type)
                 .containsExactly(AgentExecutionResult.Type.INTERRUPTED);
         assertThat(results.get(0).remoteInvocation().remoteAgentId()).isEqualTo("remote-agent");
-        assertThat(results.get(0).remoteInvocation().arguments()).containsEntry("message", "hello remote");
+        assertThat(results.get(0).remoteInvocation().arguments()).containsEntry("remoteInput", "hello remote");
     }
 
     @Test
@@ -543,7 +543,7 @@ class OpenJiuwenAgentRuntimeHandlerTest {
                 "runtime.remote.parentTaskId", "task-1",
                 "runtime.remote.parentContextId", "ctx-1",
                 "runtime.remote.localConversationId", "conversation-1",
-                "runtime.remote.arguments", Map.of("message", "hello remote")));
+                "runtime.remote.arguments", Map.of("remoteInput", "hello remote")));
         return request;
     }
 

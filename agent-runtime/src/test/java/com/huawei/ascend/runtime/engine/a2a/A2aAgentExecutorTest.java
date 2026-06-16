@@ -686,7 +686,7 @@ class A2aAgentExecutorTest {
         when(handler.resultAdapter()).thenReturn(raw -> raw.map(value -> "remote".equals(value)
                     ? remoteInterrupt(new AgentExecutionResult.RemoteInvocation(
                             "remote-agent", "remote-agent", "tool-call-1",
-                            "task-1", "ctx-1", "task-1", Map.of("message", "hello remote")))
+                            "task-1", "ctx-1", "task-1", Map.of("remoteInput", "hello remote")))
                     : AgentExecutionResult.completed("local final after remote")));
         RecordingRemoteOutbound outbound = new RecordingRemoteOutbound(List.of(
                 remoteResult(RemoteAgentInvocationService.RemoteAgentResult.Type.MESSAGE, "remote progress"),
@@ -697,7 +697,7 @@ class A2aAgentExecutorTest {
                 .execute(requestContext(), emitter);
 
         assertThat(outbound.requests).hasSize(1);
-        assertThat(outbound.requests.get(0).message()).isEqualTo("{\"message\":\"hello remote\"}");
+        assertThat(outbound.requests.get(0).message()).isEqualTo("hello remote");
         verify(emitter).complete(any(Message.class));
     }
 
@@ -712,7 +712,7 @@ class A2aAgentExecutorTest {
         when(handler.resultAdapter()).thenReturn(raw -> raw.map(value -> "remote".equals(value)
                 ? remoteInterrupt(new AgentExecutionResult.RemoteInvocation(
                         "remote-agent", "remote-agent", "tool-call-1",
-                        "task-1", "ctx-1", "conversation-1", Map.of("message", "hello remote")))
+                        "task-1", "ctx-1", "conversation-1", Map.of("remoteInput", "hello remote")))
                 : AgentExecutionResult.completed("local final after remote")));
 
         AtomicBoolean projectedBeforeOutboundReturned = new AtomicBoolean(false);
@@ -752,7 +752,7 @@ class A2aAgentExecutorTest {
         when(handler.resultAdapter()).thenReturn(raw -> raw.map(value -> remoteInterrupt(
                 new AgentExecutionResult.RemoteInvocation(
                     "remote-agent", "remote-agent", "tool-call-1",
-                    "task-1", "ctx-1", "task-1", Map.of("message", "needs user")))));
+                    "task-1", "ctx-1", "task-1", Map.of("remoteInput", "needs user")))));
         RecordingRemoteOutbound outbound = new RecordingRemoteOutbound(List.of(
                 new RemoteAgentInvocationService.RemoteAgentResult(
                         RemoteAgentInvocationService.RemoteAgentResult.Type.INPUT_REQUIRED,
@@ -792,7 +792,7 @@ class A2aAgentExecutorTest {
         when(handler.resultAdapter()).thenReturn(raw -> raw.map(value -> "remote".equals(value)
                 ? remoteInterrupt(new AgentExecutionResult.RemoteInvocation(
                         "remote-agent", "remote-agent", "tool-call-1",
-                        "task-1", "ctx-1", "conversation-1", Map.of("message", "hello remote")))
+                        "task-1", "ctx-1", "conversation-1", Map.of("remoteInput", "hello remote")))
                 : AgentExecutionResult.completed("local final after missing terminal")));
         RecordingRemoteOutbound outbound = new RecordingRemoteOutbound(List.of(
                 remoteResult(RemoteAgentInvocationService.RemoteAgentResult.Type.MESSAGE, "remote progress only")));
@@ -871,7 +871,7 @@ class A2aAgentExecutorTest {
                         "task-1",
                         "ctx-1",
                         "conversation-1",
-                        Map.of("message", "nested")))));
+                        Map.of("remoteInput", "nested")))));
         RecordingRemoteOutbound outbound = new RecordingRemoteOutbound(List.of(
                 remoteResult(RemoteAgentInvocationService.RemoteAgentResult.Type.COMPLETED, "remote final")));
 
@@ -892,7 +892,7 @@ class A2aAgentExecutorTest {
         when(handler.resultAdapter()).thenReturn(raw -> raw.map(value -> remoteInterrupt(
                 new AgentExecutionResult.RemoteInvocation(
                     "remote-agent", "remote-agent", "tool-call-1",
-                    "task-1", "ctx-1", "task-1", Map.of("message", "needs user")))));
+                    "task-1", "ctx-1", "task-1", Map.of("remoteInput", "needs user")))));
         RecordingRemoteOutbound outbound = new RecordingRemoteOutbound(List.of(
                 new RemoteAgentInvocationService.RemoteAgentResult(
                         RemoteAgentInvocationService.RemoteAgentResult.Type.INPUT_REQUIRED,
@@ -928,7 +928,7 @@ class A2aAgentExecutorTest {
         when(handler.resultAdapter()).thenReturn(raw -> raw.map(value -> AgentExecutionResult.interrupted(
                 new AgentExecutionResult.RemoteInvocation(
                         "remote-agent", "remote-agent", "tool-call-1",
-                        "task-1", "ctx-1", "conversation-1", Map.of("message", "hello remote")))));
+                        "task-1", "ctx-1", "conversation-1", Map.of("remoteInput", "hello remote")))));
 
         RequestContext ctx = requestContext();
         AgentEmitter cancelEmitter = newEmitter();
@@ -1101,7 +1101,7 @@ class A2aAgentExecutorTest {
             return raw -> raw.map(value -> "remote".equals(value)
                     ? AgentExecutionResult.interrupted(new AgentExecutionResult.RemoteInvocation(
                             "remote-agent", "remote-agent", "tool-call-1",
-                            "task-1", "ctx-1", "conversation-1", Map.of("message", "hello remote")))
+                            "task-1", "ctx-1", "conversation-1", Map.of("remoteInput", "hello remote")))
                     : AgentExecutionResult.completed("local final after remote"));
         }
     }
