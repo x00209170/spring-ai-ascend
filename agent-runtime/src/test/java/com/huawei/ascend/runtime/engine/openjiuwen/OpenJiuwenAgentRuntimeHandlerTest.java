@@ -229,6 +229,29 @@ class OpenJiuwenAgentRuntimeHandlerTest {
     }
 
     @Test
+    void memoryRuntimeRailReachesModelInputThroughRunnerRunAgent() {
+        ensureMemoryModelFactoryRegistered();
+        CapturingModelClient.capturedMessages.clear();
+        CapturingModelClient.capturedRawMessages = null;
+        String conversationId = "runner-memory-" + System.nanoTime();
+        RunnerMemoryOpenJiuwenHandler handler = new RunnerMemoryOpenJiuwenHandler(new FakeMemoryProvider());
+
+        List<?> rawResults = handler
+                .execute(context(Map.of(AgentExecutionContext.AGENT_STATE_KEY_VARIABLE, conversationId)))
+                .toList();
+
+        assertThat(rawResults).isNotEmpty();
+        assertThat(CapturingModelClient.capturedRawMessages).isNotNull();
+        assertThat(CapturingModelClient.capturedMessages).isNotEmpty();
+        assertThat(CapturingModelClient.capturedMessages)
+                .anySatisfy(message -> assertThat(message.getContentAsString())
+                        .contains("HOTEL_BUSINESS_RULES_MARKER")
+                        .contains("remembered ping")
+                        .contains("recalled memory context from runtime memory")
+                        .doesNotContain("runtime_long_term_memory"));
+    }
+
+    @Test
     void memoryRuntimeRailClearsRealReActPromptBuilderWhenNoMemoryHits() {
         AgentExecutionContext context = context(Map.of());
         FakeMemoryProvider memoryProvider = new FakeMemoryProvider();
@@ -652,6 +675,33 @@ class OpenJiuwenAgentRuntimeHandlerTest {
                 List<StreamMode> streamModes) {
             installedBeforeRun = runtimeToolInstalled;
             return super.runOpenJiuwenAgentStreaming(agent, input, conversationId, streamModes);
+        }
+    }
+
+    private static final class RunnerMemoryOpenJiuwenHandler extends OpenJiuwenAgentRuntimeHandler {
+        private final MemoryProvider memoryProvider;
+
+        private RunnerMemoryOpenJiuwenHandler(MemoryProvider memoryProvider) {
+            super("agent");
+            this.memoryProvider = memoryProvider;
+        }
+
+        @Override
+        protected BaseAgent createOpenJiuwenAgent(AgentExecutionContext context) {
+            ReActAgent reactAgent = new ReActAgent(
+                    AgentCard.builder().id("agent").name("agent").description("test").build());
+            ReActAgentConfig config = ReActAgentConfig.builder()
+                    .maxIterations(2)
+                    .build()
+                    .configureModelClient(MEMORY_MODEL_PROVIDER, "key", "http://localhost", "fake-model", false);
+            reactAgent.configure(config);
+            reactAgent.addPromptBuilderSection("hotel_business_rules", "HOTEL_BUSINESS_RULES_MARKER", 20);
+            return reactAgent;
+        }
+
+        @Override
+        protected List<AgentRail> openJiuwenRails(AgentExecutionContext context) {
+            return List.of(memoryRuntimeRail(context, memoryProvider));
         }
     }
 

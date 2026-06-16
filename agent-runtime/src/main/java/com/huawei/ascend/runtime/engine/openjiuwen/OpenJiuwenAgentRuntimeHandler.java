@@ -175,7 +175,7 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractAgentRuntime
      * independent from OpenJiuwen memory package names.
      */
     protected final AgentRail openJiuwenExternalMemoryRail(AgentExecutionContext context, MemoryProvider memoryProvider) {
-        return new ExternalMemoryRail(
+        return createExternalMemoryRail(
                 new OpenJiuwenExternalMemoryProviderAdapter(context, memoryProvider),
                 context.getScope().userId(),
                 context.getAgentStateKey(),
@@ -262,6 +262,24 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractAgentRuntime
             cursor = cursor.getCause();
         }
         return message.isEmpty() ? error.getClass().getName() : message.toString();
+    }
+
+    private static AgentRail createExternalMemoryRail(
+            com.openjiuwen.core.memory.external.MemoryProvider memoryProvider,
+            String userId,
+            String scopeId,
+            String sessionId) {
+        return ExternalMemoryRailHolder.create(memoryProvider, userId, scopeId, sessionId);
+    }
+
+    private static final class ExternalMemoryRailHolder {
+        private static AgentRail create(
+                com.openjiuwen.core.memory.external.MemoryProvider memoryProvider,
+                String userId,
+                String scopeId,
+                String sessionId) {
+            return new ExternalMemoryRail(memoryProvider, userId, scopeId, sessionId);
+        }
     }
 
     /**
@@ -367,7 +385,13 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractAgentRuntime
             ModelContext modelContext = callbackContext == null ? null : callbackContext.getContext();
             if (modelContext != null) {
                 mergeMemoryIntoSystemMessage(modelContext, memoryBlock);
+                return;
             }
+            LOGGER.warn("openjiuwen memory inject skipped tenantId={} sessionId={} taskId={} reason=no_react_agent_or_model_context callbackAgentType={}",
+                    executionContext.getScope().tenantId(),
+                    executionContext.getScope().sessionId(),
+                    executionContext.getScope().taskId(),
+                    callbackAgentType(callbackContext));
         }
 
         private MemoryProvider.MemoryRecord toLongTermMemoryRecord(BaseMessage message) {
@@ -428,6 +452,11 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractAgentRuntime
         private static ReActAgent reactAgent(AgentCallbackContext callbackContext) {
             Object agent = callbackContext == null ? null : callbackContext.getAgent();
             return agent instanceof ReActAgent reactAgent ? reactAgent : null;
+        }
+
+        private static String callbackAgentType(AgentCallbackContext callbackContext) {
+            Object agent = callbackContext == null ? null : callbackContext.getAgent();
+            return agent == null ? "null" : agent.getClass().getName();
         }
 
         private static String runtimeMemoryBlock(String memoryBlock) {
