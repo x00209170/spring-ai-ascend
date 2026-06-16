@@ -51,6 +51,8 @@
 
 > 注:租户必须走 `X-Tenant-Id` 头,**不要**用 `MessageSendParams.tenant()`——后者会让 SDK 把请求打到租户作用域的 URL(`/a2a/{tenant}`),而运行时只服务 `/a2a`,会 404。
 
+**协议升级兼容(混版组网)**:`ProtocolNegotiator` 取代 SDK 默认的"盲取 `supportedInterfaces[0]`"——只选**本端会说的 binding**(JSONRPC)+ **兼容的协议大版本**(默认 major 1),优先卡片的 `preferredTransport`,否则取最高兼容版本;若对端只提供更高大版本(如某 agent 升级到 `2.0`),**明确抛错**(列出对端 offered vs 本端 supported)而非误用旧协议乱讲。老 agent 省略版本号 → 视为兼容。这样新老 agent 可在同一网里共存,不兼容的会 fail fast。
+
 **真实 A2A 往返 e2e(`src/test`)**:`DeterministicEchoAgent` 是一个**不调 LLM** 的极简 A2A agent(直接返回 echo + 完成),`A2aWorkerE2eTest` 启它在随机端口、让 `A2aWorker` 真打它一次(直连 + 经 `Coordinator`),确定性、无需 API key、CI 安全。整套 a2a-sdk 对齐到 `1.0.0.Final`(与平台一致),`logback-test.xml` 覆盖 agent-runtime 的 logstash appender。**2 个 e2e 全绿**,既验证了 engine→A2A 桥,也是一次真实 A2A 往返评测。
 
 ## 构建

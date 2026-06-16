@@ -24,6 +24,7 @@ import org.a2aproject.sdk.client.transport.jsonrpc.JSONRPCTransport;
 import org.a2aproject.sdk.client.transport.spi.ClientTransport;
 import org.a2aproject.sdk.client.transport.spi.interceptors.ClientCallContext;
 import org.a2aproject.sdk.spec.AgentCard;
+import org.a2aproject.sdk.spec.AgentInterface;
 import org.a2aproject.sdk.spec.Artifact;
 import org.a2aproject.sdk.spec.CancelTaskParams;
 import org.a2aproject.sdk.spec.EventKind;
@@ -33,7 +34,7 @@ import org.a2aproject.sdk.spec.Part;
 import org.a2aproject.sdk.spec.Task;
 import org.a2aproject.sdk.spec.TaskState;
 import org.a2aproject.sdk.spec.TextPart;
-import org.a2aproject.sdk.util.Utils;
+import org.a2aproject.sdk.spec.TransportProtocol;
 
 /**
  * Bridges the collaboration engine to a real A2A agent: the
@@ -65,6 +66,9 @@ public final class A2aWorker implements Worker {
     public static final String MK_IDEM = "task.token.idempotencyKey";
     public static final String MK_DEADLINE = "task.token.deadlineEpochMs";
 
+    /** A2A protocol major versions this client speaks; a peer on a newer major is rejected. */
+    private static final Set<Integer> SUPPORTED_PROTOCOL_MAJORS = Set.of(1);
+
     /** Daemon pool that bounds a blocking A2A call's wall-clock time (see {@link #execute}). */
     private static final ExecutorService CALL_POOL = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "a2a-worker-call");
@@ -95,7 +99,11 @@ public final class A2aWorker implements Worker {
             JdkA2AHttpClient http = new JdkA2AHttpClient(HttpClient.newBuilder()
                     .connectTimeout(Duration.ofMillis(timeoutMs)).build());
             AgentCard card = A2ACardResolver.builder().baseUrl(baseUrl).httpClient(http).build().getAgentCard();
-            this.transport = new JSONRPCTransport(http, card, Utils.getFavoriteInterface(card), List.of());
+            // Negotiate by binding + protocol version (mixed-fleet safe) rather than blindly
+            // taking supportedInterfaces.get(0); fails clearly if the peer is on a newer major.
+            AgentInterface iface = ProtocolNegotiator.select(
+                    card, Set.of(TransportProtocol.JSONRPC.asString()), SUPPORTED_PROTOCOL_MAJORS);
+            this.transport = new JSONRPCTransport(http, card, iface, List.of());
         } catch (Throwable e) {
             throw new IllegalStateException(
                     "failed to resolve A2A agent card at " + baseUrl + ": " + e.getMessage(), e);
