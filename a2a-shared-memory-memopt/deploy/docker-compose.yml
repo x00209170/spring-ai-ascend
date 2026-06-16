@@ -16,8 +16,9 @@ services:
 
   memopt:
     # Pulled from a PRIVATE registry (set MEMOPT_IMAGE in .env; `docker login` first).
-    # Default points at GHCR under this org; override for Harbor / your registry.
-    image: ${MEMOPT_IMAGE:-ghcr.io/chaosxingxc-orion/memopt:0.0.1}
+    # TEMP default = personal GHCR namespace (org package-create not yet granted);
+    # move to ghcr.io/chaosxingxc-orion/memopt once it is. Override for Harbor too.
+    image: ${MEMOPT_IMAGE:-ghcr.io/kevin-708090/memopt:0.0.1}
     depends_on:
       - nats
     environment:

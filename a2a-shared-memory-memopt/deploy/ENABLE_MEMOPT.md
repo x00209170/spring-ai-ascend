@@ -42,7 +42,8 @@ Log in first, then Compose will pull it.
 
 ```bash
 echo "$GH_PAT" | docker login ghcr.io -u <github-username> --password-stdin
-# MEMOPT_IMAGE=ghcr.io/chaosxingxc-orion/memopt:0.0.1   (the default)
+# default MEMOPT_IMAGE=ghcr.io/kevin-708090/memopt:0.0.1  (TEMP personal namespace;
+# moving to ghcr.io/chaosxingxc-orion/memopt once the org grants package-create)
 ```
 
 **Harbor / other private registry:**
@@ -104,9 +105,11 @@ for the build (incl. proxy build-args for slow-mirror regions). Then tag + push 
 **GHCR** — token needs `write:packages`:
 
 ```bash
-docker tag memopt:0.0.1 ghcr.io/chaosxingxc-orion/memopt:0.0.1
+# TEMP personal namespace (org package-create not yet granted). Once it is, retag to
+# ghcr.io/chaosxingxc-orion/memopt:0.0.1 and push there instead.
+docker tag memopt:0.0.1 ghcr.io/kevin-708090/memopt:0.0.1
 echo "$GH_PAT" | docker login ghcr.io -u <github-username> --password-stdin
-docker push ghcr.io/chaosxingxc-orion/memopt:0.0.1
+docker push ghcr.io/kevin-708090/memopt:0.0.1
 # Then in GitHub → the package's settings, confirm visibility = Private and grant
 # pull access to the team. (GHCR packages are private by default.)
 ```
