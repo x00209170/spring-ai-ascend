@@ -59,6 +59,12 @@ public final class OpenJiuwenReportModel implements ReportModel {
     }
 
     private static String roleSystemPrompt(String role) {
+        // The single-model baseline (used by the method-comparison harness) is the
+        // "naive one prompt" representative: it gets NO grounding/role discipline, so
+        // we can observe what an undisciplined single call does with the numbers.
+        if (role != null && role.startsWith("baseline")) {
+            return "你是一名卖方股票分析师,请根据用户提供的数据独立完成一份研究报告。";
+        }
         String base = "你是一名机构级卖方研究团队中的子智能体,严格遵循以下纪律:"
                 + "(1) 数字只能引用简报中已给出的、经计算或经核验的事实,绝不自行编造或推算新数字;"
                 + "(2) 论述以投资论点为脊柱,保持机构统一口径与中文专业风格;"

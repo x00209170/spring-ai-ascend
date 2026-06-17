@@ -128,6 +128,32 @@ public final class ResearchReports {
         return (live && glmConfigured()) ? liveModel(ModelConnection.forTier("smart")) : new ScriptedReportModel();
     }
 
+    /**
+     * Model for the single-model comparison baseline. Unlike the engine — which makes
+     * many small, individually-bounded per-section calls — the baseline asks for the
+     * whole report in one shot, so it needs a much longer per-call timeout and a larger
+     * token budget. (That the monolithic call is slow and hard to bound is itself part
+     * of the contrast.) Returns the scripted model when no live endpoint is configured.
+     */
+    public static ReportModel baselineModel(boolean live) {
+        if (live && glmConfigured()) {
+            // maxTokens must leave room for a reasoning model's ~500 reasoning tokens AND
+            // the content (too small → empty content), so keep it at the engine's 4096;
+            // the prose stays one-page via the prompt, so wall-time matches a section and
+            // returns within the runtime's request timeout. (The engine decomposes into many
+            // such bounded calls precisely because one mega-call is impractical — part of
+            // what the comparison shows.)
+            return new RetryReportModel(
+                    new TimeoutReportModel(
+                            new OpenJiuwenReportModel(ModelConnection.forTier("smart"),
+                                    envInt("RESEARCH_BASELINE_MAX_TOKENS", 4096), 0.4),
+                            Duration.ofSeconds(envInt("RESEARCH_BASELINE_TIMEOUT_S", 120))),
+                    envInt("RESEARCH_MODEL_RETRIES", 2),
+                    envInt("RESEARCH_MODEL_BACKOFF_MS", 1500));
+        }
+        return new ScriptedReportModel();
+    }
+
     /** True when a real LLM endpoint is wired (BANK_LLM_* set to something non-placeholder). */
     public static boolean glmConfigured() {
         String base = System.getenv("BANK_LLM_API_BASE");

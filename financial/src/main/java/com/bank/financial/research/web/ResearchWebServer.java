@@ -154,6 +154,7 @@ public final class ResearchWebServer {
             boolean wantLive = "glm".equals(q.getOrDefault("model", "glm"));
             boolean usingLive = wantLive && ResearchReports.glmConfigured();
             final ReportModel rm = ResearchReports.webModel(wantLive);
+            boolean compare = "1".equals(q.get("compare")) || "true".equals(q.get("compare"));
 
             ex.getResponseHeaders().set("Content-Type", "text/event-stream;charset=utf-8");
             ex.getResponseHeaders().set("Cache-Control", "no-cache");
@@ -286,9 +287,9 @@ public final class ResearchWebServer {
                     }
                     default -> src = new EastMoneyResearchDataSource(now);
                 }
+                DataIngestionService ingestion = new DataIngestionService(src, FreshnessPolicy.days(90));
                 ResearchReportEngine engine = new ResearchReportEngine(
-                        new DataIngestionService(src, FreshnessPolicy.days(90)), src.name(),
-                        rm, webExp(type), MemoryObserver.NOOP, () -> now);
+                        ingestion, src.name(), rm, webExp(type), MemoryObserver.NOOP, () -> now);
                 ResearchReport r = engine.generate(new ReportRequest(ticker, "EQUITY", "web", "zh-CN", now, budget), progress);
                 report.put("html", MdHtml.render(r.toMarkdown()));
                 report.put("rating", r.rating());
@@ -298,6 +299,15 @@ public final class ResearchWebServer {
                 report.put("modelCalls", r.metadata().modelCalls());
                 report.put("criticRounds", r.metadata().criticRounds());
                 report.put("degradations", r.metadata().degradations().size());
+                send(out, "report", report);
+                sendExperience(out, type);
+                // Optional A/B: same data + model through a naive single-model one-shot,
+                // scored side-by-side so the architectural difference is measured, not asserted.
+                if (compare) {
+                    runComparison(out, r, ingestion.assemble(ticker, 5, now), rm, usingLive);
+                }
+                send(out, "done", Map.of());
+                return;
             }
             send(out, "report", report);
             sendExperience(out, type);
@@ -342,6 +352,42 @@ public final class ResearchWebServer {
             send(out, "experience", Map.of("lessons", out2));
         } catch (RuntimeException ignored) {
             // experience exposure must never affect the run
+        }
+    }
+
+    /** Run the single-model baseline on the same data and stream the comparison scorecard. */
+    private static void runComparison(OutputStream out, ResearchReport engineReport,
+            com.bank.financial.research.data.CompanyData.Dataset ds, ReportModel rm, boolean usingLive) {
+        try {
+            if (!usingLive) {
+                sendNote(out, "方法对比需真实模型(GLM)才有意义:离线脚本模型不会自行估算,单模型列仅作结构示意。");
+            } else {
+                sendNote(out, "正在以单一大模型一次性出稿(同数据同模型),用于对比打分,请稍候…");
+            }
+            // The baseline is one big call — use the dedicated long-timeout model, not the
+            // engine's per-section-bounded one.
+            ReportModel baselineModel = com.bank.financial.research.ResearchReports.baselineModel(usingLive);
+            String baselineMd = com.bank.financial.research.eval.SingleModelBaseline.generate(ds, baselineModel);
+            com.bank.financial.research.eval.MethodScorecard card =
+                    com.bank.financial.research.eval.MethodComparison.compare(engineReport, baselineMd);
+            List<Map<String, Object>> rows = new java.util.ArrayList<>();
+            for (com.bank.financial.research.eval.MethodScorecard.Row r : card.rows()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("kind", r.kind().name());
+                m.put("dimension", r.dimension());
+                m.put("engine", r.engine());
+                m.put("single", r.single());
+                m.put("enginePass", r.enginePass());
+                m.put("singlePass", r.singlePass());
+                m.put("why", r.why());
+                rows.add(m);
+            }
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("rows", rows);
+            payload.put("baselineHtml", MdHtml.render(baselineMd));
+            send(out, "scorecard", payload);
+        } catch (RuntimeException e) {
+            sendNote(out, "方法对比未完成:" + e.getMessage());
         }
     }
 
@@ -502,6 +548,16 @@ public final class ResearchWebServer {
               .preview p{color:#c9d1d9}
               .empty{color:var(--muted);text-align:center;padding:50px 0}
               .note{font-size:12px;color:var(--pulse);margin-top:8px}
+              .sc{width:100%;border-collapse:collapse;font-size:12px}
+              .sc th,.sc td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--border);vertical-align:top}
+              .sc th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+              .sc td.dim{color:var(--txt);font-weight:600;white-space:nowrap}
+              .sc td.why{color:var(--muted);font-size:11px}
+              .sc .pass{color:var(--green)} .sc .fail{color:#f85149}
+              .sc tr.kind-row td{background:var(--panel2);color:var(--muted);font-size:11px;
+                text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+              .sc .cell{display:block}
+              .sc .mark{font-weight:700;margin-right:4px}
             </style>
             </head>
             <body>
@@ -539,6 +595,11 @@ public final class ResearchWebServer {
                   <label>演示节奏 <span class="paceval" id="paceval">250 ms</span></label>
                   <input type="range" id="pace" min="0" max="1000" step="50" value="250"/>
                 </div>
+                <div class="field">
+                  <label class="opt" id="cmpopt" title="同数据同模型,与单独用大模型一次性出稿对比打分">
+                    <input type="checkbox" id="compare"/> 方法对比:同时跑「单一大模型」并打分(仅个股)
+                  </label>
+                </div>
                 <button id="go">生成研报</button>
                 <div class="note" id="note"></div>
               </div>
@@ -573,6 +634,17 @@ public final class ResearchWebServer {
                     <span class="count" id="expcount">0 条</span>
                   </div>
                   <div id="experience"><div class="bb-empty">同类研报重复运行后,此处累积可复用的经验教训(跨运行持久)——</div></div>
+                </div>
+                <div class="card" id="cmpcard" style="display:none">
+                  <div class="pipe-head">
+                    <h2 style="margin:0">方法对比 / 多智能体引擎 vs 单一大模型</h2>
+                    <span class="count" id="cmpscore"></span>
+                  </div>
+                  <div id="scorecard"><div class="bb-empty">勾选「方法对比」并生成后,此处给出同数据同模型的逐维度打分 ——</div></div>
+                  <details id="cmpbaseline" style="margin-top:12px;display:none">
+                    <summary style="cursor:pointer;color:var(--muted);font-size:12px">展开单一大模型的原始输出 ▾</summary>
+                    <div class="preview" style="margin-top:10px;max-height:40vh" id="baselinehtml"></div>
+                  </details>
                 </div>
                 <div class="card">
                   <h2>报告预览</h2>
@@ -609,6 +681,7 @@ public final class ResearchWebServer {
                 document.getElementById('ticker').value=DEFTICK[type];
                 document.getElementById('tickhint').textContent=HINT[type];
                 document.getElementById('ticklabel').textContent=TICKLABEL[type]||'标的代码';
+                document.getElementById('cmpopt').style.display=(type==='equity')?'':'none';
               }
               Array.prototype.forEach.call(document.querySelectorAll('input[name=type]'),function(r){
                 r.addEventListener('change',renderSources);
@@ -686,6 +759,34 @@ public final class ResearchWebServer {
                 box.innerHTML='<table class="bbtable"><thead><tr><th>键 Key</th>'+
                   '<th>值 Value</th><th>写入方 Owner</th></tr></thead><tbody>'+rows+'</tbody></table>';
               }
+              function renderScorecard(rows){
+                var card=document.getElementById('cmpcard');
+                card.style.display='';
+                var box=document.getElementById('scorecard');
+                if(!rows||!rows.length){ box.innerHTML='<div class="bb-empty">无对比数据</div>'; return; }
+                var eWin=0,total=0;
+                var body='',lastKind='';
+                rows.forEach(function(r){
+                  if(r.kind!==lastKind){
+                    lastKind=r.kind;
+                    body+='<tr class="kind-row"><td colspan="4">'+
+                      (r.kind==='GUARANTEE'?'架构性保证(设计决定)':'本次实测(同数据同模型)')+'</td></tr>';
+                  }
+                  if(r.enginePass&&!r.singlePass) eWin++;
+                  total++;
+                  function cell(v,pass){
+                    var m=pass?'<span class="mark pass">✓</span>':'<span class="mark fail">✗</span>';
+                    return '<span class="cell">'+m+esc(v)+'</span>';
+                  }
+                  body+='<tr><td class="dim">'+esc(r.dimension)+'</td>'+
+                    '<td>'+cell(r.engine,r.enginePass)+'</td>'+
+                    '<td>'+cell(r.single,r.singlePass)+'</td>'+
+                    '<td class="why">'+esc(r.why)+'</td></tr>';
+                });
+                box.innerHTML='<table class="sc"><thead><tr><th>维度</th><th>多智能体引擎</th>'+
+                  '<th>单一大模型</th><th>说明</th></tr></thead><tbody>'+body+'</tbody></table>';
+                document.getElementById('cmpscore').textContent='引擎占优 '+eWin+' / '+total+' 维';
+              }
               function renderExp(lessons){
                 document.getElementById('expcount').textContent=lessons.length+' 条';
                 var box=document.getElementById('experience');
@@ -723,6 +824,10 @@ public final class ResearchWebServer {
                 document.getElementById('interactions').innerHTML=
                   '<div class="bb-empty">运行后展示智能体间的协作边 ——</div>';
                 document.getElementById('badges').innerHTML='';
+                document.getElementById('cmpcard').style.display='none';
+                document.getElementById('cmpbaseline').style.display='none';
+                document.getElementById('scorecard').innerHTML='';
+                document.getElementById('cmpscore').textContent='';
                 // NOTE: do not clear the Experience panel — it is cross-run/persistent.
                 document.getElementById('note').textContent='';
                 document.getElementById('preview').innerHTML='<div class="empty">流水线运行中 ——</div>';
@@ -730,8 +835,10 @@ public final class ResearchWebServer {
                 var type=document.querySelector('input[name=type]:checked').value;
                 var source=document.querySelector('input[name=source]:checked').value;
                 var model=document.querySelector('input[name=model]:checked').value;
+                var compare=(type==='equity'&&document.getElementById('compare').checked)?'1':'0';
                 var ticker=encodeURIComponent(document.getElementById('ticker').value||'');
-                es=new EventSource('/api/run?type='+type+'&source='+source+'&model='+model+'&ticker='+ticker+'&pace='+pace.value);
+                es=new EventSource('/api/run?type='+type+'&source='+source+'&model='+model+
+                  '&compare='+compare+'&ticker='+ticker+'&pace='+pace.value);
                 es.addEventListener('pipeline',function(e){ buildChips(JSON.parse(e.data).agents); });
                 es.addEventListener('agent',function(e){
                   var d=JSON.parse(e.data), el=chipEl[d.role]; if(!el) return;
@@ -759,6 +866,13 @@ public final class ResearchWebServer {
                 });
                 es.addEventListener('experience',function(e){
                   var d=JSON.parse(e.data); renderExp(d.lessons||[]);
+                });
+                es.addEventListener('scorecard',function(e){
+                  var d=JSON.parse(e.data); renderScorecard(d.rows||[]);
+                  if(d.baselineHtml){
+                    document.getElementById('cmpbaseline').style.display='';
+                    document.getElementById('baselinehtml').innerHTML=d.baselineHtml;
+                  }
                 });
                 es.addEventListener('report',function(e){
                   var d=JSON.parse(e.data), degClass=(d.degradations>0)?'badge warn':'badge';
