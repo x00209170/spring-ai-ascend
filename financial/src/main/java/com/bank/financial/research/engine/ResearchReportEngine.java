@@ -69,12 +69,23 @@ public final class ResearchReportEngine {
 
     /** Run the full pipeline and return the assembled report. */
     public ResearchReport generate(ReportRequest request) {
+        return generate(request, PipelineProgress.NOOP);
+    }
+
+    /**
+     * Run the full pipeline, emitting per-agent progress ("running"/"done") to {@code progress}.
+     * Progress callbacks are fault-isolated: a callback failure never affects the run.
+     */
+    public ResearchReport generate(ReportRequest request, PipelineProgress progress) {
+        if (progress == null) {
+            progress = PipelineProgress.NOOP;
+        }
         Timer.Sample sample = Timer.start(Metrics.globalRegistry);
         boolean ok = false;
         log.info("research-report start run={} ticker={} type={} model={}",
                 request.collaborationId(), request.ticker(), request.reportType(), model.name());
         try {
-            ResearchReport report = doGenerate(request);
+            ResearchReport report = doGenerate(request, progress);
             ok = true;
             log.info("research-report done run={} rating={} target={} calls={} degraded={}",
                     request.collaborationId(), report.rating(), report.priceTarget(),
@@ -87,7 +98,7 @@ public final class ResearchReportEngine {
         }
     }
 
-    private ResearchReport doGenerate(ReportRequest request) {
+    private ResearchReport doGenerate(ReportRequest request, PipelineProgress progress) {
         long now = request.asOfEpochMs();
         CompanyData.Dataset dataset = ingestion.assemble(request.ticker(), 5, now);
 
@@ -112,21 +123,25 @@ public final class ResearchReportEngine {
         }
 
         // ── PLAN → INGEST → ANALYZE ───────────────────────────────────────────
-        safe(ctx, new PlannerAgent());
-        safe(ctx, new DataIngestionAgent());
-        safe(ctx, new QuantModelAgent());
-        safe(ctx, new ValuationAgent());
-        safe(ctx, new SectorMacroAgent());
+        safe(ctx, new PlannerAgent(), progress, "planner", 1);
+        safe(ctx, new DataIngestionAgent(), progress, "data", 2);
+        safe(ctx, new QuantModelAgent(), progress, "quant-model", 3);
+        safe(ctx, new ValuationAgent(), progress, "valuation", 4);
+        safe(ctx, new SectorMacroAgent(), progress, "sector-macro", 5);
 
         // ── CONVERGE: the manager forms the house view (sole decision-maker) ──
-        safe(ctx, new LeadManagerAgent());
+        safe(ctx, new LeadManagerAgent(), progress, "lead-manager", 6);
         ctx.memory("lead-manager").recordHandover("writer", "house view set (rating + target)");
 
         // ── WRITE → CRITIQUE (bounded writer↔critic revision loop) ────────────
         WriterAgent writer = new WriterAgent();
         CriticAgent critic = new CriticAgent();
-        safe(ctx, writer);
+        // The revision loop re-runs writer/critic; progress is emitted once for the
+        // first pass (index 7/8) and not re-incremented across rounds.
+        safe(ctx, writer, progress, "writer", 7);
+        emit(progress, "critic", "running", 8);
         List<String> findings = reviewSafe(ctx, critic);
+        emit(progress, "critic", "done", 8);
         int rounds = 0;
         while (!findings.isEmpty() && rounds < request.budget().maxCriticRounds() && ctx.withinTime()) {
             rounds++;
@@ -140,6 +155,7 @@ public final class ResearchReportEngine {
         ComplianceAgent compliance = new ComplianceAgent();
         List<String> complianceNotes;
         List<String> dataGaps;
+        emit(progress, "compliance", "running", 9);
         try {
             complianceNotes = compliance.notes(ctx);
             dataGaps = compliance.dataGaps(ctx);
@@ -149,6 +165,7 @@ public final class ResearchReportEngine {
             complianceNotes = List.of("披露生成失败,需人工补充。");
             dataGaps = List.of();
         }
+        emit(progress, "compliance", "done", 9);
 
         // ── ASSEMBLE from the blackboard ──────────────────────────────────────
         ResearchReport report = assemble(ctx, rounds, findings, complianceNotes, dataGaps);
@@ -164,6 +181,25 @@ public final class ResearchReportEngine {
         }
 
         return report;
+    }
+
+    /** As {@link #safe(ReportContext, com.bank.financial.research.agent.ReportSubAgent)}, plus
+     *  fault-isolated running/done progress around the agent. */
+    private void safe(ReportContext ctx, com.bank.financial.research.agent.ReportSubAgent agent,
+            PipelineProgress progress, String role, int index) {
+        emit(progress, role, "running", index);
+        safe(ctx, agent);
+        emit(progress, role, "done", index);
+    }
+
+    /** Emit one progress event. Fault-isolated: a callback failure never affects the run. */
+    private void emit(PipelineProgress progress, String role, String state, int index) {
+        try {
+            progress.onAgent(role, state, index, 9);
+        } catch (RuntimeException e) {
+            log.debug("research-report progress callback failed role={} state={} err={}",
+                    role, state, e.getMessage());
+        }
     }
 
     /** Run one sub-agent with timing + fault isolation: a failure degrades, never aborts. */

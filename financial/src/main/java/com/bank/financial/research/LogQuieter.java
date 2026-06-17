@@ -6,12 +6,12 @@ package com.bank.financial.research;
  * we detach its appenders via logback when available; if logback is absent this is
  * a no-op and the play-*.sh timestamp grep is the backstop.
  */
-final class LogQuieter {
+public final class LogQuieter {
 
     private LogQuieter() {
     }
 
-    static void quiet() {
+    public static void quiet() {
         try {
             for (String name : new String[] {org.slf4j.Logger.ROOT_LOGGER_NAME,
                     "com.openjiuwen", "agent", "common", "trajectory", "research.engine"}) {
