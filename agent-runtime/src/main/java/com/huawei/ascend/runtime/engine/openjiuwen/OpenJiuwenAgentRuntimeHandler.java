@@ -42,6 +42,7 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractOpenJiuwenRu
 
     private OpenJiuwenRemoteToolInstaller runtimeToolInstaller;
     private OpenJiuwenMcpToolInstaller mcpToolInstaller;
+    private OpenJiuwenSkillHubInstaller skillHubInstaller;
 
     protected OpenJiuwenAgentRuntimeHandler(String agentId) {
         this(agentId, new OpenJiuwenMessageAdapter());
@@ -128,6 +129,9 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractOpenJiuwenRu
         if (mcpToolInstaller != null) {
             mcpToolInstaller.install(agent, context);
         }
+        if (skillHubInstaller != null) {
+            skillHubInstaller.install(agent, context);
+        }
     }
 
     public final void setRuntimeToolInstaller(OpenJiuwenRemoteToolInstaller runtimeToolInstaller) {
@@ -136,6 +140,10 @@ public abstract class OpenJiuwenAgentRuntimeHandler extends AbstractOpenJiuwenRu
 
     public final void setMcpToolInstaller(OpenJiuwenMcpToolInstaller mcpToolInstaller) {
         this.mcpToolInstaller = mcpToolInstaller;
+    }
+
+    public final void setSkillHubInstaller(OpenJiuwenSkillHubInstaller skillHubInstaller) {
+        this.skillHubInstaller = skillHubInstaller;
     }
 
     /**
