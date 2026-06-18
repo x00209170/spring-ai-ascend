@@ -84,6 +84,35 @@ public final class CompositeReportEngine {
         List<Map<String, String>> roster = modulesFor(subject, lenses);
         int total = roster.size();
 
+        // Forward each module engine's blackboard writes + interaction edges to the UI
+        // (so the shared-memory / interactions panels fill live), but let the composite own
+        // the chip transitions at the module level (onAgent swallowed here).
+        final PipelineProgress webProgress = progress;
+        PipelineProgress inner = new PipelineProgress() {
+            @Override
+            public void onAgent(String role, String state, int index, int total) {
+                // module-level chips are emitted by the composite; ignore inner agent transitions
+            }
+
+            @Override
+            public void onAgentDone(String role, Map<String, String> wrote) {
+                try {
+                    webProgress.onAgentDone(role, wrote);
+                } catch (RuntimeException ignored) {
+                    // progress reporting must never affect the run
+                }
+            }
+
+            @Override
+            public void onInteractions(List<Map<String, String>> edges) {
+                try {
+                    webProgress.onInteractions(edges);
+                } catch (RuntimeException ignored) {
+                    // progress reporting must never affect the run
+                }
+            }
+        };
+
         List<CompositeReport.Module> modules = new ArrayList<>();
         Set<String> notes = new LinkedHashSet<>();
         int modelCalls = 0;
@@ -98,7 +127,7 @@ public final class CompositeReportEngine {
             try {
                 switch (role) {
                     case "fund" -> {
-                        FundReport r = fund(code);
+                        FundReport r = fund(code, inner);
                         modules.add(new CompositeReport.Module("fund", "基金分析", r.sections()));
                         notes.addAll(r.metadata().complianceNotes());
                         modelCalls += r.metadata().modelCalls();
@@ -107,7 +136,7 @@ public final class CompositeReportEngine {
                     case "bond" -> {
                         BondReport r = new BondReportEngine(new StubBondDataSource(asOf), model,
                                 experienceStore, observer, clock)
-                                .generate(new ReportRequest(blank(code, "DEMOBOND"), "BOND", "web", "zh-CN", asOf, budget));
+                                .generate(new ReportRequest(blank(code, "DEMOBOND"), "BOND", "web", "zh-CN", asOf, budget), inner);
                         modules.add(new CompositeReport.Module("bond", "债券分析", r.sections()));
                         notes.addAll(r.metadata().complianceNotes());
                         modelCalls += r.metadata().modelCalls();
@@ -117,7 +146,7 @@ public final class CompositeReportEngine {
                         MacroReport r = new MacroReportEngine(
                                 real ? new EastMoneyMacroDataSource(asOf) : new StubMacroDataSource(asOf),
                                 model, experienceStore, observer, clock, Set.<MacroData.Domain>of())
-                                .generate(new ReportRequest("中国", "MACRO", "web", "zh-CN", asOf, budget));
+                                .generate(new ReportRequest("中国", "MACRO", "web", "zh-CN", asOf, budget), inner);
                         modules.add(new CompositeReport.Module("macro", "宏观与政策", r.sections()));
                         notes.addAll(r.metadata().complianceNotes());
                         modelCalls += r.metadata().modelCalls();
@@ -127,7 +156,7 @@ public final class CompositeReportEngine {
                         String theme = "fund".equals(subject) || "bond".equals(subject) ? "中国 TMT" : blank(code, "中国 TMT");
                         ThematicReport r = new ThematicReportEngine(new StubThematicDataSource(asOf), model,
                                 experienceStore, observer, clock)
-                                .generate(new ReportRequest(theme, "INDUSTRY", "web", "zh-CN", asOf, budget));
+                                .generate(new ReportRequest(theme, "INDUSTRY", "web", "zh-CN", asOf, budget), inner);
                         modules.add(new CompositeReport.Module("sector", "行业与板块策略", r.sections()));
                         notes.addAll(r.metadata().complianceNotes());
                         modelCalls += r.metadata().modelCalls();
@@ -164,18 +193,18 @@ public final class CompositeReportEngine {
         return new CompositeReport(title, subtitle, modules, new ArrayList<>(notes), metadata);
     }
 
-    private FundReport fund(String code) {
+    private FundReport fund(String code, PipelineProgress inner) {
         String c = blank(code, "110011");
         if (real) {
             try {
                 return new FundReportEngine(new EastMoneyFundDataSource(asOf), model, experienceStore, observer, clock)
-                        .generate(new ReportRequest(c, "FUND", "web", "zh-CN", asOf, budget));
+                        .generate(new ReportRequest(c, "FUND", "web", "zh-CN", asOf, budget), inner);
             } catch (RuntimeException e) {
                 // fall through to stub
             }
         }
         return new FundReportEngine(new StubFundDataSource(asOf), model, experienceStore, observer, clock)
-                .generate(new ReportRequest(real ? "DEMOFUND" : c, "FUND", "web", "zh-CN", asOf, budget));
+                .generate(new ReportRequest(real ? "DEMOFUND" : c, "FUND", "web", "zh-CN", asOf, budget), inner);
     }
 
     private record GlobalResult(String body, int calls, String degraded) {

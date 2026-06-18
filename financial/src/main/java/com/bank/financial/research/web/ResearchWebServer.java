@@ -135,6 +135,8 @@ public final class ResearchWebServer {
     // ── GET /api/run  → SSE ─────────────────────────────────────────────────────
     private static void handleRun(HttpExchange ex) {
         OutputStream os = null;
+        final java.util.concurrent.atomic.AtomicBoolean alive = new java.util.concurrent.atomic.AtomicBoolean(true);
+        final Thread[] hb = new Thread[1];
         try {
             Map<String, String> q = parseQuery(ex.getRequestURI().getRawQuery());
             // New model: one SUBJECT (fund/bond/none) + multiple LENSES (macro/industry/sector/global)
@@ -194,6 +196,25 @@ public final class ResearchWebServer {
                     send(out, "interactions", Map.of("edges", edges));
                 }
             };
+
+            // Heartbeat: a model call can block for tens of seconds with no events, which
+            // looks frozen. A daemon thread ticks elapsed-time every 2s so the UI stays alive.
+            final long startMs = now;
+            Thread heartbeat = new Thread(() -> {
+                while (alive.get()) {
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException ie) {
+                        return;
+                    }
+                    if (alive.get()) {
+                        send(out, "tick", Map.of("elapsedMs", System.currentTimeMillis() - startMs));
+                    }
+                }
+            }, "research-web-heartbeat");
+            heartbeat.setDaemon(true);
+            hb[0] = heartbeat;
+            heartbeat.start();
 
             final java.util.Set<String> lensesF = lenses;
             List<Map<String, String>> roster =
@@ -262,6 +283,10 @@ public final class ResearchWebServer {
                 }
             }
         } finally {
+            alive.set(false);
+            if (hb[0] != null) {
+                hb[0].interrupt();
+            }
             if (os != null) {
                 try {
                     os.close();
@@ -300,13 +325,17 @@ public final class ResearchWebServer {
         send(out, "note", Map.of("message", message));
     }
 
-    /** Write one SSE frame; swallow IO (a disconnected client must not crash the run). */
+    /** Write one SSE frame; swallow IO (a disconnected client must not crash the run).
+     *  Synchronized on the stream so the heartbeat thread and the worker can both write. */
     private static void send(OutputStream out, String event, Map<String, ?> data) {
         try {
             String frame = "event: " + event + "\n"
                     + "data: " + JSON.writeValueAsString(data) + "\n\n";
-            out.write(frame.getBytes(StandardCharsets.UTF_8));
-            out.flush();
+            byte[] bytes = frame.getBytes(StandardCharsets.UTF_8);
+            synchronized (out) {
+                out.write(bytes);
+                out.flush();
+            }
         } catch (IOException e) {
             // client disconnected mid-stream — stop trying to write
         } catch (RuntimeException e) {
@@ -486,11 +515,11 @@ public final class ResearchWebServer {
                 </div>
                 <div class="field">
                   <label>③ 生成模型</label>
-                  <label class="opt"><input type="radio" name="model" value="glm-air" checked/> GLM-4.5-air(快)</label>
-                  <label class="opt"><input type="radio" name="model" value="deepseek"/> DeepSeek-V4-Flash</label>
+                  <label class="opt"><input type="radio" name="model" value="deepseek" checked/> DeepSeek-V4-Flash(较快,推荐)</label>
+                  <label class="opt"><input type="radio" name="model" value="glm-air"/> GLM-4.5-air(真实但较慢)</label>
                   <label class="opt"><input type="radio" name="model" value="script"/> 桩(离线秒出)</label>
-                  <label class="opt"><input type="radio" name="model" value="compare"/> 三档对比(三模型并排)</label>
-                  <div style="font-size:11px;color:var(--muted);margin-top:5px;">数字始终由计算引擎给出;模型只写散文。未配置的模型自动回退桩。</div>
+                  <label class="opt"><input type="radio" name="model" value="compare"/> 三档对比(三模型并排,慢)</label>
+                  <div style="font-size:11px;color:var(--muted);margin-top:5px;">数字始终由计算引擎给出;模型只写散文。真实模型每章节一次调用,需几十秒~数分钟(下方有"已用时"显示);未配置的模型回退桩。</div>
                 </div>
                 <div class="field">
                   <label>演示节奏 <span class="paceval" id="paceval">150 ms</span></label>
@@ -681,6 +710,10 @@ public final class ResearchWebServer {
                 }
                 es=new EventSource('/api/run?subject='+subject+'&code='+code+'&source='+source+
                   '&model='+model+'&lenses='+encodeURIComponent(lenses.join(','))+'&pace='+pace.value);
+                es.addEventListener('tick',function(e){
+                  var s=Math.round((JSON.parse(e.data).elapsedMs||0)/1000);
+                  go.textContent='生成中… '+s+'s'; document.title='('+s+'s) 研报生成';
+                });
                 es.addEventListener('pipeline',function(e){ buildChips(JSON.parse(e.data).agents); });
                 es.addEventListener('agent',function(e){
                   var d=JSON.parse(e.data), el=chipEl[d.role]; if(!el) return;
@@ -764,7 +797,7 @@ public final class ResearchWebServer {
                   finish();
                 });
               });
-              function finish(){ if(es){es.close();es=null;} go.disabled=false; go.textContent='生成研报'; }
+              function finish(){ if(es){es.close();es=null;} go.disabled=false; go.textContent='生成研报'; document.title='研报生成 · 多智能体引擎'; }
               function esc(s){
                 return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
               }
