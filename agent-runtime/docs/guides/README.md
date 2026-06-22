@@ -17,6 +17,8 @@
 | [agent-card-configuration.md](agent-card-configuration.md) | 配置 A2A Agent 发现卡片、skills 和 capabilities |
 | [memory-services.md](memory-services.md) | `MemoryProvider` SPI 与 OpenJiuwen 记忆集成 |
 | [state-persistence.md](state-persistence.md) | Agent 执行状态与 checkpoint 持久化 |
+| [mcp-tools.md](mcp-tools.md) | MCP 工具发现、调用与 OpenJiuwen 安装 |
+| [skillhub.md](skillhub.md) | SkillHub 渐进式技能加载与 OpenJiuwen 安装 |
 | [remote-invocation.md](remote-invocation.md) | Agent 通过 A2A 协议调用其他 Agent 作为工具 |
 | [trajectory-observability.md](trajectory-observability.md) | 执行轨迹记录与敏感信息掩码 |
 | [operations-guide.md](operations-guide.md) | 生命周期管理、健康检查、日志诊断、嵌入式部署 |
@@ -38,6 +40,8 @@
 | Agent 调用其他 A2A Agent | [remote-invocation.md](remote-invocation.md) |
 | 添加会话记忆 | [memory-services.md](memory-services.md) |
 | 持久化 Agent 状态 | [state-persistence.md](state-persistence.md) |
+| 接入 MCP Server 工具 | [mcp-tools.md](mcp-tools.md) |
+| 接入 SkillHub 技能目录 | [skillhub.md](skillhub.md) |
 | 理解轨迹事件 | [trajectory-observability.md](trajectory-observability.md) |
 | 修改 AgentCard 名称、描述或 skills | [agent-card-configuration.md](agent-card-configuration.md) |
 | 编写 `SKILL.md` 引导 LLM | [versatile-adapter.md](versatile-adapter.md) 的 `SKILL.md` 实践 |
