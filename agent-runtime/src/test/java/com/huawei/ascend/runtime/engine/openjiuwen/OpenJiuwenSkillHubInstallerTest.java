@@ -11,12 +11,20 @@ import com.huawei.ascend.runtime.engine.spi.SkillSummary;
 import com.openjiuwen.core.session.Session;
 import com.openjiuwen.core.session.stream.StreamMode;
 import com.openjiuwen.core.singleagent.BaseAgent;
+import com.openjiuwen.core.singleagent.agents.ReActAgentConfig;
 import com.openjiuwen.core.singleagent.schema.AgentCard;
+import com.openjiuwen.harness.deep_agent.DeepAgent;
+import com.openjiuwen.harness.schema.config.DeepAgentConfig;
+import com.openjiuwen.harness.workspace.Workspace;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class OpenJiuwenSkillHubInstallerTest {
 
@@ -43,6 +51,53 @@ class OpenJiuwenSkillHubInstallerTest {
     }
 
     @Test
+    void skipsDeepAgentSkillInstallWhenInnerSkillRuntimeIsMissing(@TempDir Path tempDir) throws IOException {
+        DeepAgent agent = deepAgent("deep-skillhub-installer-test");
+        Path skillDir = tempDir.resolve("hotel");
+        Files.createDirectories(skillDir);
+        Files.writeString(skillDir.resolve("SKILL.md"), "---\ndescription: Hotel booking memory\n---\n# Hotel");
+        SkillHubProvider provider = new FakeSkillHubProvider(List.of(
+                new SkillDefinition(
+                        "hotel",
+                        "Hotel booking",
+                        "Book hotels",
+                        "Use hotel booking workflow.",
+                        List.of(),
+                        List.of(),
+                        Map.of(OpenJiuwenSkillHubInstaller.METADATA_OPENJIUWEN_SKILL_PATH,
+                                skillDir.toString()))));
+
+        new OpenJiuwenSkillHubInstaller(provider).install(agent, context());
+
+        assertThat(agent.getAgent().getSkillUtil()).isNull();
+    }
+
+    @Test
+    void installsOpenJiuwenSkillPathsOnConfiguredDeepAgentInnerAgent(@TempDir Path tempDir) throws IOException {
+        DeepAgent agent = deepAgent("deep-skillhub-installer-configured-test");
+        configureInnerSkillRuntime(agent);
+        Path skillDir = tempDir.resolve("hotel");
+        Files.createDirectories(skillDir);
+        Files.writeString(skillDir.resolve("SKILL.md"), "---\ndescription: Hotel booking memory\n---\n# Hotel");
+        SkillHubProvider provider = new FakeSkillHubProvider(List.of(
+                new SkillDefinition(
+                        "hotel",
+                        "Hotel booking",
+                        "Book hotels",
+                        "Use hotel booking workflow.",
+                        List.of(),
+                        List.of(),
+                        Map.of(OpenJiuwenSkillHubInstaller.METADATA_OPENJIUWEN_SKILL_PATH,
+                                skillDir.toString()))));
+
+        new OpenJiuwenSkillHubInstaller(provider).install(agent, context());
+
+        assertThat(agent.getAgent().getSkillUtil()).isNotNull();
+        assertThat(agent.getAgent().getSkillUtil().hasSkill()).isTrue();
+        assertThat(agent.getAgent().getSkillUtil().getSkillPrompt()).contains("Hotel booking memory");
+    }
+
+    @Test
     void ignoresDefinitionsWithoutOpenJiuwenPaths() {
         RecordingAgent agent = new RecordingAgent();
         SkillHubProvider provider = new FakeSkillHubProvider(List.of(
@@ -60,6 +115,20 @@ class OpenJiuwenSkillHubInstallerTest {
                 "USER_MESSAGE",
                 List.of(RuntimeMessage.user("book hotel")),
                 Map.of(AgentExecutionContext.AGENT_STATE_KEY_VARIABLE, "conversation-1"));
+    }
+
+    private static DeepAgent deepAgent(String workspacePath) {
+        return new DeepAgent(
+                AgentCard.builder().id("deep-agent").name("deep-agent").description("test").build(),
+                DeepAgentConfig.builder().enableTaskLoop(true).build(),
+                Workspace.builder().rootPath("./target/" + workspacePath).build());
+    }
+
+    private static void configureInnerSkillRuntime(DeepAgent agent) {
+        agent.getAgent().configure(ReActAgentConfig.builder()
+                .sysOperationId(agent.getCard().getId())
+                .build());
+        assertThat(agent.getAgent().getSkillUtil()).isNotNull();
     }
 
     private static final class FakeSkillHubProvider implements SkillHubProvider {

@@ -5,10 +5,12 @@ import com.huawei.ascend.runtime.engine.spi.SkillDefinition;
 import com.huawei.ascend.runtime.engine.spi.SkillHubProvider;
 import com.huawei.ascend.runtime.engine.spi.SkillSummary;
 import com.openjiuwen.core.singleagent.BaseAgent;
+import com.openjiuwen.harness.deep_agent.DeepAgent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +37,21 @@ public final class OpenJiuwenSkillHubInstaller {
     public void install(BaseAgent agent, AgentExecutionContext context) {
         Objects.requireNonNull(agent, "agent");
         Objects.requireNonNull(context, "context");
+        install(context, agent::registerSkill, "openjiuwen agent=" + agent.getCard().getId());
+    }
+
+    public void install(DeepAgent agent, AgentExecutionContext context) {
+        Objects.requireNonNull(agent, "agent");
+        Objects.requireNonNull(context, "context");
+        if (agent.getAgent().getSkillUtil() == null) {
+            LOG.warn("skillhub installer skipped for openjiuwen deepagent={} because inner ReActAgent skill runtime "
+                    + "is not configured", agent.getCard().getId());
+            return;
+        }
+        install(context, agent.getAgent()::registerSkill, "openjiuwen deepagent=" + agent.getCard().getId());
+    }
+
+    private void install(AgentExecutionContext context, Consumer<Object> registrar, String target) {
         List<SkillSummary> summaries = safeSummaries(context);
         int installed = 0;
         for (SkillSummary summary : summaries) {
@@ -43,12 +60,13 @@ public final class OpenJiuwenSkillHubInstaller {
                 continue;
             }
             for (String path : openJiuwenSkillPaths(definition.metadata())) {
-                agent.registerSkill(path);
+                registrar.accept(path);
                 installed++;
-                LOG.info("installed openjiuwen skill tenantId={} sessionId={} taskId={} skillId={} path={}",
+                LOG.info("installed openjiuwen skill tenantId={} sessionId={} taskId={} target={} skillId={} path={}",
                         context.getScope().tenantId(),
                         context.getScope().sessionId(),
                         context.getScope().taskId(),
+                        target,
                         definition.skillId(),
                         path);
             }

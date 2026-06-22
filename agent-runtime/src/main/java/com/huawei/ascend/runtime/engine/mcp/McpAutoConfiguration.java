@@ -1,6 +1,7 @@
 package com.huawei.ascend.runtime.engine.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.huawei.ascend.runtime.engine.openjiuwen.OpenJiuwenDeepAgentRuntimeHandler;
 import com.huawei.ascend.runtime.engine.openjiuwen.OpenJiuwenAgentRuntimeHandler;
 import com.huawei.ascend.runtime.engine.openjiuwen.OpenJiuwenMcpToolInstaller;
 import com.huawei.ascend.runtime.engine.spi.McpProvider;
@@ -37,7 +38,8 @@ public class McpAutoConfiguration {
         @ConditionalOnMissingBean
         public OpenJiuwenMcpToolInstaller openJiuwenMcpToolInstaller(
                 McpProvider mcpProvider,
-                ObjectProvider<OpenJiuwenAgentRuntimeHandler> handlers) {
+                ObjectProvider<OpenJiuwenAgentRuntimeHandler> handlers,
+                ObjectProvider<OpenJiuwenDeepAgentRuntimeHandler> deepHandlers) {
             OpenJiuwenMcpToolInstaller installer = new OpenJiuwenMcpToolInstaller(mcpProvider);
             int count = 0;
             for (OpenJiuwenAgentRuntimeHandler handler : handlers.orderedStream().toList()) {
@@ -45,8 +47,14 @@ public class McpAutoConfiguration {
                 count++;
                 LOG.info("installed MCP tool installer into openjiuwen handler agentId={}", handler.agentId());
             }
+            for (OpenJiuwenDeepAgentRuntimeHandler handler : deepHandlers.orderedStream().toList()) {
+                handler.setMcpToolInstaller(installer);
+                count++;
+                LOG.info("installed MCP tool installer into openjiuwen deepagent handler agentId={}",
+                        handler.agentId());
+            }
             if (count == 0) {
-                LOG.warn("MCP tool installer created but no OpenJiuwenAgentRuntimeHandler beans found");
+                LOG.warn("MCP tool installer created but no OpenJiuwen runtime handler beans found");
             }
             return installer;
         }

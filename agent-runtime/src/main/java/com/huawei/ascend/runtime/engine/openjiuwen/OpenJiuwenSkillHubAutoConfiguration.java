@@ -24,7 +24,8 @@ public class OpenJiuwenSkillHubAutoConfiguration {
     @ConditionalOnMissingBean
     public OpenJiuwenSkillHubInstaller openJiuwenSkillHubInstaller(
             SkillHubProvider skillHubProvider,
-            ObjectProvider<OpenJiuwenAgentRuntimeHandler> handlers) {
+            ObjectProvider<OpenJiuwenAgentRuntimeHandler> handlers,
+            ObjectProvider<OpenJiuwenDeepAgentRuntimeHandler> deepHandlers) {
         OpenJiuwenSkillHubInstaller installer = new OpenJiuwenSkillHubInstaller(skillHubProvider);
         int count = 0;
         for (OpenJiuwenAgentRuntimeHandler handler : handlers.orderedStream().toList()) {
@@ -32,8 +33,13 @@ public class OpenJiuwenSkillHubAutoConfiguration {
             count++;
             LOG.info("installed skillhub installer into openjiuwen handler agentId={}", handler.agentId());
         }
+        for (OpenJiuwenDeepAgentRuntimeHandler handler : deepHandlers.orderedStream().toList()) {
+            handler.setSkillHubInstaller(installer);
+            count++;
+            LOG.info("installed skillhub installer into openjiuwen deepagent handler agentId={}", handler.agentId());
+        }
         if (count == 0) {
-            LOG.warn("skillhub installer created but no OpenJiuwenAgentRuntimeHandler beans found");
+            LOG.warn("skillhub installer created but no OpenJiuwen runtime handler beans found");
         }
         return installer;
     }

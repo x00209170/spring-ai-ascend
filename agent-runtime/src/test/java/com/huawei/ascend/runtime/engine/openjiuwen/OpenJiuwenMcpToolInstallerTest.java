@@ -12,6 +12,9 @@ import com.openjiuwen.core.session.Session;
 import com.openjiuwen.core.session.stream.StreamMode;
 import com.openjiuwen.core.singleagent.BaseAgent;
 import com.openjiuwen.core.singleagent.schema.AgentCard;
+import com.openjiuwen.harness.deep_agent.DeepAgent;
+import com.openjiuwen.harness.schema.config.DeepAgentConfig;
+import com.openjiuwen.harness.workspace.Workspace;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +36,34 @@ class OpenJiuwenMcpToolInstallerTest {
                 .anySatisfy(info -> assertThat(info.getName()).isEqualTo("get_current_time"));
     }
 
+    @Test
+    void installsMcpToolCardOnDeepAgentHarness() {
+        DeepAgent agent = deepAgent("deep-mcp-installer-test");
+        FakeMcpProvider provider = new FakeMcpProvider();
+        OpenJiuwenMcpToolInstaller installer = new OpenJiuwenMcpToolInstaller(provider);
+
+        installer.install(agent, context());
+
+        assertThat(provider.listed).isTrue();
+        assertThat(agent.getRegisteredTools()).hasSize(1);
+        assertThat(agent.getAgent().getAbilityManager().get("get_current_time")).isNotNull();
+        assertThat(agent.getAgent().getAbilityManager().listToolInfo())
+                .anySatisfy(info -> assertThat(info.getName()).isEqualTo("get_current_time"));
+    }
+
     private static AgentExecutionContext context() {
         return new AgentExecutionContext(
                 new RuntimeIdentity("tenant", "user", "ctx-1", "task-1", "agent-a"),
                 "USER_MESSAGE",
                 List.of(RuntimeMessage.user("time?")),
                 Map.of());
+    }
+
+    private static DeepAgent deepAgent(String workspacePath) {
+        return new DeepAgent(
+                AgentCard.builder().id("deep-agent").name("deep-agent").description("test").build(),
+                DeepAgentConfig.builder().enableTaskLoop(true).build(),
+                Workspace.builder().rootPath("./target/" + workspacePath).build());
     }
 
     private static final class FakeMcpProvider implements McpProvider {

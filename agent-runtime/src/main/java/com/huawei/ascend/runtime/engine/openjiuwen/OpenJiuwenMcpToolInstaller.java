@@ -8,6 +8,7 @@ import com.openjiuwen.core.foundation.tool.Tool;
 import com.openjiuwen.core.foundation.tool.ToolCard;
 import com.openjiuwen.core.runner.Runner;
 import com.openjiuwen.core.singleagent.BaseAgent;
+import com.openjiuwen.harness.deep_agent.DeepAgent;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -59,6 +60,37 @@ public final class OpenJiuwenMcpToolInstaller {
                     agent.getCard().getId(), spec.serverId(), spec.name(), frameworkToolName);
         }
         LOG.info("installed {} MCP tool(s) into openjiuwen agent={}", installed, agent.getCard().getId());
+    }
+
+    public void install(DeepAgent agent, AgentExecutionContext context) {
+        Objects.requireNonNull(agent, "agent");
+        Objects.requireNonNull(context, "context");
+        List<McpToolSpec> specs;
+        try {
+            specs = mcpProvider.listTools(context);
+        } catch (RuntimeException error) {
+            LOG.warn("MCP tool discovery failed for openjiuwen deepagent={} errorClass={} message={}",
+                    agent.getCard().getId(), error.getClass().getSimpleName(), errorMessage(error));
+            return;
+        }
+        if (specs == null || specs.isEmpty()) {
+            LOG.info("no MCP tools to install into openjiuwen deepagent={}", agent.getCard().getId());
+            return;
+        }
+        Map<String, Integer> nameCounts = nameCounts(specs);
+        int installed = 0;
+        for (McpToolSpec spec : specs) {
+            if (spec == null || spec.name().isBlank() || spec.serverId().isBlank()) {
+                continue;
+            }
+            String frameworkToolName = frameworkToolName(spec, nameCounts);
+            Tool tool = new RuntimeMcpTool(toCard(spec, frameworkToolName), mcpProvider, context, spec);
+            agent.registerHarnessTool(tool);
+            installed++;
+            LOG.info("installed MCP tool into openjiuwen deepagent={} serverId={} toolName={} frameworkToolName={}",
+                    agent.getCard().getId(), spec.serverId(), spec.name(), frameworkToolName);
+        }
+        LOG.info("installed {} MCP tool(s) into openjiuwen deepagent={}", installed, agent.getCard().getId());
     }
 
     private static ToolCard toCard(McpToolSpec spec, String frameworkToolName) {
