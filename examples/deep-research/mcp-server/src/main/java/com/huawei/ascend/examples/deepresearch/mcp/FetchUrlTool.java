@@ -1,5 +1,6 @@
 package com.huawei.ascend.examples.deepresearch.mcp;
 
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
@@ -28,6 +29,7 @@ public class FetchUrlTool {
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
     public String name() {
@@ -60,6 +62,31 @@ public class FetchUrlTool {
         }
         if (uri.getScheme() == null || !(uri.getScheme().equals("http") || uri.getScheme().equals("https"))) {
             return errorResult("Only http and https schemes are supported");
+        }
+
+        // SSRF guard: resolve and validate all IP addresses (prevents DNS rebinding)
+        String host = uri.getHost();
+        if (host != null) {
+            try {
+                InetAddress[] addresses = InetAddress.getAllByName(host);
+                for (InetAddress addr : addresses) {
+                    if (addr.isLoopbackAddress()
+                            || addr.isSiteLocalAddress()
+                            || addr.isLinkLocalAddress()) {
+                        return errorResult("URL resolves to a blocked address: " + addr.getHostAddress());
+                    }
+                    // Block 169.254.0.0/16 (cloud metadata) explicitly
+                    byte[] octets = addr.getAddress();
+                    if (octets != null && octets.length == 4
+                            && octets[0] == (byte) 169 && octets[1] == (byte) 254) {
+                        return errorResult("URL resolves to a blocked address: " + addr.getHostAddress());
+                    }
+                }
+            } catch (Exception e) {
+                LOG.warn("DNS resolution failed for host={} errorClass={} message={}",
+                        host, e.getClass().getSimpleName(), e.getMessage());
+                return errorResult("Unable to resolve host: " + host);
+            }
         }
 
         long started = System.nanoTime();
