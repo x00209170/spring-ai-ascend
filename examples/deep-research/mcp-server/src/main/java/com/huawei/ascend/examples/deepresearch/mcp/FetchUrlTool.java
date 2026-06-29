@@ -13,6 +13,9 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -111,10 +114,24 @@ public class FetchUrlTool {
             path = path + "?" + query;
         }
 
+        boolean useTls = uri.getScheme().equals("https");
         long started = System.nanoTime();
-        try (Socket socket = new Socket()) {
-            socket.setSoTimeout((int) READ_TIMEOUT.toMillis());
-            socket.connect(new InetSocketAddress(target, port), (int) CONNECT_TIMEOUT.toMillis());
+        try (Socket rawSocket = useTls
+                ? SSLSocketFactory.getDefault().createSocket()
+                : new Socket()) {
+            rawSocket.setSoTimeout((int) READ_TIMEOUT.toMillis());
+            if (useTls) {
+                SSLSocket sslSocket = (SSLSocket) rawSocket;
+                SSLParameters params = sslSocket.getSSLParameters();
+                // Verify certificate against the original hostname, not the IP
+                params.setEndpointIdentificationAlgorithm("HTTPS");
+                sslSocket.setSSLParameters(params);
+            }
+            rawSocket.connect(new InetSocketAddress(target, port), (int) CONNECT_TIMEOUT.toMillis());
+            if (useTls) {
+                // Explicit handshake — catches TLS errors before sending the request
+                ((SSLSocket) rawSocket).startHandshake();
+            }
 
             // Build and send the HTTP request
             StringBuilder request = new StringBuilder();
@@ -129,13 +146,13 @@ public class FetchUrlTool {
             request.append("Connection: close\r\n");
             request.append("\r\n");
 
-            OutputStream out = socket.getOutputStream();
+            OutputStream out = rawSocket.getOutputStream();
             out.write(request.toString().getBytes(StandardCharsets.UTF_8));
             out.flush();
 
             // Read response
             BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                    new InputStreamReader(rawSocket.getInputStream(), StandardCharsets.UTF_8));
             String statusLine = reader.readLine();
             if (statusLine == null) {
                 return errorResult("Empty response from " + host);
