@@ -1,11 +1,14 @@
 package com.huawei.ascend.examples.deepresearch.mcp;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,16 +24,17 @@ import org.springframework.stereotype.Component;
  * response, malformed URL) through the MCP {@code isError} channel rather than
  * the JSON-RPC error envelope — that's the contract the agent-runtime adapter
  * maps to a tool-level failure the agent can recover from.
+ *
+ * <p>SSRF hardening: DNS is resolved once, all addresses are validated, and
+ * the TCP connection is opened directly to a validated IP — eliminating the
+ * TOCTOU DNS rebinding window that exists when an HTTP client re-resolves.</p>
  */
 @Component
 public class FetchUrlTool {
     private static final Logger LOG = LoggerFactory.getLogger(FetchUrlTool.class);
     private static final int MAX_BODY_BYTES = 16_384;
-
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(5))
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
 
     public String name() {
         return "fetch_url";
@@ -64,45 +68,109 @@ public class FetchUrlTool {
             return errorResult("Only http and https schemes are supported");
         }
 
-        // SSRF guard: resolve and validate all IP addresses (prevents DNS rebinding)
         String host = uri.getHost();
-        if (host != null) {
-            try {
-                InetAddress[] addresses = InetAddress.getAllByName(host);
-                for (InetAddress addr : addresses) {
-                    if (addr.isLoopbackAddress()
-                            || addr.isSiteLocalAddress()
-                            || addr.isLinkLocalAddress()) {
-                        return errorResult("URL resolves to a blocked address: " + addr.getHostAddress());
-                    }
-                    // Block 169.254.0.0/16 (cloud metadata) explicitly
-                    byte[] octets = addr.getAddress();
-                    if (octets != null && octets.length == 4
-                            && octets[0] == (byte) 169 && octets[1] == (byte) 254) {
-                        return errorResult("URL resolves to a blocked address: " + addr.getHostAddress());
-                    }
-                }
-            } catch (Exception e) {
-                LOG.warn("DNS resolution failed for host={} errorClass={} message={}",
-                        host, e.getClass().getSimpleName(), e.getMessage());
-                return errorResult("Unable to resolve host: " + host);
+        if (host == null || host.isBlank()) {
+            return errorResult("URL must contain a host");
+        }
+
+        int port = uri.getPort();
+        if (port == -1) {
+            port = uri.getScheme().equals("https") ? 443 : 80;
+        }
+
+        // Resolve and validate ALL IP addresses once (prevents DNS rebinding TOCTOU)
+        InetAddress[] addresses;
+        try {
+            addresses = InetAddress.getAllByName(host);
+        } catch (Exception e) {
+            LOG.warn("DNS resolution failed for host={} errorClass={} message={}",
+                    host, e.getClass().getSimpleName(), e.getMessage());
+            return errorResult("Unable to resolve host: " + host);
+        }
+        for (InetAddress addr : addresses) {
+            if (addr.isLoopbackAddress()
+                    || addr.isSiteLocalAddress()
+                    || addr.isLinkLocalAddress()) {
+                return errorResult("URL resolves to a blocked address: " + addr.getHostAddress());
+            }
+            byte[] octets = addr.getAddress();
+            if (octets != null && octets.length == 4
+                    && octets[0] == (byte) 169 && octets[1] == (byte) 254) {
+                return errorResult("URL resolves to a blocked address: " + addr.getHostAddress());
             }
         }
 
+        // Connect directly to the FIRST validated IP — no re-resolution
+        InetAddress target = addresses[0];
+        String path = uri.getRawPath();
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+        String query = uri.getRawQuery();
+        if (query != null) {
+            path = path + "?" + query;
+        }
+
         long started = System.nanoTime();
-        try {
-            HttpResponse<String> response = httpClient.send(
-                    HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(10)).GET().build(),
-                    HttpResponse.BodyHandlers.ofString());
-            long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
-            String body = response.body() == null ? "" : response.body();
-            String truncated = body.length() > MAX_BODY_BYTES ? body.substring(0, MAX_BODY_BYTES) : body;
-            LOG.info("fetch_url done url={} status={} bytes={} latencyMs={}",
-                    url, response.statusCode(), body.length(), elapsedMs);
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return errorResult("HTTP " + response.statusCode() + " from " + url);
+        try (Socket socket = new Socket()) {
+            socket.setSoTimeout((int) READ_TIMEOUT.toMillis());
+            socket.connect(new InetSocketAddress(target, port), (int) CONNECT_TIMEOUT.toMillis());
+
+            // Build and send the HTTP request
+            StringBuilder request = new StringBuilder();
+            request.append("GET ").append(path).append(" HTTP/1.1\r\n");
+            request.append("Host: ").append(host);
+            if (port != 80 && port != 443) {
+                request.append(":").append(port);
             }
-            return successResult(truncated, response.statusCode(), body.length(), elapsedMs);
+            request.append("\r\n");
+            request.append("User-Agent: FetchUrlTool/1.0\r\n");
+            request.append("Accept: text/html, text/plain, */*\r\n");
+            request.append("Connection: close\r\n");
+            request.append("\r\n");
+
+            OutputStream out = socket.getOutputStream();
+            out.write(request.toString().getBytes(StandardCharsets.UTF_8));
+            out.flush();
+
+            // Read response
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            String statusLine = reader.readLine();
+            if (statusLine == null) {
+                return errorResult("Empty response from " + host);
+            }
+            int statusCode = parseStatusCode(statusLine);
+            if (statusCode < 0) {
+                return errorResult("Malformed HTTP response from " + host + ": " + statusLine);
+            }
+
+            // Skip headers
+            String line;
+            while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                // consume headers
+            }
+
+            // Read body up to MAX_BODY_BYTES + 1 to detect truncation
+            StringBuilder body = new StringBuilder();
+            int ch;
+            int totalBytes = 0;
+            while ((ch = reader.read()) != -1) {
+                if (totalBytes < MAX_BODY_BYTES) {
+                    body.append((char) ch);
+                }
+                totalBytes++;
+            }
+            String truncated = body.toString();
+
+            long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
+            LOG.info("fetch_url done url={} status={} bytes={} latencyMs={}",
+                    url, statusCode, totalBytes, elapsedMs);
+
+            if (statusCode < 200 || statusCode >= 300) {
+                return errorResult("HTTP " + statusCode + " from " + url);
+            }
+            return successResult(truncated, statusCode, totalBytes, elapsedMs);
         } catch (InterruptedException error) {
             Thread.currentThread().interrupt();
             return errorResult("Interrupted while fetching " + url);
@@ -110,6 +178,19 @@ public class FetchUrlTool {
             LOG.warn("fetch_url failed url={} errorClass={} message={}",
                     url, error.getClass().getSimpleName(), error.getMessage());
             return errorResult(error.getClass().getSimpleName() + ": " + error.getMessage());
+        }
+    }
+
+    private static int parseStatusCode(String statusLine) {
+        // "HTTP/1.1 200 OK" -> 200
+        String[] parts = statusLine.split(" ", 3);
+        if (parts.length < 2) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(parts[1]);
+        } catch (NumberFormatException e) {
+            return -1;
         }
     }
 
