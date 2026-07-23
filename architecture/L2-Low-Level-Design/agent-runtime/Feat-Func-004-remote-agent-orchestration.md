@@ -70,7 +70,7 @@ agent-runtime 作为 A2A 客户端接入和调用其他 A2A Agent，实现跨 Ag
 | 父 Task 进度投射 | ✅ | 远程 progress → 父 Task artifact |
 | 取消级联传播 | ⬜ | 父 Task cancel → 远程 CancelTask；当前 `A2ARemoteAgentClient` 无 `cancelTask` 调用，`cancelActive` 仅取消本地 stream |
 | 超时检测 | ⬜ | 当前仅 `result.orTimeout()` 使本地 future 超时，未向远端发 CancelTask；超时后无 `REMOTE_TIMEOUT` 结构化 code |
-| 嵌套远程调用 | ⬜ | resume 后再次请求远程 → 返回错误 NESTED_REMOTE_INVOCATION_UNSUPPORTED |
+| 嵌套远程调用 | ⬜ | resume 后再次请求远程 → 预期返回 NESTED_REMOTE_INVOCATION_UNSUPPORTED；当前代码无此校验，实际走第二轮远程调用 |
 | 同轮远端工具并行编排 | ⬜ | Feat-Func-026 已接受设计；当前代码仍是单中断/单远端调用路径，待 026 落地后支持批次并发和完整回灌 |
 
 ### 2.2 显式排除
@@ -85,7 +85,7 @@ agent-runtime 作为 A2A 客户端接入和调用其他 A2A Agent，实现跨 Ag
 
 - **必须**：Card Cache 按配置 URL 维护，不发现新 URL
 - **必须**：Card 初次拉取成功后不再刷新；Card 发现仅在 `ApplicationReadyEvent` 触发一次性拉取，成功后不再更新
-- **当前禁止**：resume 后再次请求远程会返回 NESTED_REMOTE_INVOCATION_UNSUPPORTED；Feat-Func-026 落地后，仅禁止前一活动批次未解决时创建第二批，前一批完成后的下一轮远端调用允许执行
+- **计划禁止**：resume 后再次请求远程应返回 NESTED_REMOTE_INVOCATION_UNSUPPORTED（当前未实现，实际不拦截）；Feat-Func-026 落地后，仅禁止前一活动批次未解决时创建第二批，前一批完成后的下一轮远端调用允许执行
 - **允许**：多个远程端点独立配置 `timeout-seconds`
 
 ---
@@ -205,7 +205,7 @@ OpenJiuwen Runner (resume 模式):
 
 **结束条件**：远端 completed 只代表远端 tool leg 结束。parent task 的最终结束由本地 OpenJiuwen resume 后的结果决定：
 - `result_type=answer` → parent COMPLETED
-- `result_type=interrupt` (REMOTE_AGENT_INVOCATION) → 嵌套调用 → FAILED (NESTED_REMOTE_INVOCATION_UNSUPPORTED)
+- `result_type=interrupt` (REMOTE_AGENT_INVOCATION) → 嵌套调用 → 预期 FAILED (NESTED_REMOTE_INVOCATION_UNSUPPORTED，当前未拦截，实际走第二轮远程调用）
 - `result_type=interrupt` (其他) → parent INPUT_REQUIRED
 
 ---
@@ -277,7 +277,7 @@ A2aRemoteInvocationOrchestrator
 | 远程返回 FAILED | 远端 Agent 执行失败 | error 投射到父 Task | 父 Task 继续（LLM 看到 error toolResult） |
 | 父 Task 取消 | 用户 CancelTask | 当前仅取消本地 stream，无远端 CancelTask 调用 | 远程 Task 继续执行至 COMPLETED（孤儿 Task） |
 | 远端 late event | terminal/timeout 后到达 | 丢弃，不投影 | 不影响父 Task |
-| 后续远程调用（当前） | resume 后 LLM 再次请求远程 | 返回 NESTED_REMOTE_INVOCATION_UNSUPPORTED；Feat-Func-026 将收窄为仅禁止活动批次重入 | parent task FAILED；026 落地后按新批次执行 |
+| 后续远程调用（当前） | resume 后 LLM 再次请求远程 | 预期返回 NESTED_REMOTE_INVOCATION_UNSUPPORTED；当前未实现拦截，实际走第二轮远程调用 | 当前无拦截，parent task 继续执行 |
 | Card Cache 全空 | 所有 URL 不可达 | 不安装任何远程 tool | 本地 Agent 正常运行（无远程 tool） |
 
 ---
